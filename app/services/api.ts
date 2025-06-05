@@ -1,4 +1,5 @@
 // API与分析相关的服务函数
+import { containsKanji } from '../utils/helpers';
 
 export interface TokenData {
   word: string;
@@ -38,6 +39,16 @@ function getHeaders(userApiKey?: string): HeadersInit {
   }
   
   return headers;
+}
+
+// 移除不需要的假名标注
+export function cleanTokenFurigana(tokens: TokenData[]): TokenData[] {
+  return tokens.map((t) => {
+    if (t.furigana && (!containsKanji(t.word) || t.furigana === t.word)) {
+      return { ...t, furigana: undefined };
+    }
+    return t;
+  });
 }
 
 // 分析日语句子
@@ -90,7 +101,9 @@ export async function analyzeSentence(
         if (jsonMatch && jsonMatch[1]) {
           responseContent = jsonMatch[1];
         }
-        return JSON.parse(responseContent) as TokenData[];
+        return cleanTokenFurigana(
+          JSON.parse(responseContent) as TokenData[]
+        );
       } catch (e) {
         console.error("Failed to parse JSON from analysis response:", e, responseContent);
         throw new Error('解析结果JSON格式错误');

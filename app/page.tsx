@@ -5,7 +5,7 @@ import InputSection from './components/InputSection';
 import AnalysisResult from './components/AnalysisResult';
 import TranslationSection from './components/TranslationSection';
 import SettingsModal from './components/SettingsModal';
-import { analyzeSentence, TokenData, DEFAULT_API_URL, streamAnalyzeSentence } from './services/api';
+import { analyzeSentence, TokenData, DEFAULT_API_URL, streamAnalyzeSentence, cleanTokenFurigana } from './services/api';
 
 export default function Home() {
   const [currentSentence, setCurrentSentence] = useState('');
@@ -113,7 +113,7 @@ export default function Home() {
             item && typeof item === 'object' && 'word' in item && 'pos' in item
           );
           if (validTokens.length > 0) {
-            return validTokens;
+            return cleanTokenFurigana(validTokens as TokenData[]);
           }
         }
         return [];
