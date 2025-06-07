@@ -203,6 +203,9 @@ export async function streamAnalyzeSentence(
             const data = line.substring(6);
             if (data === '[DONE]') {
               // 最终结果
+              if (updateTimeout) {
+                clearTimeout(updateTimeout);
+              }
               onChunk(rawContent, true);
               return;
             }
@@ -246,6 +249,9 @@ export async function streamAnalyzeSentence(
     }
     
     // 最终结果
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+    }
     onChunk(rawContent, true);
   } catch (error) {
     console.error('Error in stream analyzing sentence:', error);
@@ -337,6 +343,9 @@ export async function streamTranslateText(
             const data = line.substring(6);
             if (data === '[DONE]') {
               // 最终结果
+              if (updateTimeout) {
+                clearTimeout(updateTimeout);
+              }
               onChunk(rawContent, true);
               return;
             }
@@ -380,6 +389,9 @@ export async function streamTranslateText(
     }
     
     // 最终结果
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+    }
     onChunk(rawContent, true);
   } catch (error) {
     console.error('Error in stream translating text:', error);
@@ -613,6 +625,9 @@ export async function streamExtractTextFromImage(
             const data = line.substring(6);
             if (data === '[DONE]') {
               // 最终结果
+              if (updateTimeout) {
+                clearTimeout(updateTimeout);
+              }
               onChunk(rawContent, true);
               return;
             }
@@ -656,9 +671,12 @@ export async function streamExtractTextFromImage(
     }
     
     // 最终结果
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+    }
     onChunk(rawContent, true);
   } catch (error) {
     console.error('Error in stream extracting text from image:', error);
     onError(error instanceof Error ? error : new Error('未知错误'));
   }
-} 
+}
