@@ -194,7 +194,16 @@ export default function AnalysisResult({
 
   return (
     <div className="premium-card">
-      <h2 className="text-2xl font-semibold text-gray-700 mb-4">解析结果</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-semibold text-gray-700">解析结果</h2>
+        <button
+          className="read-aloud-button"
+          title="朗读全文"
+          onClick={() => speakJapanese(originalSentence)}
+        >
+          <i className="fas fa-volume-up"></i>
+        </button>
+      </div>
       <div id="analyzedSentenceOutput" className="text-gray-800 mb-2 p-3 bg-gray-50 rounded-lg min-h-[70px]">
         {tokens.map((token, index) => (
           <span key={index} className="word-unit-wrapper tooltip">
