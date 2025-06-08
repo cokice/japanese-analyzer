@@ -122,7 +122,17 @@ export default function AnalysisResult({
       const blob = await synthesizeSpeech(originalSentence, 'Zephyr', userApiKey);
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
-      setTimeout(() => audioRef.current?.play(), 0);
+      setProgress(0);
+      // 在音频元数据加载完成后开始播放，确保元素已就绪
+      const audio = audioRef.current;
+      if (audio) {
+        const playWhenReady = () => {
+          audio.play();
+          audio.removeEventListener('canplaythrough', playWhenReady);
+        };
+        audio.addEventListener('canplaythrough', playWhenReady);
+        audio.src = url;
+      }
     } catch (error) {
       console.error('Error synthesizing speech:', error);
     } finally {
@@ -174,6 +184,15 @@ export default function AnalysisResult({
       audio.removeEventListener('timeupdate', update);
     };
   }, [audioRef]);
+
+  // 清理创建的音频对象 URL
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
 
   // 词语详情内容组件
   const WordDetailContent = () => (
@@ -257,6 +276,7 @@ export default function AnalysisResult({
                 value={progress}
                 onChange={handleProgressChange}
                 className="tts-progress"
+                aria-label="播放进度"
               />
               <audio ref={audioRef} src={audioUrl} />
             </>
