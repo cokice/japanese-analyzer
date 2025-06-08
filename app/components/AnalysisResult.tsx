@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { containsKanji, getPosClass, posChineseMap, speakJapanese } from '../utils/helpers';
-import { getWordDetails, WordDetail } from '../services/api';
+import { getWordDetails, WordDetail, synthesizeSpeech } from '../services/api';
 
 interface TokenData {
   word: string;
@@ -24,11 +24,15 @@ export default function AnalysisResult({
   userApiKey,
   userApiUrl
 }: AnalysisResultProps) {
-  const [activeWordToken, setActiveWordToken] = useState<HTMLElement | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [wordDetail, setWordDetail] = useState<WordDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState('');
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // 检测设备是否为移动端
   useEffect(() => {
@@ -46,13 +50,16 @@ export default function AnalysisResult({
     };
   }, []);
 
-  const handleWordClick = async (e: React.MouseEvent<HTMLSpanElement>, token: TokenData) => {
+  const handleWordClick = async (
+    e: React.MouseEvent<HTMLSpanElement>,
+    token: TokenData,
+    index: number
+  ) => {
     e.stopPropagation();
-    const target = e.currentTarget as HTMLElement;
-    
+
     // 如果点击的是当前活动词，切换关闭
-    if (activeWordToken === target) {
-      setActiveWordToken(null);
+    if (activeIndex === index) {
+      setActiveIndex(null);
       setWordDetail(null);
       if (isMobile) {
         setIsModalOpen(false);
@@ -61,11 +68,7 @@ export default function AnalysisResult({
     }
 
     // 设置新活动词
-    if (activeWordToken) {
-      activeWordToken.classList.remove('active-word');
-    }
-    target.classList.add('active-word');
-    setActiveWordToken(target);
+    setActiveIndex(index);
     
     // 如果是移动端，先打开模态窗口，显示加载动画
     if (isMobile) {
@@ -103,21 +106,50 @@ export default function AnalysisResult({
   };
 
   const handleCloseWordDetail = useCallback(() => {
-    if (activeWordToken) {
-      activeWordToken.classList.remove('active-word');
-      setActiveWordToken(null);
-    }
+    setActiveIndex(null);
     setWordDetail(null);
     setIsModalOpen(false);
-  }, [activeWordToken]);
+  }, []);
+
+  const handleReadSentence = async () => {
+    if (ttsLoading) return;
+    try {
+      setTtsLoading(true);
+      const blob = await synthesizeSpeech(originalSentence, 'Zephyr', userApiKey);
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+      setProgress(0);
+      // 在音频元数据加载完成后开始播放，确保元素已就绪
+      const audio = audioRef.current;
+      if (audio) {
+        const playWhenReady = () => {
+          audio.play();
+          audio.removeEventListener('canplaythrough', playWhenReady);
+        };
+        audio.addEventListener('canplaythrough', playWhenReady);
+        audio.src = url;
+      }
+    } catch (error) {
+      console.error('Error synthesizing speech:', error);
+    } finally {
+      setTtsLoading(false);
+    }
+  };
+
+  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const value = Number(e.target.value);
+    audio.currentTime = (value / 100) * audio.duration;
+    setProgress(value);
+  };
 
   // 点击外部关闭详情
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        activeWordToken && 
-        wordDetail && 
-        !(activeWordToken.contains(event.target as Node)) && 
+        activeIndex !== null &&
+        wordDetail &&
         !(document.getElementById('wordDetailInlineContainer')?.contains(event.target as Node)) &&
         !(document.getElementById('wordDetailModal')?.contains(event.target as Node)) &&
         !(event.target as Element)?.closest('.word-unit-wrapper')
@@ -130,17 +162,45 @@ export default function AnalysisResult({
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [activeWordToken, wordDetail, handleCloseWordDetail]);
+  }, [activeIndex, wordDetail, handleCloseWordDetail]);
+
+  // 更新音频播放进度
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const update = () => {
+      if (audio.duration) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+      }
+    };
+    audio.addEventListener('timeupdate', update);
+    audio.addEventListener('ended', () => setProgress(0));
+    return () => {
+      audio.removeEventListener('timeupdate', update);
+    };
+  }, [audioRef]);
+
+  // 清理创建的音频对象 URL
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
 
   // 词语详情内容组件
   const WordDetailContent = () => (
     <>
-      <h3 className="text-xl font-semibold text-[#007AFF] mb-3">词汇详解</h3>
+      <h2 id="wordDetailTitle" className="text-xl font-semibold text-[#007AFF] mb-3">
+        词汇详解
+      </h2>
+      <div id="wordDetailDescription">
       <p className="mb-1">
-        <strong>原文:</strong> 
-        <span className="font-mono text-lg text-gray-800">{wordDetail?.originalWord}</span> 
-        <button 
-          className="read-aloud-button" 
+        <strong>原文:</strong>
+        <span className="font-mono text-lg text-gray-800">{wordDetail?.originalWord}</span>
+        <button
+          className="read-aloud-button"
           title="朗读此词汇"
           onClick={() => speakJapanese(wordDetail?.originalWord || '')}
         >
@@ -185,6 +245,7 @@ export default function AnalysisResult({
       <p className="text-gray-700 bg-gray-50 p-3 rounded-md text-base leading-relaxed">
         {wordDetail?.explanation}
       </p>
+      </div>
     </>
   );
 
@@ -194,13 +255,39 @@ export default function AnalysisResult({
 
   return (
     <div className="premium-card">
-      <h2 className="text-2xl font-semibold text-gray-700 mb-4">解析结果</h2>
+      <div className="flex items-center mb-4">
+        <h2 className="text-2xl font-semibold text-gray-700 flex-shrink-0">解析结果</h2>
+        <div className="flex items-center flex-grow ml-2">
+          <button
+            className="read-aloud-button"
+            title="朗读全文"
+            onClick={handleReadSentence}
+            disabled={ttsLoading}
+          >
+            {ttsLoading ? <div className="loading-spinner" style={{ width: 18, height: 18 }}></div> : <i className="fas fa-volume-up"></i>}
+          </button>
+          {audioUrl && (
+            <>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={progress}
+                onChange={handleProgressChange}
+                className="tts-progress"
+                aria-label="播放进度"
+              />
+              <audio ref={audioRef} src={audioUrl} />
+            </>
+          )}
+        </div>
+      </div>
       <div id="analyzedSentenceOutput" className="text-gray-800 mb-2 p-3 bg-gray-50 rounded-lg min-h-[70px]">
         {tokens.map((token, index) => (
-          <span key={index} className="word-unit-wrapper tooltip">
-            <span 
-              className={`word-token ${getPosClass(token.pos)}`}
-              onClick={(e) => handleWordClick(e, token)}
+          <span key={`${token.word}-${index}`} className="word-unit-wrapper tooltip">
+            <span
+              className={`word-token ${getPosClass(token.pos)} ${activeIndex === index ? 'active-word' : ''}`}
+              onClick={(e) => handleWordClick(e, token, index)}
             >
               <span className="ruby-container">
                 <span className="ruby-base">{token.word}</span>
@@ -245,9 +332,16 @@ export default function AnalysisResult({
       
       {/* 移动端的模态窗口详情展示 */}
       {isMobile && isModalOpen && (
-        <div id="wordDetailModal" className="word-detail-modal" onClick={(e) => {
-          if (e.target === e.currentTarget) handleCloseWordDetail();
-        }}>
+        <div
+          id="wordDetailModal"
+          className="word-detail-modal"
+          role="dialog"
+          aria-labelledby="wordDetailTitle"
+          aria-describedby="wordDetailDescription"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCloseWordDetail();
+          }}
+        >
           <div className="word-detail-modal-content">
             <button 
               className="modal-close-button" 
