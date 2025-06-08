@@ -691,3 +691,8 @@ html.safari #japaneseInput {
     line-height: 26px;
   }
 }
+
+.tts-progress {
+  flex-grow: 1;
+  margin-left: 0.5rem;
+}

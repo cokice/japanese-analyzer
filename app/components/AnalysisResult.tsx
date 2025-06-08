@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { containsKanji, getPosClass, posChineseMap, speakJapanese } from '../utils/helpers';
-import { getWordDetails, WordDetail } from '../services/api';
+import { getWordDetails, WordDetail, synthesizeSpeech } from '../services/api';
 
 interface TokenData {
   word: string;
@@ -29,6 +29,10 @@ export default function AnalysisResult({
   const [isLoading, setIsLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState('');
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // 检测设备是否为移动端
   useEffect(() => {
@@ -111,6 +115,29 @@ export default function AnalysisResult({
     setIsModalOpen(false);
   }, [activeWordToken]);
 
+  const handleReadSentence = async () => {
+    if (ttsLoading) return;
+    try {
+      setTtsLoading(true);
+      const blob = await synthesizeSpeech(originalSentence, 'Zephyr', userApiKey);
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+      setTimeout(() => audioRef.current?.play(), 0);
+    } catch (error) {
+      console.error('Error synthesizing speech:', error);
+    } finally {
+      setTtsLoading(false);
+    }
+  };
+
+  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const value = Number(e.target.value);
+    audio.currentTime = (value / 100) * audio.duration;
+    setProgress(value);
+  };
+
   // 点击外部关闭详情
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -131,6 +158,22 @@ export default function AnalysisResult({
       document.removeEventListener('click', handleClickOutside);
     };
   }, [activeWordToken, wordDetail, handleCloseWordDetail]);
+
+  // 更新音频播放进度
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const update = () => {
+      if (audio.duration) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+      }
+    };
+    audio.addEventListener('timeupdate', update);
+    audio.addEventListener('ended', () => setProgress(0));
+    return () => {
+      audio.removeEventListener('timeupdate', update);
+    };
+  }, [audioRef]);
 
   // 词语详情内容组件
   const WordDetailContent = () => (
@@ -194,15 +237,31 @@ export default function AnalysisResult({
 
   return (
     <div className="premium-card">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold text-gray-700">解析结果</h2>
-        <button
-          className="read-aloud-button"
-          title="朗读全文"
-          onClick={() => speakJapanese(originalSentence)}
-        >
-          <i className="fas fa-volume-up"></i>
-        </button>
+      <div className="flex items-center mb-4">
+        <h2 className="text-2xl font-semibold text-gray-700 flex-shrink-0">解析结果</h2>
+        <div className="flex items-center flex-grow ml-2">
+          <button
+            className="read-aloud-button"
+            title="朗读全文"
+            onClick={handleReadSentence}
+            disabled={ttsLoading}
+          >
+            {ttsLoading ? <div className="loading-spinner" style={{ width: 18, height: 18 }}></div> : <i className="fas fa-volume-up"></i>}
+          </button>
+          {audioUrl && (
+            <>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={progress}
+                onChange={handleProgressChange}
+                className="tts-progress"
+              />
+              <audio ref={audioRef} src={audioUrl} />
+            </>
+          )}
+        </div>
       </div>
       <div id="analyzedSentenceOutput" className="text-gray-800 mb-2 p-3 bg-gray-50 rounded-lg min-h-[70px]">
         {tokens.map((token, index) => (

@@ -20,6 +20,7 @@ export interface WordDetail {
 // 默认API地址 - 使用本地API路由
 export const DEFAULT_API_URL = "/api";
 export const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
+export const TTS_MODEL_NAME = "gemini-2.5-flash-preview-tts";
 
 // 获取API请求URL
 export function getApiEndpoint(endpoint: string): string {
@@ -525,6 +526,34 @@ export async function extractTextFromImage(
     console.error('Error extracting text from image:', error);
     throw error;
   }
+}
+
+// 合成语音
+export async function synthesizeSpeech(
+  text: string,
+  voice = 'Zephyr',
+  userApiKey?: string
+): Promise<Blob> {
+  const apiUrl = getApiEndpoint('/tts');
+  const headers = getHeaders(userApiKey);
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ text, voice, model: TTS_MODEL_NAME })
+  });
+
+  if (!response.ok) {
+    let errorData;
+    try {
+      errorData = await response.json();
+    } catch {
+      errorData = { message: 'TTS 请求失败' };
+    }
+    throw new Error(`TTS失败：${errorData.error?.message || errorData.message || response.statusText}`);
+  }
+
+  return await response.blob();
 }
 
 // 从图片提取文本 - 流式版本
