@@ -16,13 +16,25 @@ input, textarea {
   color: rgba(0, 0, 0, 0.4) !important;
   opacity: 0.6 !important;
 }
+.dark ::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+  opacity: 0.7 !important;
+}
 ::-webkit-input-placeholder {
   color: rgba(0, 0, 0, 0.4) !important;
   opacity: 0.6 !important;
 }
+.dark ::-webkit-input-placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+  opacity: 0.7 !important;
+}
 :-ms-input-placeholder {
   color: rgba(0, 0, 0, 0.4) !important;
   opacity: 0.6 !important;
+}
+.dark :-ms-input-placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+  opacity: 0.7 !important;
 }
 
 /* 移动端输入框优化 */
@@ -83,6 +95,13 @@ body {
 
 .dark .premium-card {
   background-color: #1f2937;
+}
+
+.dark input,
+.dark textarea {
+  background-color: #374151;
+  color: #ededed;
+  border-color: #4b5563;
 }
 
 @media (max-width: 640px) {
@@ -626,9 +645,9 @@ rb {
     
     /* Safari输入修复 - 关键修复 */
     textarea, input[type="text"] {
-      -webkit-text-fill-color: #000 !important;
+      -webkit-text-fill-color: var(--foreground) !important;
       opacity: 1 !important;
-      color: #000 !important;
+      color: var(--foreground) !important;
       -webkit-appearance: none;
       appearance: none;
       font-size: 16px !important;
@@ -641,21 +660,21 @@ rb {
 }
 
 /* 日语字体通用兼容设置 */
-textarea, 
-input[type="text"], 
+textarea,
+input[type="text"],
 .japanese-text,
 #japaneseInput {
   font-family: 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', sans-serif;
   -webkit-font-smoothing: antialiased;
-  color: #000;
+  color: var(--foreground);
   caret-color: #007AFF; /* 确保光标颜色可见 */
 }
 
 /* Safari专用类 */
 html.safari textarea,
 html.safari input[type="text"] {
-  -webkit-text-fill-color: black !important;
-  color: black !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+  color: var(--foreground) !important;
   opacity: 1 !important;
 }
 
@@ -666,12 +685,18 @@ html.safari input::placeholder {
   opacity: 0.6 !important;
 }
 
+.dark html.safari textarea::placeholder,
+.dark html.safari input::placeholder {
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.6) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
 html.safari #japaneseInput {
   font-family: -apple-system, 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif !important;
   -webkit-font-smoothing: antialiased;
-  -webkit-text-fill-color: black !important;
-  color: black !important;
-  background-color: white !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+  color: var(--foreground) !important;
+  background-color: transparent !important;
 }
 
 /* 词语详情模态窗口样式 */

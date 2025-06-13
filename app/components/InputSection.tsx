@@ -11,6 +11,10 @@ const placeholderStyle = `
     color: rgba(0, 0, 0, 0.4) !important;
     opacity: 0.6 !important;
   }
+  .dark #japaneseInput::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;
+    opacity: 0.7 !important;
+  }
 `;
 
 interface InputSectionProps {
@@ -264,17 +268,17 @@ export default function InputSection({
       <style dangerouslySetInnerHTML={{ __html: placeholderStyle }} />
       <h2 className="text-xl sm:text-2xl font-semibold text-gray-700 mb-3 sm:mb-4">输入日语句子</h2>
       <div className="relative">
-        <textarea 
-          id="japaneseInput" 
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF] transition duration-150 ease-in-out resize-none japanese-text" 
-          rows={4} 
+        <textarea
+          id="japaneseInput"
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF] transition duration-150 ease-in-out resize-none japanese-text dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+          rows={4}
           placeholder="例：今日はいい天気ですね。或上传图片识别文字。"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          style={{ 
+          style={{
             fontSize: '16px', // 防止移动设备缩放
-            WebkitTextFillColor: 'black', // Safari特定修复
-            color: 'black',
+            WebkitTextFillColor: 'var(--foreground)', // Safari特定修复
+            color: 'var(--foreground)',
             fontFamily: "'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif"
           }}
           autoCapitalize="none"

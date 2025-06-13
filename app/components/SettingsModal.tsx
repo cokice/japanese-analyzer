@@ -138,10 +138,10 @@ export default function SettingsModal({
             <label htmlFor="modalApiKeyInput" className="block text-sm font-medium text-gray-700 mb-1">
               自定义 API 密钥 (可选):
             </label>
-            <input 
-              type="password" 
-              id="modalApiKeyInput" 
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" 
+            <input
+              type="password"
+              id="modalApiKeyInput"
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
               placeholder="输入您的 API 密钥"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
@@ -152,10 +152,10 @@ export default function SettingsModal({
             <label htmlFor="modalApiUrlInput" className="block text-sm font-medium text-gray-700 mb-1">
               自定义 API URL (可选):
             </label>
-            <input 
-              type="text" 
-              id="modalApiUrlInput" 
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" 
+            <input
+              type="text"
+              id="modalApiUrlInput"
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
               placeholder="例如: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
