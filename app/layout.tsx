@@ -29,6 +29,19 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
+        {/* 根据本地存储或系统偏好初始化主题 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(() => {
+              try {
+                const t = localStorage.getItem('theme');
+                if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                  document.documentElement.classList.add('dark');
+                }
+              } catch (_) {}
+            })();`,
+          }}
+        />
         {/* Safari输入修复脚本 */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {

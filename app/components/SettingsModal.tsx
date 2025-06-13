@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaCog, FaGithub, FaSave } from 'react-icons/fa';
+import { FaCog, FaGithub, FaSave, FaMoon, FaSun } from 'react-icons/fa';
 
 interface SettingsModalProps {
   userApiKey: string;
@@ -27,12 +27,24 @@ export default function SettingsModal({
   const [streamEnabled, setStreamEnabled] = useState(useStream);
   const [status, setStatus] = useState('');
   const [statusClass, setStatusClass] = useState('');
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     setApiKey(userApiKey);
     setApiUrl(userApiUrl === defaultApiUrl ? '' : userApiUrl);
     setStreamEnabled(useStream);
   }, [userApiKey, userApiUrl, defaultApiUrl, useStream]);
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('theme');
+    const isDark = storedTheme === 'dark';
+    setDarkMode(isDark);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
 
   const closeModal = () => {
     onModalClose();
@@ -59,6 +71,18 @@ export default function SettingsModal({
     setTimeout(() => closeModal(), 1500);
   };
 
+  const toggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
   return (
     <>
       <button
@@ -80,6 +104,15 @@ export default function SettingsModal({
       >
         <FaGithub />
       </a>
+
+      <button
+        id="themeToggleButton"
+        title="切换主题"
+        onClick={toggleDarkMode}
+        className="fixed top-6 right-36 z-1000 bg-white text-gray-800 border border-gray-800 rounded-full w-10 h-10 flex items-center justify-center shadow-md hover:bg-gray-50 transition-all"
+      >
+        {darkMode ? <FaSun /> : <FaMoon />}
+      </button>
 
       <div 
         id="settingsModal" 
@@ -105,10 +138,10 @@ export default function SettingsModal({
             <label htmlFor="modalApiKeyInput" className="block text-sm font-medium text-gray-700 mb-1">
               自定义 API 密钥 (可选):
             </label>
-            <input 
-              type="password" 
-              id="modalApiKeyInput" 
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" 
+            <input
+              type="password"
+              id="modalApiKeyInput"
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
               placeholder="输入您的 API 密钥"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
@@ -119,10 +152,10 @@ export default function SettingsModal({
             <label htmlFor="modalApiUrlInput" className="block text-sm font-medium text-gray-700 mb-1">
               自定义 API URL (可选):
             </label>
-            <input 
-              type="text" 
-              id="modalApiUrlInput" 
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" 
+            <input
+              type="text"
+              id="modalApiUrlInput"
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
               placeholder="例如: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
