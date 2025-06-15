@@ -27,14 +27,6 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
-        {/* 预连接谷歌字体CDN以提高加载速度 */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* 使用CDN直接加载Noto Sans JP字体，避免Vercel构建问题 */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap"
-          rel="stylesheet"
-        />
         {/* 主题初始化脚本 - 防止闪烁 */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
@@ -80,7 +72,6 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
         </ThemeProvider>
-        <Script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js" strategy="afterInteractive" />
       </body>
     </html>
   );
