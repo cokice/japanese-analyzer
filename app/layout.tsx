@@ -1,14 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-import Script from "next/script";
 import { ThemeProvider } from "./contexts/ThemeContext";
-
-// 使用Inter字体
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: "日本語文章解析器 - AI驱动",
@@ -68,7 +60,7 @@ export default function RootLayout({
           })();
         `}} />
       </head>
-      <body className={`${inter.className} antialiased bg-gray-50 dark:bg-gray-900 transition-colors duration-200`}>
+      <body className="font-sans antialiased bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
         <ThemeProvider>
           {children}
         </ThemeProvider>
