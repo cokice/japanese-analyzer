@@ -376,30 +376,34 @@ export default function InputSection({
             
             {/* TTS选择下拉菜单 */}
             {showTtsDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-3 min-w-80">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-10 p-3 min-w-80">
                 {/* TTS提供商选择 */}
                 <div className="mb-3">
-                  <label className="block text-xs font-medium text-gray-700 mb-2">语音合成方式</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">语音合成方式</label>
                   <div className="space-y-1">
                     <button
                       className={`w-full px-3 py-2 text-left text-sm rounded-md transition-colors ${
-                        ttsProvider === 'system' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-700 hover:bg-gray-50 border border-gray-200'
+                        ttsProvider === 'system'
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-400/20'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
                       }`}
                       onClick={() => handleTtsProviderSelect('system')}
                     >
                       <FaDesktop className="mr-2 inline" />
                       系统 TTS
-                      <div className="text-xs text-gray-500 mt-1">浏览器内置，速度快</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">浏览器内置，速度快</div>
                     </button>
                     <button
                       className={`w-full px-3 py-2 text-left text-sm rounded-md transition-colors ${
-                        ttsProvider === 'gemini' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-700 hover:bg-gray-50 border border-gray-200'
+                        ttsProvider === 'gemini'
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-400/20'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
                       }`}
                       onClick={() => handleTtsProviderSelect('gemini')}
                     >
                       <FaRobot className="mr-2 inline" />
                       Gemini TTS
-                      <div className="text-xs text-gray-500 mt-1">AI语音，音质自然，速度慢</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">AI语音，音质自然，速度慢</div>
                     </button>
                   </div>
                 </div>
@@ -409,11 +413,11 @@ export default function InputSection({
                   <>
                     {/* 语音选择 */}
                     <div className="mb-3">
-                      <label className="block text-xs font-medium text-gray-700 mb-2">语音选择</label>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">语音选择</label>
                       <select
                         value={selectedVoice}
                         onChange={(e) => handleVoiceChange(e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 appearance-none"
                         style={{
                           backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
                           backgroundPosition: 'right 0.5rem center',
@@ -432,11 +436,11 @@ export default function InputSection({
 
                     {/* 语音风格 */}
                     <div className="mb-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-2">语音风格</label>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">语音风格</label>
                       <select
                         value={selectedStyle}
                         onChange={(e) => handleStyleChange(e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 appearance-none"
                         style={{
                           backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
                           backgroundPosition: 'right 0.5rem center',

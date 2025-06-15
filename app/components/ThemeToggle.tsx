@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { FaSun, FaMoon, FaDesktop } from 'react-icons/fa';
 
 export default function ThemeToggle() {
   const { theme, actualTheme, setTheme } = useTheme();
@@ -41,7 +42,7 @@ export default function ThemeToggle() {
         onClick={() => setIsOpen(!isOpen)}
         title={`切换主题 - ${getThemeLabel()}`}
       >
-        <i className={`fas ${actualTheme === 'dark' ? 'fa-moon' : 'fa-sun'} text-lg`}></i>
+        {actualTheme === 'dark' ? <FaMoon className="text-lg" /> : <FaSun className="text-lg" />}
       </button>
 
       {isOpen && (
@@ -57,7 +58,7 @@ export default function ThemeToggle() {
                 : 'text-gray-700 dark:text-gray-300'
             }`}
           >
-            <i className="fas fa-sun text-base"></i>
+            <FaSun className="text-base" />
             <span className="text-sm font-medium">亮色模式</span>
           </button>
           
@@ -72,7 +73,7 @@ export default function ThemeToggle() {
                 : 'text-gray-700 dark:text-gray-300'
             }`}
           >
-            <i className="fas fa-moon text-base"></i>
+            <FaMoon className="text-base" />
             <span className="text-sm font-medium">暗色模式</span>
           </button>
           
@@ -87,7 +88,7 @@ export default function ThemeToggle() {
                 : 'text-gray-700 dark:text-gray-300'
             }`}
           >
-            <i className="fas fa-desktop text-base"></i>
+            <FaDesktop className="text-base" />
             <span className="text-sm font-medium">跟随系统</span>
           </button>
           
