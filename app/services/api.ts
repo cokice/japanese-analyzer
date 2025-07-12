@@ -271,12 +271,10 @@ export async function streamTranslateText(
       method: 'POST',
       headers,
       body: JSON.stringify({ 
-        text: japaneseText,
-        model: MODEL_NAME,
-        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined,
-        stream: true
-      })
-    });
+        prompt: `请将以下日文文本完整地翻译成中文。请确保翻译的流畅性和准确性，不要遗漏任何信息，也不要添加与翻译无关的额外解释或评论。
+
+待翻译文本：
+"${japaneseText}"`,        model: MODEL_NAME,        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined,        stream: true      })    });
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -462,10 +460,10 @@ export async function translateText(
       method: 'POST',
       headers,
       body: JSON.stringify({ 
-        text: japaneseText,
-        model: MODEL_NAME,
-        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined
-      })
+        prompt: `请将以下日文文本完整地翻译成中文。请确保翻译的流畅性和准确性，不要遗漏任何信息，也不要添加与翻译无关的额外解释或评论。
+
+待翻译文本：
+"${japaneseText}"`,        model: MODEL_NAME,        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined      })
     });
 
     if (!response.ok) {

@@ -4,7 +4,8 @@
 @tailwind utilities;
 
 /* 重置Safari特定的输入样式 */
-input, textarea {
+input,
+textarea {
   -webkit-appearance: none !important;
   appearance: none !important;
   border-radius: 0;
@@ -34,10 +35,29 @@ input, textarea {
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 240, 242, 245;
-  --background-end-rgb: 240, 242, 245;
+  --foreground: #111827;
+  --foreground-rgb: 17, 24, 39;
+  --background-start-rgb: 249, 250, 251;
+  --background-end-rgb: 249, 250, 251;
+
+  /* 颜色变量 */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-tertiary: #6b7280;
+  --text-link: #16a34a;
+  --text-link-hover: #15803d;
+
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+
+  --button-bg: #f3f4f6;
+  --button-text: #374151;
+  --button-hover-bg: #e5e7eb;
+  --button-hover-text: #111827;
 }
 
 @theme inline {
@@ -58,17 +78,16 @@ input, textarea {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Inter, 'Noto Sans JP', sans-serif;
-  color: rgb(var(--foreground-rgb));
-  background-color: #f0f2f5;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: Inter, "Noto Sans JP", sans-serif;
 }
 
 .premium-card {
-  background-color: white;
+  background-color: var(--bg-primary);
   border-radius: 12px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
   padding: 2rem 1.5rem; /* 较小的水平内边距，适应移动设备 */
   margin-bottom: 1.5rem;
 }
@@ -90,35 +109,35 @@ body {
 }
 
 .premium-button-primary {
-  background-color: #007AFF; /* Apple Blue */
+  background-color: var(--text-link); /* Apple Blue */
   color: white;
 }
 
 .premium-button-primary:hover {
-  background-color: #005ecb;
+  background-color: var(--text-link-hover);
 }
 
-.premium-button-secondary { 
-  background-color: #5856D6; /* Apple Indigo */
+.premium-button-secondary {
+  background-color: #f97316; /* Orange */
   color: white;
 }
 
 .premium-button-secondary:hover {
-  background-color: #3938AC;
+  background-color: #ea580c;
 }
 
 .premium-button-outlined {
   background-color: transparent;
-  color: #007AFF;
-  border: 1px solid #007AFF;
+  color: var(--text-link);
+  border: 1px solid var(--text-link);
 }
 
 .premium-button-outlined:hover {
-  background-color: rgba(0, 122, 255, 0.1);
+  background-color: rgba(22, 163, 74, 0.1);
 }
 
 .premium-button-success {
-  background-color: #34C759; /* Apple Green */
+  background-color: #34c759; /* Apple Green */
   color: white;
 }
 
@@ -143,25 +162,25 @@ body {
   }
 }
 
-.word-unit-wrapper { 
-  display: inline-flex; 
+.word-unit-wrapper {
+  display: inline-flex;
   flex-direction: column;
-  align-items: center; 
-  margin: 0 2px; 
+  align-items: center;
+  margin: 0 2px;
   padding: 0;
-  vertical-align: baseline; 
+  vertical-align: baseline;
   position: relative;
   min-width: 1.2em; /* 确保有最小宽度 */
 }
 
-.word-token { 
-  position: relative; 
-  display: inline-block; 
+.word-token {
+  position: relative;
+  display: inline-block;
   padding: 0 3px; /* 增加水平内边距 */
-  padding-bottom: 2px; 
+  padding-bottom: 2px;
   padding-top: 1.8em; /* 为假名提供足够空间 */
-  font-size: 1.2rem; 
-  color: #2c3e50; 
+  font-size: 1.2rem;
+  color: var(--text-primary);
   cursor: pointer;
   transition: color 0.2s ease;
   line-height: 1.2; /* 略微增加行高 */
@@ -176,62 +195,96 @@ body {
   }
 }
 
-.word-token::after { 
-  content: '';
+.word-token::after {
+  content: "";
   position: absolute;
-  left: 5%; 
-  right: 5%; 
+  left: 5%;
+  right: 5%;
   width: 90%;
-  bottom: -2px; 
-  height: 3px; 
-  background-color: transparent; 
-  border-radius: 1.5px; 
+  bottom: -2px;
+  height: 3px;
+  background-color: transparent;
+  border-radius: 1.5px;
   transition: background-color 0.2s ease;
 }
 
-.word-token.pos-名詞::after { background-color: #89CFF0; }
-.word-token.pos-動詞::after { background-color: #77DD77; }
-.word-token.pos-形容詞::after { background-color: #FFB347; }
-.word-token.pos-副詞::after { background-color: #C3B1E1; }
-.word-token.pos-助詞::after { background-color: #FF6961; }
-.word-token.pos-助動詞::after { background-color: #FF8FAB; }
-.word-token.pos-接続詞::after { background-color: #D2B48C; }
-.word-token.pos-感動詞::after { background-color: #AEC6CF; }
-.word-token.pos-連体詞::after { background-color: #7FFFD4; }
-.word-token.pos-代名詞::after { background-color: #ADD8E6; }
-.word-token.pos-形状詞::after { background-color: #FDFD96; }
-.word-token.pos-記号::after { background-color: transparent !important; }
-.word-token.pos-接頭辞::after { background-color: #DCDCDC; }
-.word-token.pos-接尾辞::after { background-color: #E6E6FA; }
-.word-token.pos-フィラー::after { background-color: #F5F5F5; }
-.word-token.pos-その他::after { background-color: #C0C0C0; }
-.word-token.pos-default::after { background-color: #E0E0E0; }
-
-ruby { 
-  ruby-position: over; 
-  text-align: center; 
+.word-token.pos-名詞::after {
+  background-color: #ff6b6b;
 }
-rt { 
-  font-size: 0.6em; 
-  color: #555;
-  user-select: none; 
-  line-height: 1.1; 
+.word-token.pos-動詞::after {
+  background-color: #2ecc71;
+}
+.word-token.pos-形容詞::after {
+  background-color: #feca57;
+}
+.word-token.pos-副詞::after {
+  background-color: #ff9ff3;
+}
+.word-token.pos-助詞::after {
+  background-color: #9b59b6;
+}
+.word-token.pos-助動詞::after {
+  background-color: #1dd1a1;
+}
+.word-token.pos-接続詞::after {
+  background-color: #ff7f50;
+}
+.word-token.pos-感動詞::after {
+  background-color: #ffb8b8;
+}
+.word-token.pos-連体詞::after {
+  background-color: #f368e0;
+}
+.word-token.pos-代名詞::after {
+  background-color: #f9ca24;
+}
+.word-token.pos-形状詞::after {
+  background-color: #badc58;
+}
+.word-token.pos-��号::after {
+  background-color: transparent !important;
+}
+.word-token.pos-接頭辞::after {
+  background-color: #ced6e0;
+}
+.word-token.pos-接尾辞::after {
+  background-color: #a4b0be;
+}
+.word-token.pos-フィラー::after {
+  background-color: #dfe4ea;
+}
+.word-token.pos-その他::after {
+  background-color: #747d8c;
+}
+.word-token.pos-default::after {
+  background-color: #b2bec3;
+}
+
+ruby {
+  ruby-position: over;
   text-align: center;
 }
-rb { 
-  font-size: 1em; 
-  line-height: 1.2; 
+rt {
+  font-size: 0.6em;
+  color: var(--text-secondary);
+  user-select: none;
+  line-height: 1.1;
+  text-align: center;
+}
+rb {
+  font-size: 1em;
+  line-height: 1.2;
   text-align: center;
 }
 
 .romaji-text {
   font-size: 0.7em;
-  color: #7f8c8d; 
-  margin-top: 3px; 
+  color: var(--text-tertiary);
+  margin-top: 3px;
   line-height: 1.1;
   user-select: none;
-  text-align: center; 
-  width: 100%; 
+  text-align: center;
+  width: 100%;
 }
 
 @media (max-width: 640px) {
@@ -242,7 +295,7 @@ rb {
 
 .loading-spinner {
   border: 4px solid rgba(0, 0, 0, 0.1);
-  border-left-color: #007AFF; 
+  border-left-color: var(--text-link);
   border-radius: 50%;
   width: 24px;
   height: 24px;
@@ -250,20 +303,22 @@ rb {
   margin-right: 8px;
 }
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.word-token.active-word { 
-  font-weight: 600; 
+.word-token.active-word {
+  font-weight: 600;
 }
-.word-token.active-word::after { 
-  height: 4px; 
-  bottom: -3px; 
+.word-token.active-word::after {
+  height: 4px;
+  bottom: -3px;
 }
 
 #wordDetailInlineContainer {
-  background-color: #ffffff;
-  border: 1px solid #e0e0e0;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-primary);
   border-radius: 10px;
   padding: 1.5rem;
   margin-top: 1rem;
@@ -282,8 +337,8 @@ rb {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: #e5e5ea;
-  color: #8e8e93;
+  background: var(--button-bg);
+  color: var(--button-text);
   border: none;
   border-radius: 50%;
   width: 28px;
@@ -295,27 +350,33 @@ rb {
   transition: background-color 0.2s, color 0.2s;
 }
 #wordDetailInlineContainer .detail-close-button:hover {
-  background-color: #d1d1d6;
-  color: #000;
+  background-color: var(--button-hover-bg);
+  color: var(--button-hover-text);
 }
 
 .read-aloud-button {
   background: none;
   border: none;
-  color: #007AFF;
+  color: var(--text-link);
   cursor: pointer;
-  font-size: 1.1em; 
+  font-size: 1.1em;
   padding: 0 0.3em;
   margin-left: 0.3em;
   vertical-align: middle;
 }
 .read-aloud-button:hover {
-  color: #005ecb;
+  color: var(--text-link-hover);
 }
 
 @keyframes slideDownFadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .detail-pos-tag {
@@ -324,13 +385,13 @@ rb {
   font-size: 0.9em;
   font-weight: 600;
   line-height: 1;
-  color: #333; 
+  color: var(--text-primary);
   text-align: center;
   white-space: nowrap;
   vertical-align: baseline;
   border-radius: 0.3rem;
-  border: 1px solid; 
-  background-color: #f8f9fa; 
+  border: 1px solid;
+  background-color: var(--bg-secondary);
 }
 
 @media (max-width: 640px) {
@@ -340,45 +401,79 @@ rb {
   }
 }
 
-.detail-pos-tag.pos-名詞 { border-color: #89CFF0; }
-.detail-pos-tag.pos-動詞 { border-color: #77DD77; }
-.detail-pos-tag.pos-形容詞 { border-color: #FFB347; }
-.detail-pos-tag.pos-副詞 { border-color: #C3B1E1; }
-.detail-pos-tag.pos-助詞 { border-color: #FF6961; }
-.detail-pos-tag.pos-助動詞 { border-color: #FF8FAB; }
-.detail-pos-tag.pos-接続詞 { border-color: #D2B48C; }
-.detail-pos-tag.pos-感動詞 { border-color: #AEC6CF; }
-.detail-pos-tag.pos-連体詞 { border-color: #7FFFD4; }
-.detail-pos-tag.pos-代名詞 { border-color: #ADD8E6; }
-.detail-pos-tag.pos-形状詞 { border-color: #FDFD96; }
-.detail-pos-tag.pos-記号 { border-color: #B2BEB5; }
-.detail-pos-tag.pos-接頭辞 { border-color: #DCDCDC; }
-.detail-pos-tag.pos-接尾辞 { border-color: #E6E6FA; }
-.detail-pos-tag.pos-フィラー { border-color: #F5F5F5; }
-.detail-pos-tag.pos-その他 { border-color: #C0C0C0; }
-.detail-pos-tag.pos-default { border-color: #E0E0E0; }
+.detail-pos-tag.pos-名詞 {
+  border-color: #ff6b6b;
+}
+.detail-pos-tag.pos-動詞 {
+  border-color: #2ecc71;
+}
+.detail-pos-tag.pos-形容詞 {
+  border-color: #feca57;
+}
+.detail-pos-tag.pos-副詞 {
+  border-color: #ff9ff3;
+}
+.detail-pos-tag.pos-助詞 {
+  border-color: #9b59b6;
+}
+.detail-pos-tag.pos-助動詞 {
+  border-color: #1dd1a1;
+}
+.detail-pos-tag.pos-接続詞 {
+  border-color: #ff7f50;
+}
+.detail-pos-tag.pos-感動詞 {
+  border-color: #ffb8b8;
+}
+.detail-pos-tag.pos-連体詞 {
+  border-color: #f368e0;
+}
+.detail-pos-tag.pos-代名詞 {
+  border-color: #f9ca24;
+}
+.detail-pos-tag.pos-形状詞 {
+  border-color: #badc58;
+}
+.detail-pos-tag.pos-記号 {
+  border-color: #b2bec3;
+}
+.detail-pos-tag.pos-接頭辞 {
+  border-color: #ced6e0;
+}
+.detail-pos-tag.pos-接尾辞 {
+  border-color: #a4b0be;
+}
+.detail-pos-tag.pos-フィラー {
+  border-color: #dfe4ea;
+}
+.detail-pos-tag.pos-その他 {
+  border-color: #747d8c;
+}
+.detail-pos-tag.pos-default {
+  border-color: #b2bec3;
+}
 
-.tooltip { 
+.tooltip {
 }
 .tooltip .tooltiptext {
   visibility: hidden;
   width: auto;
-  min-width: 80px; 
-  background-color: rgba(0,0,0,0.8); 
+  min-width: 80px;
+  background-color: rgba(0, 0, 0, 0.8);
   color: #fff;
   text-align: center;
   border-radius: 6px;
-  padding: 5px 8px; 
+  padding: 5px 8px;
   position: absolute;
-  z-index: 20; 
-  bottom: 105%; 
+  z-index: 20;
+  bottom: 105%;
   left: 50%;
   transform: translateX(-50%);
   opacity: 0;
   transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
   font-size: 0.8rem;
   white-space: nowrap;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 640px) {
@@ -393,11 +488,13 @@ rb {
   opacity: 1;
 }
 
-#imageUploadStatus, #settingsStatus { /* Updated ID for settings status */
+#imageUploadStatus,
+#settingsStatus {
+  /* Updated ID for settings status */
   font-size: 0.9em;
-  color: #555;
+  color: var(--text-secondary);
   margin-top: 0.5rem;
-  min-height: 1.2em; 
+  min-height: 1.2em;
 }
 
 /* Settings Modal Styles */
@@ -410,16 +507,16 @@ rb {
   width: 100%;
   height: 100%;
   overflow: auto;
-  background-color: rgba(0,0,0,0.4);
+  background-color: rgba(0, 0, 0, 0.4);
   justify-content: center;
   align-items: center;
 }
 .settings-modal-content {
-  background-color: #fff;
+  background-color: var(--bg-primary);
   margin: auto;
   padding: 25px;
   border-radius: 10px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   width: 90%;
   max-width: 450px; /* Adjusted width */
   animation: fadeInModal 0.3s;
@@ -433,8 +530,14 @@ rb {
 }
 
 @keyframes fadeInModal {
-  from {opacity: 0; transform: translateY(-20px) scale(0.98);}
-  to {opacity: 1; transform: translateY(0) scale(1);}
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 .settings-modal-close-button {
   color: #aaa;
@@ -446,7 +549,7 @@ rb {
 }
 .settings-modal-close-button:hover,
 .settings-modal-close-button:focus {
-  color: black;
+  color: var(--text-primary);
   text-decoration: none;
 }
 #settingsButton {
@@ -454,16 +557,16 @@ rb {
   top: 1.5rem;
   right: 1.5rem;
   z-index: 1000;
-  background-color: white;
-  color: #007AFF;
-  border: 1px solid #007AFF;
+  background-color: var(--bg-primary);
+  color: var(--text-link);
+  border: 1px solid var(--text-link);
   border-radius: 50%;
   width: 40px;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -473,16 +576,16 @@ rb {
   top: 1.5rem;
   right: 5rem;
   z-index: 1000;
-  background-color: white;
-  color: #333;
-  border: 1px solid #333;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--text-primary);
   border-radius: 50%;
   width: 40px;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -509,12 +612,12 @@ rb {
 }
 
 #settingsButton:hover {
-  background-color: #f0f2f5;
+  background-color: var(--bg-secondary);
   transform: scale(1.1);
 }
 
 #githubButton:hover {
-  background-color: #f0f2f5;
+  background-color: var(--bg-secondary);
   transform: scale(1.1);
 }
 
@@ -523,7 +626,7 @@ rb {
   top: 1.5rem;
   right: 8.5rem;
   z-index: 1000;
-  background-color: white;
+  background-color: var(--bg-primary);
   color: #6b7280;
   border: 1px solid #d1d5db;
   border-radius: 50%;
@@ -532,13 +635,13 @@ rb {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 #themeToggleButton:hover {
-  background-color: #f0f2f5;
+  background-color: var(--bg-secondary);
   transform: scale(1.1);
 }
 
@@ -566,7 +669,7 @@ rb {
   transform: translateX(-50%); /* 居中对齐 */
   width: max-content; /* 允许比基本文字更宽 */
   font-size: 0.6em;
-  color: #555;
+  color: var(--text-secondary);
   user-select: none;
   line-height: 1.1;
   text-align: center;
@@ -586,18 +689,23 @@ rb {
 }
 
 /* Safari特定字体修复 */
-@media not all and (min-resolution:.001dpcm) { 
-  @supports (-webkit-appearance:none) {
-    textarea, input, .word-token, .ruby-base {
-      font-family: -apple-system, 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', sans-serif !important;
+@media not all and (min-resolution: 0.001dpcm) {
+  @supports (-webkit-appearance: none) {
+    textarea,
+    input,
+    .word-token,
+    .ruby-base {
+      font-family: -apple-system, "Noto Sans JP", "Hiragino Sans",
+        "Hiragino Kaku Gothic ProN", "ヒラギノ角ゴ ProN W3", sans-serif !important;
       -webkit-font-smoothing: antialiased;
     }
-    
+
     /* Safari输入修复 - 关键修复 */
-    textarea, input[type="text"] {
-      -webkit-text-fill-color: #000 !important;
+    textarea,
+    input[type="text"] {
+      -webkit-text-fill-color: var(--text-primary) !important;
       opacity: 1 !important;
-      color: #000 !important;
+      color: var(--text-primary) !important;
       -webkit-appearance: none;
       appearance: none;
       font-size: 16px !important;
@@ -610,21 +718,22 @@ rb {
 }
 
 /* 日语字体通用兼容设置 */
-textarea, 
-input[type="text"], 
+textarea,
+input[type="text"],
 .japanese-text,
 #japaneseInput {
-  font-family: 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', sans-serif;
+  font-family: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "ヒラギノ角ゴ ProN W3", sans-serif;
   -webkit-font-smoothing: antialiased;
-  color: #000;
-  caret-color: #007AFF; /* 确保光标颜色可见 */
+  color: var(--text-primary);
+  caret-color: var(--text-link); /* 确保光标颜色可见 */
 }
 
 /* Safari专用类 */
 html.safari textarea,
 html.safari input[type="text"] {
-  -webkit-text-fill-color: black !important;
-  color: black !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  color: var(--text-primary) !important;
   opacity: 1 !important;
 }
 
@@ -636,11 +745,12 @@ html.safari input::placeholder {
 }
 
 html.safari #japaneseInput {
-  font-family: -apple-system, 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif !important;
+  font-family: -apple-system, "Noto Sans JP", "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN", sans-serif !important;
   -webkit-font-smoothing: antialiased;
-  -webkit-text-fill-color: black !important;
-  color: black !important;
-  background-color: white !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+  background-color: var(--bg-primary) !important;
 }
 
 /* 词语详情模态窗口样式 */
@@ -653,24 +763,23 @@ html.safari #japaneseInput {
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-end; /* Aligns content to the bottom */
   z-index: 1000;
-  padding: 15px;
-  animation: fadeInModal 0.2s ease;
+  animation: fadeInModal 0.3s ease;
   will-change: opacity;
 }
 
 .word-detail-modal-content {
-  background-color: white;
-  border-radius: 12px;
+  background-color: var(--bg-primary);
+  border-radius: 16px 16px 0 0; /* Rounded top corners */
   padding: 20px;
   width: 100%;
   max-width: 500px;
-  max-height: 90vh;
+  height: 75vh; /* Fixed height, 75% of viewport */
   overflow-y: auto;
   position: relative;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  animation: zoomInModal 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+  box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.15); /* Shadow on top */
+  animation: slideUpModal 0.3s cubic-bezier(0.165, 0.84, 0.44, 1); /* New slide-up animation */
   will-change: transform, opacity;
 }
 
@@ -685,12 +794,21 @@ html.safari #japaneseInput {
   }
 }
 
+@keyframes slideUpModal {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 .modal-close-button {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: #e5e5ea;
-  color: #8e8e93;
+  background: var(--button-bg);
+  color: var(--button-text);
   border: none;
   border-radius: 50%;
   width: 30px;
@@ -703,8 +821,8 @@ html.safari #japaneseInput {
 }
 
 .modal-close-button:hover {
-  background-color: #d1d1d6;
-  color: #000;
+  background-color: var(--button-hover-bg);
+  color: var(--button-hover-text);
 }
 
 /* 在较小的设备上调整模态窗口样式 */
@@ -713,7 +831,7 @@ html.safari #japaneseInput {
     padding: 15px;
     border-radius: 10px;
   }
-  
+
   .modal-close-button {
     width: 26px;
     height: 26px;
@@ -731,6 +849,25 @@ html.safari #japaneseInput {
   --foreground-rgb: 249, 250, 251;
   --background-start-rgb: 17, 24, 39;
   --background-end-rgb: 17, 24, 39;
+
+  /* 颜色变量 */
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --text-link: #4ade80;
+  --text-link-hover: #86efac;
+
+  --bg-primary: #1f2937;
+  --bg-secondary: #111827;
+  --bg-tertiary: #374151;
+
+  --border-primary: #374151;
+  --border-secondary: #4b5563;
+
+  --button-bg: #374151;
+  --button-text: #9ca3af;
+  --button-hover-bg: #4b5563;
+  --button-hover-text: #f9fafb;
 }
 
 /* 占位符在暗色模式下的样式 - 特别优化 */
@@ -749,137 +886,138 @@ html.safari #japaneseInput {
 
 /* 暗色模式下的premium卡片 - 优化背景和边框 */
 .dark .premium-card {
-  background-color: #1f2937;
-  border: 1px solid #374151;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4),
+    0 4px 6px -2px rgba(0, 0, 0, 0.3);
 }
 
 /* 暗色模式下的按钮 - 优化色彩对比 */
 .dark .premium-button-primary {
-  background-color: #3b82f6;
+  background-color: var(--text-link);
   color: #ffffff;
 }
 
 .dark .premium-button-primary:hover {
-  background-color: #2563eb;
+  background-color: var(--text-link-hover);
 }
 
 .dark .premium-button-secondary {
-  background-color: #7c3aed;
+  background-color: #fb923c; /* Orange */
   color: #ffffff;
 }
 
 .dark .premium-button-secondary:hover {
-  background-color: #6d28d9;
+  background-color: #f97316;
 }
 
 .dark .premium-button-outlined {
-  color: #60a5fa;
-  border-color: #60a5fa;
+  color: var(--text-link);
+  border-color: var(--text-link);
   background-color: transparent;
 }
 
 .dark .premium-button-outlined:hover {
-  background-color: rgba(96, 165, 250, 0.1);
+  background-color: rgba(74, 222, 128, 0.1);
 }
 
 /* 暗色模式下的文本优化 */
 .dark .word-token {
-  color: #e5e7eb;
+  color: var(--text-primary);
 }
 
 /* 暗色模式下的输入框 - 重点优化 */
 .dark input,
 .dark textarea {
-  background-color: #374151 !important;
-  border-color: #4b5563 !important;
-  color: #f9fafb !important;
-  -webkit-text-fill-color: #f9fafb !important;
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
 }
 
 .dark input:focus,
 .dark textarea:focus {
-  border-color: #60a5fa !important;
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
-  background-color: #374151 !important;
+  border-color: var(--text-link) !important;
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1) !important;
+  background-color: var(--bg-tertiary) !important;
 }
 
 /* 日语输入框特殊优化 */
 .dark #japaneseInput {
-  background-color: #374151 !important;
-  border-color: #4b5563 !important;
-  color: #f9fafb !important;
-  -webkit-text-fill-color: #f9fafb !important;
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
 }
 
 .dark #japaneseInput:focus {
-  border-color: #60a5fa !important;
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+  border-color: var(--text-link) !important;
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1) !important;
 }
 
 /* 暗色模式下的工具提示 */
 .dark .tooltip .tooltiptext {
-  background-color: #1f2937;
-  color: #f9fafb;
-  border: 1px solid #374151;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
 }
 
 .dark .tooltip .tooltiptext::after {
-  border-color: #1f2937 transparent transparent transparent;
+  border-color: var(--bg-primary) transparent transparent transparent;
 }
 
 /* 暗色模式下的模态框 */
 .dark .settings-modal-content,
 .dark .word-detail-modal-content {
-  background-color: #1f2937;
-  border: 1px solid #374151;
-  color: #f9fafb;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
 }
 
 /* 暗色模式下的关闭按钮 */
 .dark .settings-modal-close-button,
 .dark .modal-close-button,
 .dark .detail-close-button {
-  color: #9ca3af;
-  background-color: #374151;
+  color: var(--button-text);
+  background-color: var(--button-bg);
 }
 
 .dark .settings-modal-close-button:hover,
 .dark .modal-close-button:hover,
 .dark .detail-close-button:hover {
-  color: #f9fafb;
-  background-color: #4b5563;
+  color: var(--button-hover-text);
+  background-color: var(--button-hover-bg);
 }
 
 /* 暗色模式下的内联详情容器 */
 .dark #wordDetailInlineContainer {
-  background-color: #1f2937;
-  border: 1px solid #374151;
-  color: #f9fafb;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
 }
 
 /* 暗色模式下的选择框和下拉菜单 */
 .dark select {
-  background-color: #374151 !important;
-  border-color: #4b5563 !important;
-  color: #f9fafb !important;
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
 }
 
 .dark select:focus {
-  border-color: #60a5fa !important;
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+  border-color: var(--text-link) !important;
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1) !important;
 }
 
 /* 暗色模式下的ruby假名文本 */
 .dark .ruby-text {
-  color: #9ca3af;
+  color: var(--text-secondary);
   background-color: rgba(31, 41, 55, 0.9);
 }
 
 /* 暗色模式下的加载指示器 */
 .dark .loading-spinner {
-  border-color: #374151;
-  border-top-color: #60a5fa;
+  border-color: var(--border-primary);
+  border-top-color: var(--text-link);
 }
 
 /* 暗色模式下的音频控件 */
@@ -895,7 +1033,7 @@ html.safari #japaneseInput {
 }
 
 .dark ::-webkit-scrollbar-track {
-  background: #374151;
+  background: var(--bg-tertiary);
   border-radius: 4px;
 }
 
@@ -911,10 +1049,10 @@ html.safari #japaneseInput {
 /* Safari专用暗色模式修复 - 重点优化 */
 .dark html.safari textarea,
 .dark html.safari input[type="text"] {
-  -webkit-text-fill-color: #f9fafb !important;
-  color: #f9fafb !important;
-  background-color: #374151 !important;
-  border-color: #4b5563 !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
 }
 
 .dark html.safari textarea::placeholder,
@@ -925,10 +1063,10 @@ html.safari #japaneseInput {
 }
 
 .dark html.safari #japaneseInput {
-  -webkit-text-fill-color: #f9fafb !important;
-  color: #f9fafb !important;
-  background-color: #374151 !important;
-  border-color: #4b5563 !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
 }
 
 /* 暗色模式下的错误和警告状态 */
@@ -941,11 +1079,11 @@ html.safari #japaneseInput {
 }
 
 .dark .bg-blue-50 {
-  background-color: rgba(59, 130, 246, 0.1) !important;
+  background-color: rgba(74, 222, 128, 0.1) !important;
 }
 
 .dark .bg-gray-50 {
-  background-color: #1f2937 !important;
+  background-color: var(--bg-primary) !important;
 }
 
 .dark .border-red-500 {
@@ -957,7 +1095,7 @@ html.safari #japaneseInput {
 }
 
 .dark .border-blue-500 {
-  border-color: #3b82f6 !important;
+  border-color: #4ade80 !important;
 }
 
 .dark .text-red-700 {
@@ -969,7 +1107,7 @@ html.safari #japaneseInput {
 }
 
 .dark .text-blue-700 {
-  color: #93c5fd !important;
+  color: #86efac !important;
 }
 
 /* 通用文本颜色适配 */
@@ -999,23 +1137,23 @@ html.safari #japaneseInput {
 }
 
 .dark #themeToggleButton {
-  background-color: #1f2937;
+  background-color: var(--bg-primary);
   color: #d1d5db;
-  border-color: #4b5563;
+  border-color: var(--border-secondary);
 }
 
 .dark #themeToggleButton:hover {
-  background-color: #374151;
+  background-color: var(--bg-tertiary);
 }
 
 .dark #githubButton {
-  background-color: #1f2937;
+  background-color: var(--bg-primary);
   color: #d1d5db;
-  border-color: #4b5563;
+  border-color: var(--border-secondary);
 }
 
 .dark #githubButton:hover {
-  background-color: #374151;
+  background-color: var(--bg-tertiary);
 }
 
 /* 主题切换下拉菜单定位 */
@@ -1035,19 +1173,324 @@ html.safari #japaneseInput {
 
 /* 暗色模式下的主题切换下拉菜单 */
 .dark #themeToggleDropdown {
-  background-color: #1f2937 !important;
-  border-color: #374151 !important;
-  color: #f9fafb !important;
+  background-color: var(--bg-primary) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
 }
 
 .dark #themeToggleDropdown button {
-  color: #f9fafb !important;
+  color: var(--text-primary) !important;
 }
 
 .dark #themeToggleDropdown button:hover {
-  background-color: #374151 !important;
+  background-color: var(--bg-tertiary) !important;
 }
 
 .dark #themeToggleDropdown .border-t {
-  border-color: #374151 !important;
+  border-color: var(--border-primary) !important;
+}
+
+/* 暗色模式下的词性标签 */
+.dark .detail-pos-tag {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* 暗色模式下的词性下划线 */
+.dark .word-token.pos-名詞::after {
+  background-color: #ff8b8b;
+}
+.dark .word-token.pos-動詞::after {
+  background-color: #33d97b;
+}
+.dark .word-token.pos-形容詞::after {
+  background-color: #fedc77;
+}
+.dark .word-token.pos-副詞::after {
+  background-color: #ffb3f7;
+}
+.dark .word-token.pos-助詞::after {
+  background-color: #b079c6;
+}
+.dark .word-token.pos-助動詞::after {
+  background-color: #2ee6b5;
+}
+.dark .word-token.pos-接続詞::after {
+  background-color: #ff9f70;
+}
+.dark .word-token.pos-感動詞::after {
+  background-color: #ffc8c8;
+}
+.dark .word-token.pos-連体詞::after {
+  background-color: #f788e4;
+}
+.dark .word-token.pos-代名詞::after {
+  background-color: #fbe044;
+}
+.dark .word-token.pos-形状詞::after {
+  background-color: #c9e778;
+}
+.dark .word-token.pos-記号::after {
+  background-color: transparent !important;
+}
+.dark .word-token.pos-接頭辞::after {
+  background-color: #ced6e0;
+}
+.dark .word-token.pos-接尾辞::after {
+  background-color: #a4b0be;
+}
+.dark .word-token.pos-フィラー::after {
+  background-color: #dfe4ea;
+}
+.dark .word-token.pos-その他::after {
+  background-color: #747d8c;
+}
+.dark .word-token.pos-default::after {
+  background-color: #b2bec3;
+}
+
+/* 暗色模式下的罗马音 */
+.dark .romaji-text {
+  color: var(--text-secondary);
+}
+
+/* 暗色模式下的设置按钮 */
+.dark #settingsButton {
+  background-color: var(--bg-primary);
+  color: var(--text-link);
+  border-color: var(--text-link);
+}
+
+.dark #settingsButton:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* 暗色模式下的设置状态文本 */
+.dark #settingsStatus {
+  color: var(--text-secondary);
+}
+
+/* 暗色模式下的图片上传状态文本 */
+.dark #imageUploadStatus {
+  color: var(--text-secondary);
+}
+
+/* 暗色模式下的朗读按钮 */
+.dark .read-aloud-button {
+  color: var(--text-link);
+}
+
+.dark .read-aloud-button:hover {
+  color: var(--text-link-hover);
+}
+
+/* 暗色模式下的字体颜色修复 */
+.dark,
+.dark body {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.dark .word-token {
+  color: var(--text-primary);
+}
+
+.dark rt {
+  color: var(--text-secondary);
+}
+
+.dark .romaji-text {
+  color: var(--text-secondary);
+}
+
+.dark #wordDetailInlineContainer {
+  background-color: var(--bg-primary);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+.dark .detail-pos-tag {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.dark .settings-modal-content {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.dark .settings-modal-close-button {
+  color: var(--text-secondary);
+}
+
+.dark .settings-modal-close-button:hover {
+  color: var(--text-primary);
+}
+
+.dark #settingsButton,
+.dark #githubButton,
+.dark #themeToggleButton {
+  background-color: var(--bg-primary);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+.dark #settingsButton:hover,
+.dark #githubButton:hover,
+.dark #themeToggleButton:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.dark .premium-card {
+  background-color: var(--bg-primary);
+  border-color: var(--border-primary);
+}
+
+.dark .premium-button-outlined {
+  color: var(--text-link);
+  border-color: var(--text-link);
+}
+
+.dark .premium-button-outlined:hover {
+  background-color: rgba(74, 222, 128, 0.1);
+}
+
+.dark .word-detail-modal-content {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.dark .modal-close-button {
+  background: var(--button-bg);
+  color: var(--button-text);
+}
+
+.dark .modal-close-button:hover {
+  background: var(--button-hover-bg);
+  color: var(--button-hover-text);
+}
+
+.dark .detail-close-button {
+  background: var(--button-bg);
+  color: var(--button-text);
+}
+
+.dark .detail-close-button:hover {
+  background: var(--button-hover-bg);
+  color: var(--button-hover-text);
+}
+
+.dark #japaneseInput,
+.dark textarea {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+.dark #japaneseInput::placeholder,
+.dark textarea::placeholder {
+  color: rgba(237, 237, 237, 0.4) !important;
+  -webkit-text-fill-color: rgba(237, 237, 237, 0.4) !important;
+}
+
+.dark html.safari #japaneseInput,
+.dark html.safari textarea {
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+.dark html.safari #japaneseInput::placeholder,
+.dark html.safari textarea::placeholder {
+  -webkit-text-fill-color: rgba(237, 237, 237, 0.4) !important;
+}
+
+.dark .tooltip .tooltiptext {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.dark .ruby-text {
+  color: var(--text-secondary);
+  background-color: rgba(30, 30, 30, 0.8);
+}
+
+.dark .loading-spinner {
+  border-left-color: var(--text-link);
+}
+
+.dark .read-aloud-button {
+  color: var(--text-link);
+}
+
+.dark .read-aloud-button:hover {
+  color: var(--text-link-hover);
+}
+
+.dark .text-gray-700 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-800 {
+  color: #e5e7eb !important;
+}
+
+.dark .border-gray-200 {
+  border-color: #4b5563 !important;
+}
+
+.dark .border-gray-300 {
+  border-color: #6b7280 !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #1f2937 !important;
+}
+
+.dark .text-gray-500 {
+  color: #9ca3af !important;
+}
+
+.dark .text-gray-600 {
+  color: #d1d5db !important;
+}
+
+.dark .text-blue-700 {
+  color: #86efac !important;
+}
+
+.dark .text-yellow-700 {
+  color: #fcd34d !important;
+}
+
+.dark .text-red-700 {
+  color: #fca5a5 !important;
+}
+
+.dark .border-blue-500 {
+  border-color: #4ade80 !important;
+}
+
+.dark .border-yellow-500 {
+  border-color: #f59e0b !important;
+}
+
+.dark .border-red-500 {
+  border-color: #ef4444 !important;
+}
+
+.dark .bg-blue-50 {
+  background-color: rgba(74, 222, 128, 0.1) !important;
+}
+
+.dark .bg-yellow-50 {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+.dark .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* 确保在暗色模式下，所有文本都有一个默认的平滑过渡效果 */
+* {
+  transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
 }
