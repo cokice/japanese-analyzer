@@ -9,7 +9,7 @@ import TopToolbar from './components/TopToolbar';
 import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
 import { analyzeSentence, TokenData, DEFAULT_API_URL, streamAnalyzeSentence } from './services/api';
-import { FaExclamationTriangle, FaExclamationCircle } from 'react-icons/fa';
+import { FaExclamationTriangle, FaExclamationCircle, FaInfoCircle } from 'react-icons/fa';
 
 export default function Home() {
   const [currentSentence, setCurrentSentence] = useState('');
@@ -27,6 +27,7 @@ export default function Home() {
   const [userApiKey, setUserApiKey] = useState('');
   const [userApiUrl, setUserApiUrl] = useState(DEFAULT_API_URL);
   const [ttsProvider, setTtsProvider] = useState<'edge' | 'gemini'>('edge');
+  const hasUserApiKey = userApiKey.trim().length > 0;
   
   // 密码验证相关状态
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -316,6 +317,24 @@ export default function Home() {
       <div className="min-h-screen flex flex-col items-center justify-start pt-16 sm:pt-20 lg:pt-24 p-3 sm:p-4 bg-white dark:bg-gray-900 transition-colors duration-200">
         {/* 顶部工具栏 */}
         <TopToolbar onSettingsClick={() => setIsSettingsModalOpen(true)} />
+
+        {!hasUserApiKey && (
+          <div className="w-full max-w-3xl mb-6 sm:mb-8">
+            <div className="premium-card bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-200 rounded-xl p-4 md:p-5 transition-colors duration-200">
+              <div className="flex items-start">
+                <FaInfoCircle className="text-lg mt-0.5 mr-3 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="md-typescale-title-small">
+                    当前公益免费额度因被频繁滥用暂时停用。
+                  </p>
+                  <p className="md-typescale-body-medium leading-relaxed text-blue-800 dark:text-blue-100 transition-colors duration-200">
+                    欢迎前往 <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="underline">https://aistudio.google.com/</a> 获取免费的 API Key（获取时需要梯子，填入本网站右上角设置后使用无需梯子），即可继续体验全部功能。
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className="w-full max-w-3xl">
           <header className="text-center mb-8 sm:mb-12">
