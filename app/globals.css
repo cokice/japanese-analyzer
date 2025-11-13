@@ -544,7 +544,7 @@ rb {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   animation: slideDownFadeIn 0.3s ease-out;
   position: relative;
-  z-index: 40; /* 确保在输入区域浮动按钮之上 */
+  z-index: 120; /* 确保在输入区域浮动按钮之上 */
 }
 
 @media (max-width: 640px) {
@@ -838,7 +838,7 @@ html.safari #japaneseInput {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 2000;
   padding: 15px;
   animation: fadeInModal 0.2s ease;
   will-change: opacity;

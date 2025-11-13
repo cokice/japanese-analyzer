@@ -352,7 +352,7 @@ export default function InputSection({
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white dark:from-gray-800 via-white/80 dark:via-gray-800/80 to-transparent pointer-events-none rounded-b-3xl"></div>
         
         {/* 左侧工具按钮区域 */}
-        <div className="absolute left-4 bottom-4 flex items-center gap-1 z-10">
+        <div className="absolute left-4 bottom-4 flex items-center gap-1 z-[1]">
           {/* 上传图片按钮 */}
           <button
             id="uploadImageButton"
@@ -497,7 +497,7 @@ export default function InputSection({
         </div>
         
         {/* 右侧按钮组 */}
-        <div className="absolute right-4 bottom-4 flex items-center gap-2">
+        <div className="absolute right-4 bottom-4 flex items-center gap-2 z-[1]">
           {/* 清空按钮 */}
           {inputText.trim() !== '' && (
             <button 

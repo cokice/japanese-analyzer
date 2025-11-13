@@ -79,9 +79,9 @@ export default function TranslationSection({
   return (
     <>
       <div className="mt-6 flex flex-col sm:flex-row sm:justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-        <button 
-          id="translateSentenceButton" 
-          className="premium-button premium-button-primary w-full sm:w-auto"
+        <button
+          id="translateSentenceButton"
+          className="premium-button premium-button-primary w-full sm:w-auto z-0"
           onClick={handleTranslate}
           disabled={isLoading}
         >
