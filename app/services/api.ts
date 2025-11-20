@@ -24,7 +24,7 @@ export interface ChatMessage {
 
 // 默认API地址 - 使用本地API路由
 export const DEFAULT_API_URL = "/api";
-export const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
+export const MODEL_NAME = "gemini-2.5-flash-live";
 
 // 获取API请求URL
 export function getApiEndpoint(endpoint: string): string {
