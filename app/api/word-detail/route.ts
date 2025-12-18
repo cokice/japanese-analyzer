@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // API密钥从环境变量获取，不暴露给前端
 const API_KEY = process.env.API_KEY || '';
 const API_URL = process.env.API_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const MODEL_NAME = "gemini-flash-latest";
+const MODEL_NAME = "gemini-3-flash-preview";
 
 export async function POST(req: NextRequest) {
   try {
