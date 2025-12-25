@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 
 // API密钥从环境变量获取，不暴露给前端
 const API_KEY = process.env.API_KEY || '';
@@ -45,29 +46,27 @@ export async function POST(req: NextRequest) {
 
     const payload = {
       model: model,
-      thinking_level: "minimal",
+      // OpenAI 兼容接口使用 reasoning_effort（会映射到 Gemini 3 thinking level）
+      reasoning_effort: "none",
       messages: [{ role: "user", content: detailPrompt }],
       stream: useStream
     };
 
-    // 发送到实际的AI API
-    const response = await fetch(effectiveApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${effectiveApiKey}`
-      },
-      body: JSON.stringify(payload)
+    const proxied = await proxyOpenAICompatibleRequest({
+      url: effectiveApiUrl,
+      apiKey: effectiveApiKey,
+      payload,
     });
 
-    if (!response.ok) {
-      const data = await response.json();
-      console.error('AI API error (Word Detail):', data);
+    if (!proxied.ok) {
+      console.error('AI API error (Word Detail):', proxied.error.raw ?? proxied.error.message);
       return NextResponse.json(
-        { error: data.error || { message: '获取词汇详情时出错' } },
-        { status: response.status }
+        { error: { message: proxied.error.message } },
+        { status: proxied.status }
       );
     }
+
+    const response = proxied.response;
 
     // 如果是流式请求，直接返回流式响应
     if (useStream && response.body) {

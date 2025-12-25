@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 
 // API密钥从环境变量获取，不暴露给前端
 const API_KEY = process.env.API_KEY || '';
@@ -63,7 +64,8 @@ export async function POST(req: NextRequest) {
     // 构建发送到AI服务的请求
     const payload = {
       model: model,
-      thinking_level: "minimal",
+      // OpenAI 兼容接口使用 reasoning_effort（会映射到 Gemini 3 thinking level）
+      reasoning_effort: "none",
       stream: stream,
       messages: [
         {
@@ -89,30 +91,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 发送到实际的AI API
-    const response = await fetch(effectiveApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${effectiveApiKey}`
-      },
-      body: JSON.stringify(payload)
+    const proxied = await proxyOpenAICompatibleRequest({
+      url: effectiveApiUrl,
+      apiKey: effectiveApiKey,
+      payload,
     });
 
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch {
-        errorData = { message: '无法解析错误响应' };
-      }
-      
-      console.error('AI API error (Image):', errorData);
+    if (!proxied.ok) {
+      console.error('AI API error (Image):', proxied.error.raw ?? proxied.error.message);
       return NextResponse.json(
-        { error: errorData.error || { message: '处理图片请求时出错' } },
-        { status: response.status }
+        { error: { message: proxied.error.message } },
+        { status: proxied.status }
       );
     }
+
+    const response = proxied.response;
 
     // 处理流式响应
     if (stream) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 
 // API密钥从环境变量获取，不暴露给前端
 const API_KEY = process.env.API_KEY || '';
@@ -43,29 +44,27 @@ ${text}
     请仅返回翻译后的中文文本。`;
     const payload = {
       model: model,
-      thinking_level: "minimal",
+      // OpenAI 兼容接口使用 reasoning_effort（会映射到 Gemini 3 thinking level）
+      reasoning_effort: "none",
       messages: [{ role: "user", content: translationPrompt }],
       stream: stream
     };
 
-    // 发送到实际的AI API
-    const response = await fetch(effectiveApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${effectiveApiKey}`
-      },
-      body: JSON.stringify(payload)
+    const proxied = await proxyOpenAICompatibleRequest({
+      url: effectiveApiUrl,
+      apiKey: effectiveApiKey,
+      payload,
     });
 
-    if (!response.ok) {
-      const data = await response.json();
-      console.error('AI API error (Translation):', data);
+    if (!proxied.ok) {
+      console.error('AI API error (Translation):', proxied.error.raw ?? proxied.error.message);
       return NextResponse.json(
-        { error: data.error || { message: '翻译请求时出错' } },
-        { status: response.status }
+        { error: { message: proxied.error.message } },
+        { status: proxied.status }
       );
     }
+
+    const response = proxied.response;
 
     // 如果是流式输出
     if (stream) {
