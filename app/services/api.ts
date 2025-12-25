@@ -24,7 +24,7 @@ export interface ChatMessage {
 
 // 默认API地址 - 使用本地API路由
 export const DEFAULT_API_URL = "/api";
-export const MODEL_NAME = "gemini-flash-latest";
+export const MODEL_NAME = "gemini-3-flash-preview";
 
 // 获取API请求URL
 export function getApiEndpoint(endpoint: string): string {
@@ -206,8 +206,9 @@ export async function streamAnalyzeSentence(
         for (const line of lines) {
           if (line.trim() === '') continue;
           
-          if (line.startsWith('data: ')) {
-            const data = line.substring(6);
+          const trimmedLine = line.trimEnd();
+          if (trimmedLine.startsWith('data:')) {
+            const data = trimmedLine.substring(5).trimStart();
             if (data === '[DONE]') {
               // 最终结果
               onChunk(rawContent, true);
@@ -236,8 +237,9 @@ export async function streamAnalyzeSentence(
     
     // 处理最后可能剩余的数据
     if (buffer.trim() !== '') {
-      if (buffer.startsWith('data: ')) {
-        const data = buffer.substring(6);
+      const trimmedBuffer = buffer.trim();
+      if (trimmedBuffer.startsWith('data:')) {
+        const data = trimmedBuffer.substring(5).trimStart();
         if (data !== '[DONE]') {
           try {
             const parsed = JSON.parse(data);
@@ -340,8 +342,9 @@ export async function streamTranslateText(
         for (const line of lines) {
           if (line.trim() === '') continue;
           
-          if (line.startsWith('data: ')) {
-            const data = line.substring(6);
+          const trimmedLine = line.trimEnd();
+          if (trimmedLine.startsWith('data:')) {
+            const data = trimmedLine.substring(5).trimStart();
             if (data === '[DONE]') {
               // 最终结果
               onChunk(rawContent, true);
@@ -370,8 +373,9 @@ export async function streamTranslateText(
     
     // 处理最后可能剩余的数据
     if (buffer.trim() !== '') {
-      if (buffer.startsWith('data: ')) {
-        const data = buffer.substring(6);
+      const trimmedBuffer = buffer.trim();
+      if (trimmedBuffer.startsWith('data:')) {
+        const data = trimmedBuffer.substring(5).trimStart();
         if (data !== '[DONE]') {
           try {
             const parsed = JSON.parse(data);
@@ -541,8 +545,9 @@ export async function streamWordDetails(
         for (const line of lines) {
           if (line.trim() === '') continue;
           
-          if (line.startsWith('data: ')) {
-            const data = line.substring(6);
+          const trimmedLine = line.trimEnd();
+          if (trimmedLine.startsWith('data:')) {
+            const data = trimmedLine.substring(5).trimStart();
             
             if (data === '[DONE]') {
               done = true;
@@ -741,8 +746,9 @@ export async function streamExtractTextFromImage(
         for (const line of lines) {
           if (line.trim() === '') continue;
           
-          if (line.startsWith('data: ')) {
-            const data = line.substring(6);
+          const trimmedLine = line.trimEnd();
+          if (trimmedLine.startsWith('data:')) {
+            const data = trimmedLine.substring(5).trimStart();
             if (data === '[DONE]') {
               // 最终结果
               onChunk(rawContent, true);
@@ -771,8 +777,9 @@ export async function streamExtractTextFromImage(
     
     // 处理最后可能剩余的数据
     if (buffer.trim() !== '') {
-      if (buffer.startsWith('data: ')) {
-        const data = buffer.substring(6);
+      const trimmedBuffer = buffer.trim();
+      if (trimmedBuffer.startsWith('data:')) {
+        const data = trimmedBuffer.substring(5).trimStart();
         if (data !== '[DONE]') {
           try {
             const parsed = JSON.parse(data);
@@ -905,8 +912,9 @@ export async function streamChat(
         for (const line of lines) {
           if (line.trim() === '') continue;
           
-          if (line.startsWith('data: ')) {
-            const data = line.substring(6);
+          const trimmedLine = line.trimEnd();
+          if (trimmedLine.startsWith('data:')) {
+            const data = trimmedLine.substring(5).trimStart();
             
             if (data === '[DONE]') {
               done = true;
