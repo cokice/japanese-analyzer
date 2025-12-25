@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     // 构建发送到AI服务的请求
     const payload = {
       model: model,
-      reasoning_effort: "none",
+      thinking_level: "minimal",
       stream: stream,
       messages: [
         {

@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
 
     const payload = {
       model: MODEL_NAME,
+      thinking_level: "minimal",
       messages: fullMessages,
       stream: useStream,
       max_tokens: 2000,

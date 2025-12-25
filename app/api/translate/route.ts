@@ -40,10 +40,10 @@ export async function POST(req: NextRequest) {
 原文：
 ${text}
 
-请仅返回翻译后的中文文本。`;
+    请仅返回翻译后的中文文本。`;
     const payload = {
       model: model,
-      reasoning_effort: "none",
+      thinking_level: "minimal",
       messages: [{ role: "user", content: translationPrompt }],
       stream: stream
     };

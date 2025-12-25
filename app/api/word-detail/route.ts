@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     const payload = {
       model: model,
-      reasoning_effort: "none",
+      thinking_level: "minimal",
       messages: [{ role: "user", content: detailPrompt }],
       stream: useStream
     };
