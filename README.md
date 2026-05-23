@@ -4,7 +4,7 @@
 [![Demo](https://img.shields.io/badge/demo-online-blue.svg)](https://japanese-analyzer-demo.vercel.app/)
 
 > **使用 AI大模型 驱动的日语句子深度解析工具**  
->面向中文学习者， 使用 Gemini Flash（`gemini-3-flash-preview`） 模型分析、拆解句法结构、标注词性、呈现发音与释义，让读懂日语不再困难。
+>面向中文学习者， 使用 Gemini Flash（`gemini-3.5-flash`） 模型分析、拆解句法结构、标注词性、呈现发音与释义，让读懂日语不再困难。
 ---
 
 ## ✨ 主要特性
@@ -13,7 +13,7 @@
 | 🔍 **智能句法标注** | 一键输出词性、假名、罗马音与语法成分 |
 | 📚 **多维词义解释** | 使用Gemini大模型提供精准中文释义 |
 | 🖼️ **OCR 图像识别** | 从截图或照片中提取日语文本并立即解析 |
-| 🔈 **原声 TTS 朗读** | 集成 Gemini TTS, 朗读整段日语 |
+| 🔈 **原声 TTS 朗读** | 集成 Gemini TTS（`gemini-3.1-flash-tts-preview`）, 朗读整段日语 |
 | 🔄 **整句翻译** | 双语对照，迅速把握整体含义 |
 | 🌐 **流式响应** | 基于流式 API，交互更丝滑 |
 | 🌙 **暗黑模式** | 支持亮色/暗色/跟随系统三种主题模式 |

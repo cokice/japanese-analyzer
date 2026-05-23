@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // API配置
 const API_KEY = process.env.API_KEY || '';
-const GEMINI_TTS_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
+const GEMINI_TTS_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent';
 const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
-const MODEL_NAME = 'gemini-2.5-flash-preview-tts';
+const MODEL_NAME = 'gemini-3.1-flash-tts-preview';
 
 // Edge TTS 声音配置
 const EDGE_VOICES = {

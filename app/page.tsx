@@ -8,6 +8,7 @@ import SettingsModal from './components/SettingsModal';
 import TopToolbar from './components/TopToolbar';
 import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
+import ThinkingIndicator from './components/ThinkingIndicator';
 import { analyzeSentence, TokenData, DEFAULT_API_URL, streamAnalyzeSentence } from './services/api';
 import { FaExclamationTriangle, FaExclamationCircle } from 'react-icons/fa';
 
@@ -340,10 +341,7 @@ export default function Home() {
 
             {isAnalyzing && (!analyzedTokens.length || !useStream) && (
               <div className="premium-card">
-                <div className="flex items-center justify-center py-6">
-                  <div className="loading-spinner"></div>
-                  <span className="ml-3 md-typescale-body-medium text-gray-600 dark:text-gray-400 transition-colors duration-200">正在解析中，请稍候...</span>
-                </div>
+                <ThinkingIndicator className="py-6" />
               </div>
             )}
 

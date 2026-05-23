@@ -4,7 +4,7 @@ import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 // API密钥从环境变量获取，不暴露给前端
 const API_KEY = process.env.API_KEY || '';
 const API_URL = process.env.API_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const MODEL_NAME = "gemini-3-flash-preview";
+const MODEL_NAME = "gemini-3.5-flash";
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     const payload = {
       model: model,
       // OpenAI 兼容接口使用 reasoning_effort（会映射到 Gemini 3 thinking level）
-      reasoning_effort: "none",
+      reasoning_effort: "minimal",
       messages: [{ role: "user", content: detailPrompt }],
       stream: useStream
     };
