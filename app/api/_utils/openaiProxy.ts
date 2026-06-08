@@ -48,7 +48,7 @@ export async function proxyOpenAICompatibleRequest(options: {
   apiKey: string;
   payload: Record<string, unknown>;
 }): Promise<
-  | { ok: true; response: Response; retriedWithoutThinkingLevel: boolean }
+  | { ok: true; response: Response }
   | { ok: false; status: number; error: ParsedUpstreamError }
 > {
   const headers = {
@@ -64,7 +64,7 @@ export async function proxyOpenAICompatibleRequest(options: {
     });
 
   const first = await doFetch(options.payload);
-  if (first.ok) return { ok: true, response: first, retriedWithoutThinkingLevel: false };
+  if (first.ok) return { ok: true, response: first };
 
   const firstErr = await parseUpstreamError(first);
   return { ok: false, status: first.status, error: firstErr };

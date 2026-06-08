@@ -9,7 +9,15 @@ import TopToolbar from './components/TopToolbar';
 import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
 import ThinkingIndicator from './components/ThinkingIndicator';
-import { analyzeSentence, TokenData, DEFAULT_API_URL, streamAnalyzeSentence } from './services/api';
+import {
+  analyzeSentence,
+  TokenData,
+  DEFAULT_API_URL,
+  DEFAULT_AI_PROVIDER,
+  AIProvider,
+  loadAISettingsFromStorage,
+  streamAnalyzeSentence
+} from './services/api';
 import { FaExclamationTriangle, FaExclamationCircle } from 'react-icons/fa';
 
 export default function Home() {
@@ -25,14 +33,20 @@ export default function Home() {
   
   // API设置相关状态
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [userApiKey, setUserApiKey] = useState('');
-  const [userApiUrl, setUserApiUrl] = useState(DEFAULT_API_URL);
+  const [aiProvider, setAiProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [geminiApiUrl, setGeminiApiUrl] = useState(DEFAULT_API_URL);
+  const [deepseekApiKey, setDeepseekApiKey] = useState('');
+  const [deepseekApiUrl, setDeepseekApiUrl] = useState(DEFAULT_API_URL);
   const [ttsProvider, setTtsProvider] = useState<'edge' | 'gemini'>('edge');
   
   // 密码验证相关状态
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [authError, setAuthError] = useState('');
+
+  const userApiKey = aiProvider === 'gemini' ? geminiApiKey : deepseekApiKey;
+  const userApiUrl = aiProvider === 'gemini' ? geminiApiUrl : deepseekApiUrl;
 
   // 检查是否需要密码验证
   useEffect(() => {
@@ -65,13 +79,15 @@ export default function Home() {
 
   // 从本地存储加载用户API设置
   useEffect(() => {
-    const storedApiKey = localStorage.getItem('userApiKey') || '';
-    const storedApiUrl = localStorage.getItem('userApiUrl') || DEFAULT_API_URL;
+    const storedAISettings = loadAISettingsFromStorage(localStorage);
     const storedUseStream = localStorage.getItem('useStream');
     const storedTtsProvider = (localStorage.getItem('ttsProvider') || 'edge') as 'edge' | 'gemini';
     
-    setUserApiKey(storedApiKey);
-    setUserApiUrl(storedApiUrl);
+    setAiProvider(storedAISettings.aiProvider);
+    setGeminiApiKey(storedAISettings.geminiApiKey);
+    setGeminiApiUrl(storedAISettings.geminiApiUrl);
+    setDeepseekApiKey(storedAISettings.deepseekApiKey);
+    setDeepseekApiUrl(storedAISettings.deepseekApiUrl);
     setTtsProvider(storedTtsProvider);
     
     // 只有当明确设置了值时才更新，否则保持默认值
@@ -81,14 +97,31 @@ export default function Home() {
   }, []);
   
   // 保存用户API设置
-  const handleSaveSettings = (apiKey: string, apiUrl: string, streamEnabled: boolean) => {
-    localStorage.setItem('userApiKey', apiKey);
-    localStorage.setItem('userApiUrl', apiUrl);
-    localStorage.setItem('useStream', streamEnabled.toString());
-    
-    setUserApiKey(apiKey);
-    setUserApiUrl(apiUrl);
-    setUseStream(streamEnabled);
+  const handleSaveSettings = (settings: {
+    aiProvider: AIProvider;
+    geminiApiKey: string;
+    geminiApiUrl: string;
+    deepseekApiKey: string;
+    deepseekApiUrl: string;
+    useStream: boolean;
+  }) => {
+    localStorage.setItem('aiProvider', settings.aiProvider);
+    localStorage.setItem('geminiApiKey', settings.geminiApiKey);
+    localStorage.setItem('geminiApiUrl', settings.geminiApiUrl);
+    localStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
+    localStorage.setItem('deepseekApiUrl', settings.deepseekApiUrl);
+    localStorage.setItem('useStream', settings.useStream.toString());
+
+    // 保留旧键，方便旧版本或其他工具读取 Gemini 配置。
+    localStorage.setItem('userApiKey', settings.geminiApiKey);
+    localStorage.setItem('userApiUrl', settings.geminiApiUrl);
+
+    setAiProvider(settings.aiProvider);
+    setGeminiApiKey(settings.geminiApiKey);
+    setGeminiApiUrl(settings.geminiApiUrl);
+    setDeepseekApiKey(settings.deepseekApiKey);
+    setDeepseekApiUrl(settings.deepseekApiUrl);
+    setUseStream(settings.useStream);
   };
 
   const handleTtsProviderChange = (provider: 'edge' | 'gemini') => {
@@ -273,11 +306,12 @@ export default function Home() {
             setIsAnalyzing(false);
           },
           userApiKey,
-          userApiUrl
+          userApiUrl,
+          aiProvider
         );
       } else {
         // 使用传统API进行分析
-        const tokens = await analyzeSentence(text, userApiKey, userApiUrl);
+        const tokens = await analyzeSentence(text, userApiKey, userApiUrl, aiProvider);
         setAnalyzedTokens(tokens);
         setIsAnalyzing(false);
       }
@@ -333,6 +367,8 @@ export default function Home() {
               onAnalyze={handleAnalyze}
               userApiKey={userApiKey}
               userApiUrl={userApiUrl}
+              aiProvider={aiProvider}
+              geminiApiKey={geminiApiKey}
               useStream={useStream}
               ttsProvider={ttsProvider}
               onTtsProviderChange={handleTtsProviderChange}
@@ -388,6 +424,7 @@ export default function Home() {
                 originalSentence={currentSentence}
                 userApiKey={userApiKey}
                 userApiUrl={userApiUrl}
+                aiProvider={aiProvider}
                 showFurigana={showFurigana}
                 onShowFuriganaChange={setShowFurigana}
                 useStream={useStream}
@@ -399,6 +436,7 @@ export default function Home() {
                 japaneseText={currentSentence}
                 userApiKey={userApiKey}
                 userApiUrl={userApiUrl}
+                aiProvider={aiProvider}
                 useStream={useStream}
                 trigger={translationTrigger}
               />
@@ -413,8 +451,11 @@ export default function Home() {
         
         {/* 设置模态框 */}
         <SettingsModal
-          userApiKey={userApiKey}
-          userApiUrl={userApiUrl}
+          aiProvider={aiProvider}
+          geminiApiKey={geminiApiKey}
+          geminiApiUrl={geminiApiUrl}
+          deepseekApiKey={deepseekApiKey}
+          deepseekApiUrl={deepseekApiUrl}
           defaultApiUrl={DEFAULT_API_URL}
           useStream={useStream}
           onSaveSettings={handleSaveSettings}
@@ -426,6 +467,8 @@ export default function Home() {
       {/* AI聊天助手 - 移到主容器外面 */}
       <AIChat 
         userApiKey={userApiKey}
+        userApiUrl={userApiUrl}
+        aiProvider={aiProvider}
         currentSentence={currentSentence}
       />
     </>

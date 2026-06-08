@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { translateText, streamTranslateText } from '../services/api';
+import type { AIProvider } from '../services/api';
 import ThinkingIndicator from './ThinkingIndicator';
 
 interface TranslationSectionProps {
   japaneseText: string;
   userApiKey?: string;
   userApiUrl?: string;
+  aiProvider: AIProvider;
   useStream?: boolean;
   trigger?: number;
 }
@@ -42,6 +44,7 @@ export default function TranslationSection({
   japaneseText,
   userApiKey,
   userApiUrl,
+  aiProvider,
   useStream = true, // 默认为true，保持向后兼容
   trigger
 }: TranslationSectionProps) {
@@ -76,11 +79,12 @@ export default function TranslationSection({
             setIsLoading(false);
           },
           userApiKey,
-          userApiUrl
+          userApiUrl,
+          aiProvider
         );
       } else {
         // 使用传统API进行翻译
-        const translatedText = await translateText(japaneseText, userApiKey, userApiUrl);
+        const translatedText = await translateText(japaneseText, userApiKey, userApiUrl, aiProvider);
         setTranslation(translatedText);
         setIsLoading(false);
       }

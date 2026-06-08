@@ -22,9 +22,75 @@ export interface ChatMessage {
   content: string;
 }
 
+export type AIProvider = 'gemini' | 'deepseek';
+
+export interface StorageLike {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+}
+
+export interface StoredAISettings {
+  aiProvider: AIProvider;
+  geminiApiKey: string;
+  geminiApiUrl: string;
+  deepseekApiKey: string;
+  deepseekApiUrl: string;
+}
+
 // 默认API地址 - 使用本地API路由
 export const DEFAULT_API_URL = "/api";
-export const MODEL_NAME = "gemini-3.5-flash";
+export const DEFAULT_AI_PROVIDER: AIProvider = 'gemini';
+export const GEMINI_MODEL_NAME = "gemini-3.5-flash";
+export const DEEPSEEK_MODEL_NAME = "deepseek-v4-flash";
+export const MODEL_NAME = GEMINI_MODEL_NAME;
+
+export function normalizeAIProvider(value?: string | null): AIProvider {
+  return value === 'deepseek' ? 'deepseek' : DEFAULT_AI_PROVIDER;
+}
+
+export function getModelName(provider: AIProvider = DEFAULT_AI_PROVIDER): string {
+  return provider === 'deepseek' ? DEEPSEEK_MODEL_NAME : GEMINI_MODEL_NAME;
+}
+
+export function getProviderApiUrl(apiUrl?: string): string | undefined {
+  return apiUrl && apiUrl !== DEFAULT_API_URL ? apiUrl : undefined;
+}
+
+export function getRequestProviderPayload(
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  apiUrl?: string
+) {
+  return {
+    provider,
+    model: getModelName(provider),
+    apiUrl: getProviderApiUrl(apiUrl),
+  };
+}
+
+export function loadAISettingsFromStorage(storage: StorageLike): StoredAISettings {
+  const legacyApiKey = storage.getItem('userApiKey') || '';
+  const legacyApiUrl = storage.getItem('userApiUrl') || DEFAULT_API_URL;
+
+  let geminiApiKey = storage.getItem('geminiApiKey');
+  if (geminiApiKey === null && legacyApiKey) {
+    geminiApiKey = legacyApiKey;
+    storage.setItem('geminiApiKey', legacyApiKey);
+  }
+
+  let geminiApiUrl = storage.getItem('geminiApiUrl');
+  if (geminiApiUrl === null && legacyApiUrl && legacyApiUrl !== DEFAULT_API_URL) {
+    geminiApiUrl = legacyApiUrl;
+    storage.setItem('geminiApiUrl', legacyApiUrl);
+  }
+
+  return {
+    aiProvider: normalizeAIProvider(storage.getItem('aiProvider')),
+    geminiApiKey: geminiApiKey || '',
+    geminiApiUrl: geminiApiUrl || DEFAULT_API_URL,
+    deepseekApiKey: storage.getItem('deepseekApiKey') || '',
+    deepseekApiUrl: storage.getItem('deepseekApiUrl') || DEFAULT_API_URL,
+  };
+}
 
 // 获取API请求URL
 export function getApiEndpoint(endpoint: string): string {
@@ -47,7 +113,8 @@ function getHeaders(userApiKey?: string): HeadersInit {
 export async function analyzeSentence(
   sentence: string,
   userApiKey?: string,
-  userApiUrl?: string
+  userApiUrl?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
 ): Promise<TokenData[]> {
   if (!sentence) {
     throw new Error('缺少句子');
@@ -74,8 +141,7 @@ export async function analyzeSentence(
 确保输出是严格的JSON格式，不包含任何markdown或其他非JSON字符。
 
 待解析句子： "${sentence}"`, 
-        model: MODEL_NAME,
-        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined
+        ...getRequestProviderPayload(provider, userApiUrl)
       })
     });
 
@@ -115,7 +181,8 @@ export async function streamAnalyzeSentence(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   userApiKey?: string,
-  userApiUrl?: string
+  userApiUrl?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
 ): Promise<void> {
   if (!sentence) {
     onError(new Error('缺少句子'));
@@ -143,8 +210,7 @@ export async function streamAnalyzeSentence(
 确保输出是严格的JSON格式，不包含任何markdown或其他非JSON字符。
 
 待解析句子： "${sentence}"`, 
-        model: MODEL_NAME,
-        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined,
+        ...getRequestProviderPayload(provider, userApiUrl),
         stream: true
       })
     });
@@ -268,7 +334,8 @@ export async function streamTranslateText(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   userApiKey?: string,
-  userApiUrl?: string
+  userApiUrl?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/translate');
@@ -279,8 +346,7 @@ export async function streamTranslateText(
       headers,
       body: JSON.stringify({ 
         text: japaneseText,
-        model: MODEL_NAME,
-        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined,
+        ...getRequestProviderPayload(provider, userApiUrl),
         stream: true
       })
     });
@@ -406,7 +472,8 @@ export async function getWordDetails(
   furigana?: string, 
   romaji?: string,
   userApiKey?: string,
-  userApiUrl?: string
+  userApiUrl?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
 ): Promise<WordDetail> {
   try {
     const apiUrl = getApiEndpoint('/word-detail');
@@ -421,8 +488,7 @@ export async function getWordDetails(
         sentence, 
         furigana, 
         romaji,
-        model: MODEL_NAME,
-        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined
+        ...getRequestProviderPayload(provider, userApiUrl)
       })
     });
 
@@ -467,7 +533,8 @@ export async function streamWordDetails(
   furigana?: string,
   romaji?: string,
   userApiKey?: string,
-  userApiUrl?: string
+  userApiUrl?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/word-detail');
@@ -482,8 +549,7 @@ export async function streamWordDetails(
         sentence, 
         furigana, 
         romaji,
-        model: MODEL_NAME,
-        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined,
+        ...getRequestProviderPayload(provider, userApiUrl),
         useStream: true
       })
     });
@@ -586,7 +652,8 @@ export async function streamWordDetails(
 export async function translateText(
   japaneseText: string,
   userApiKey?: string,
-  userApiUrl?: string
+  userApiUrl?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
 ): Promise<string> {
   try {
     const apiUrl = getApiEndpoint('/translate');
@@ -597,8 +664,7 @@ export async function translateText(
       headers,
       body: JSON.stringify({ 
         text: japaneseText,
-        model: MODEL_NAME,
-        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined
+        ...getRequestProviderPayload(provider, userApiUrl)
       })
     });
 
@@ -627,8 +693,13 @@ export async function extractTextFromImage(
   imageData: string, 
   prompt?: string,
   userApiKey?: string,
-  userApiUrl?: string
+  userApiUrl?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
 ): Promise<string> {
+  if (provider === 'deepseek') {
+    throw new Error('DeepSeek 当前不支持图片识别，请切换 Gemini 后重试。');
+  }
+
   try {
     const apiUrl = getApiEndpoint('/image-to-text');
     const headers = getHeaders(userApiKey);
@@ -639,8 +710,7 @@ export async function extractTextFromImage(
       body: JSON.stringify({ 
         imageData, 
         prompt,
-        model: MODEL_NAME,
-        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined
+        ...getRequestProviderPayload(provider, userApiUrl)
       })
     });
 
@@ -671,8 +741,14 @@ export async function streamExtractTextFromImage(
   onError: (error: Error) => void,
   prompt?: string,
   userApiKey?: string,
-  userApiUrl?: string
+  userApiUrl?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
 ): Promise<void> {
+  if (provider === 'deepseek') {
+    onError(new Error('DeepSeek 当前不支持图片识别，请切换 Gemini 后重试。'));
+    return;
+  }
+
   try {
     const apiUrl = getApiEndpoint('/image-to-text');
     const headers = getHeaders(userApiKey);
@@ -683,8 +759,7 @@ export async function streamExtractTextFromImage(
       body: JSON.stringify({ 
         imageData, 
         prompt,
-        model: MODEL_NAME,
-        apiUrl: userApiUrl !== DEFAULT_API_URL ? userApiUrl : undefined,
+        ...getRequestProviderPayload(provider, userApiUrl),
         stream: true
       })
     });
@@ -840,7 +915,9 @@ export async function streamChat(
   messages: ChatMessage[],
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
-  userApiKey?: string
+  userApiKey?: string,
+  userApiUrl?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/chat');
@@ -851,6 +928,7 @@ export async function streamChat(
       headers,
       body: JSON.stringify({ 
         messages,
+        ...getRequestProviderPayload(provider, userApiUrl),
         useStream: true
       })
     });
@@ -957,7 +1035,9 @@ export async function streamChat(
 // 聊天API - 非流式版本
 export async function sendChat(
   messages: ChatMessage[],
-  userApiKey?: string
+  userApiKey?: string,
+  userApiUrl?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
 ): Promise<string> {
   try {
     const apiUrl = getApiEndpoint('/chat');
@@ -968,6 +1048,7 @@ export async function sendChat(
       headers,
       body: JSON.stringify({ 
         messages,
+        ...getRequestProviderPayload(provider, userApiUrl),
         useStream: false
       })
     });
