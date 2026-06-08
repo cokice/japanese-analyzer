@@ -24,6 +24,7 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.next-dev*.log
 
 # env files
 .env*.local
@@ -31,6 +32,7 @@ yarn-error.log*
 .env.development
 .env.test
 .env.production
+deepseekapi.md
 
 # vercel
 .vercel

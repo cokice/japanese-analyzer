@@ -1,37 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
-
-// API密钥从环境变量获取，不暴露给前端
-const API_KEY = process.env.API_KEY || '';
-const API_URL = process.env.API_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const MODEL_NAME = "gemini-3.5-flash";
-
+import { resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
 
 export async function POST(req: NextRequest) {
   try {
     // 解析请求体
     const requestData = await req.json();
+
+    const { prompt, model, apiUrl, stream = false, provider } = requestData;
+    const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
     
-    // 从请求头中获取用户提供的API密钥（如果有）
-    const authHeader = req.headers.get('Authorization');
-    const userApiKey = authHeader ? authHeader.replace('Bearer ', '') : '';
-    
-    // 优先使用用户API密钥，如果没有则使用环境变量中的密钥
-    const effectiveApiKey = userApiKey || API_KEY;
-    
-    if (!effectiveApiKey) {
+    if (!providerConfig.apiKey) {
       return NextResponse.json(
         { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
         { status: 500 }
       );
     }
 
-    // 从请求中提取数据
-    const { prompt, model = MODEL_NAME, apiUrl, stream = false } = requestData;
-    
-    // 优先使用用户提供的API URL，否则使用环境变量中的URL
-    const effectiveApiUrl = apiUrl || API_URL;
-    
     if (!prompt) {
       return NextResponse.json(
         { error: { message: '缺少必要的prompt参数' } },
@@ -40,17 +25,15 @@ export async function POST(req: NextRequest) {
     }
 
     // 构建发送到AI服务的请求
-    const payload = {
-      model: model,
-      // OpenAI 兼容接口使用 reasoning_effort（会映射到 Gemini 3 thinking level）
-      reasoning_effort: "minimal",
+    const payload = withProviderControls(providerConfig.provider, {
+      model: providerConfig.model,
       messages: [{ role: "user", content: prompt }],
       stream: stream,
-    };
+    });
 
     const proxied = await proxyOpenAICompatibleRequest({
-      url: effectiveApiUrl,
-      apiKey: effectiveApiKey,
+      url: providerConfig.apiUrl,
+      apiKey: providerConfig.apiKey,
       payload,
     });
 

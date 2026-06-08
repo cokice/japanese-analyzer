@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { containsKanji, getPosClass, posChineseMap, speakJapanese, generateFuriganaParts, getJapaneseTtsAudioUrl } from '../utils/helpers';
 import { getWordDetails, streamWordDetails, TokenData, WordDetail } from '../services/api';
+import type { AIProvider } from '../services/api';
 import { FaVolumeUp } from 'react-icons/fa';
 
 interface AnalysisResultProps {
@@ -11,6 +12,7 @@ interface AnalysisResultProps {
   originalSentence: string;
   userApiKey?: string;
   userApiUrl?: string;
+  aiProvider: AIProvider;
   showFurigana: boolean;
   onShowFuriganaChange: (show: boolean) => void;
   useStream?: boolean; // 添加流式支持参数
@@ -21,6 +23,7 @@ export default function AnalysisResult({
   originalSentence,
   userApiKey,
   userApiUrl,
+  aiProvider,
   showFurigana,
   onShowFuriganaChange,
   useStream = true // 默认启用流式
@@ -286,7 +289,8 @@ export default function AnalysisResult({
         furigana,
         romaji,
         userApiKey,
-        userApiUrl
+        userApiUrl,
+        aiProvider
       );
     } else {
       // 使用传统查询
@@ -295,7 +299,7 @@ export default function AnalysisResult({
       
       try {
         // 使用服务端API获取词汇详情，传递用户API设置
-        const details = await getWordDetails(word, pos, sentence, furigana, romaji, userApiKey, userApiUrl);
+        const details = await getWordDetails(word, pos, sentence, furigana, romaji, userApiKey, userApiUrl, aiProvider);
         setWordDetail(details);
       } catch (error) {
         console.error('Error fetching word details:', error);

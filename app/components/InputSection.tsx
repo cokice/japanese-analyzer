@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
+import type { AIProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
 import { FaInfoCircle } from 'react-icons/fa';
 
@@ -17,6 +18,8 @@ interface InputSectionProps {
   onAnalyze: (text: string) => void;
   userApiKey?: string;
   userApiUrl?: string;
+  aiProvider: AIProvider;
+  geminiApiKey?: string;
   useStream?: boolean;
   ttsProvider: 'edge' | 'gemini';
   onTtsProviderChange: (provider: 'edge' | 'gemini') => void;
@@ -57,6 +60,8 @@ export default function InputSection({
   onAnalyze,
   userApiKey,
   userApiUrl,
+  aiProvider,
+  geminiApiKey,
   useStream = true, // 默认启用流式输出
   ttsProvider,
   onTtsProviderChange,
@@ -126,7 +131,7 @@ export default function InputSection({
     try {
       if (ttsProvider === 'edge') {
         // 使用 Edge TTS
-                const url = await getJapaneseTtsAudioUrl(inputText, userApiKey, 'edge', { 
+        const url = await getJapaneseTtsAudioUrl(inputText, undefined, 'edge', {
           gender: selectedGender,
           rate: selectedRate,
           pitch: 0
@@ -136,7 +141,7 @@ export default function InputSection({
         // 使用 Gemini TTS，添加风格控制
         const stylePrompt = TTS_STYLES.find(s => s.value === selectedStyle)?.prompt || '';
         const textToSpeak = stylePrompt + inputText;
-        const url = await getJapaneseTtsAudioUrl(textToSpeak, userApiKey, 'gemini', { voice: selectedVoice, pitch: 0 });
+        const url = await getJapaneseTtsAudioUrl(textToSpeak, geminiApiKey, 'gemini', { voice: selectedVoice, pitch: 0 });
         setTtsAudioUrl(url);
       }
     } catch (e) {
@@ -185,6 +190,12 @@ export default function InputSection({
 
   // 处理图片识别的通用函数
   const processImageFile = async (file: File) => {
+    if (aiProvider === 'deepseek') {
+      setUploadStatus('DeepSeek 当前不支持图片识别，请切换 Gemini 后重试。');
+      setUploadStatusClass('mt-2 text-sm text-amber-700');
+      return;
+    }
+
     if (!file.type.startsWith('image/')) {
       setUploadStatus('请上传图片文件！');
       setUploadStatusClass('mt-2 text-sm text-red-600');
@@ -223,11 +234,12 @@ export default function InputSection({
           },
           imageExtractionPrompt,
           userApiKey,
-          userApiUrl
+          userApiUrl,
+          aiProvider
         );
       } else {
         // 使用传统API进行图片文字提取
-        const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, userApiUrl);
+        const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, userApiUrl, aiProvider);
         setInputText(extractedText); 
         setUploadStatus('文字提取成功！请确认后点击"解析句子"。');
         setUploadStatusClass('mt-2 text-sm text-green-600');
@@ -262,6 +274,12 @@ export default function InputSection({
       if (item.type.startsWith('image/')) {
         // 阻止默认粘贴行为
         event.preventDefault();
+
+        if (aiProvider === 'deepseek') {
+          setUploadStatus('DeepSeek 当前不支持图片识别，请切换 Gemini 后重试。');
+          setUploadStatusClass('mt-2 text-sm text-amber-700');
+          break;
+        }
         
         const file = item.getAsFile();
         if (file) {
@@ -358,8 +376,8 @@ export default function InputSection({
             id="uploadImageButton"
             className="material-icon-button material-ripple w-10 h-10 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-all duration-200"
             onClick={() => document.getElementById('imageUploadInput')?.click()}
-            disabled={isImageUploading}
-            title="上传图片提取文字"
+            disabled={isImageUploading || aiProvider === 'deepseek'}
+            title={aiProvider === 'deepseek' ? 'DeepSeek 当前不支持图片识别，请切换 Gemini' : '上传图片提取文字'}
           >
             <i className="fas fa-camera text-lg"></i>
             {isImageUploading && <div className="loading-spinner ml-1" style={{ width: '12px', height: '12px' }}></div>}
@@ -528,6 +546,7 @@ export default function InputSection({
           id="imageUploadInput" 
           accept="image/*" 
           className="hidden" 
+          disabled={aiProvider === 'deepseek'}
           onChange={handleImageUpload}
         />
       </div>
@@ -568,4 +587,4 @@ export default function InputSection({
       )}
     </div>
   );
-} 
+}

@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
-
-// API密钥从环境变量获取，不暴露给前端
-const API_KEY = process.env.API_KEY || '';
-const API_URL = process.env.API_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const MODEL_NAME = "gemini-3.5-flash";
+import { resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
 
 // 配置API路由支持大尺寸请求
 export const config = {
@@ -32,19 +28,20 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const { imageData, prompt, model = MODEL_NAME, apiUrl, stream = false } = parsedBody;
-    
-    // 从请求头中获取用户提供的API密钥（如果有）
-    const authHeader = req.headers.get('Authorization');
-    const userApiKey = authHeader ? authHeader.replace('Bearer ', '') : '';
-    
-    // 优先使用用户API密钥，如果没有则使用环境变量中的密钥
-    const effectiveApiKey = userApiKey || API_KEY;
-    
-    // 优先使用用户提供的API URL，否则使用环境变量中的URL
-    const effectiveApiUrl = apiUrl || API_URL;
-    
-    if (!effectiveApiKey) {
+    const { imageData, prompt, model, apiUrl, stream = false, provider } = parsedBody;
+    const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
+
+    if (
+      providerConfig.provider === 'deepseek' ||
+      (typeof apiUrl === 'string' && apiUrl.toLowerCase().includes('deepseek'))
+    ) {
+      return NextResponse.json(
+        { error: { message: 'DeepSeek 当前不支持图片识别，请切换 Gemini 后重试。' } },
+        { status: 400 }
+      );
+    }
+
+    if (!providerConfig.apiKey) {
       return NextResponse.json(
         { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
         { status: 500 }
@@ -60,12 +57,10 @@ export async function POST(req: NextRequest) {
 
     // 优化提示词，避免换行符
     const defaultPrompt = "请提取并返回这张图片中的所有日文文字。提取的文本应保持原始格式，但不要输出换行符，用空格替代。不要添加任何解释或说明。";
-    
+
     // 构建发送到AI服务的请求
-    const payload = {
-      model: model,
-      // OpenAI 兼容接口使用 reasoning_effort（会映射到 Gemini 3 thinking level）
-      reasoning_effort: "minimal",
+    const payload = withProviderControls(providerConfig.provider, {
+      model: providerConfig.model,
       stream: stream,
       messages: [
         {
@@ -81,7 +76,7 @@ export async function POST(req: NextRequest) {
           ]
         }
       ]
-    };
+    });
 
     // 验证imageData大小
     if (imageData.length > 1024 * 1024 * 8) { // 8MB限制
@@ -92,8 +87,8 @@ export async function POST(req: NextRequest) {
     }
 
     const proxied = await proxyOpenAICompatibleRequest({
-      url: effectiveApiUrl,
-      apiKey: effectiveApiKey,
+      url: providerConfig.apiUrl,
+      apiKey: providerConfig.apiKey,
       payload,
     });
 

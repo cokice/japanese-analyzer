@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { FaComments, FaTimes, FaPaperPlane, FaExpand, FaCompress } from 'react-icons/fa';
 import { streamChat, ChatMessage as APIMessage } from '../services/api';
+import type { AIProvider } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -15,10 +16,12 @@ interface ChatMessage {
 
 interface AIChatProps {
   userApiKey?: string;
+  userApiUrl?: string;
+  aiProvider: AIProvider;
   currentSentence?: string;
 }
 
-export default function AIChat({ userApiKey, currentSentence }: AIChatProps) {
+export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSentence }: AIChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -146,7 +149,9 @@ export default function AIChat({ userApiKey, currentSentence }: AIChatProps) {
           ));
           setIsLoading(false);
         },
-        userApiKey
+        userApiKey,
+        userApiUrl,
+        aiProvider
       );
     } catch (error) {
       console.error('Chat error:', error);

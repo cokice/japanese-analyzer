@@ -1,24 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
-
-// API密钥从环境变量获取，不暴露给前端
-const API_KEY = process.env.API_KEY || '';
-const OPENAI_API_URL = process.env.API_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const MODEL_NAME = "gemini-3.5-flash";
+import { resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
 
 export async function POST(req: NextRequest) {
   try {
     // 解析请求体
-    const { messages, useStream = true } = await req.json();
+    const { messages, useStream = true, provider, apiUrl, model } = await req.json();
+    const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
     
-    // 从请求头中获取用户提供的API密钥（如果有）
-    const authHeader = req.headers.get('Authorization');
-    const userApiKey = authHeader ? authHeader.replace('Bearer ', '') : '';
-    
-    // 优先使用用户API密钥，如果没有则使用环境变量中的密钥
-    const effectiveApiKey = userApiKey || API_KEY;
-    
-    if (!effectiveApiKey) {
+    if (!providerConfig.apiKey) {
       return NextResponse.json(
         { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
         { status: 500 }
@@ -56,18 +46,16 @@ export async function POST(req: NextRequest) {
       ...messages
     ];
 
-    const payload = {
-      model: MODEL_NAME,
-      // OpenAI 兼容接口使用 reasoning_effort（会映射到 Gemini 3 thinking level）
-      reasoning_effort: "minimal",
+    const payload = withProviderControls(providerConfig.provider, {
+      model: providerConfig.model,
       messages: fullMessages,
       stream: useStream,
       max_tokens: 2000
-    };
+    });
 
     const proxied = await proxyOpenAICompatibleRequest({
-      url: OPENAI_API_URL,
-      apiKey: effectiveApiKey,
+      url: providerConfig.apiUrl,
+      apiKey: providerConfig.apiKey,
       payload,
     });
 
