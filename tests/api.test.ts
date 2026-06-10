@@ -6,16 +6,28 @@ import {
   getModelName,
   getRequestProviderPayload,
   loadAISettingsFromStorage,
+  normalizeAIProvider,
   type StorageLike
 } from '../app/services/api';
-import { withProviderControls } from '../app/api/_utils/providerConfig';
+import {
+  DEFAULT_AI_PROVIDER as SERVER_DEFAULT_AI_PROVIDER,
+  normalizeAIProvider as normalizeServerAIProvider,
+  withProviderControls
+} from '../app/api/_utils/providerConfig';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
 assert.strictEqual(getApiEndpoint('chat'), '/api/chat');
 
-assert.strictEqual(DEFAULT_AI_PROVIDER, 'gemini');
-assert.strictEqual(getModelName(), 'gemini-3.5-flash');
+assert.strictEqual(DEFAULT_AI_PROVIDER, 'deepseek');
+assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
+assert.strictEqual(getModelName(), 'deepseek-v4-flash');
+assert.strictEqual(normalizeAIProvider('gemini'), 'gemini');
+assert.strictEqual(normalizeAIProvider('deepseek'), 'deepseek');
+assert.strictEqual(normalizeAIProvider('unknown'), 'deepseek');
+assert.strictEqual(normalizeServerAIProvider('gemini'), 'gemini');
+assert.strictEqual(normalizeServerAIProvider('deepseek'), 'deepseek');
+assert.strictEqual(normalizeServerAIProvider('unknown'), 'deepseek');
 assert.strictEqual(getModelName('deepseek'), 'deepseek-v4-flash');
 
 assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
@@ -28,6 +40,12 @@ assert.deepStrictEqual(getRequestProviderPayload('deepseek', 'https://api.deepse
   provider: 'deepseek',
   model: 'deepseek-v4-flash',
   apiUrl: 'https://api.deepseek.com/chat/completions',
+});
+
+assert.deepStrictEqual(getRequestProviderPayload(), {
+  provider: 'deepseek',
+  model: 'deepseek-v4-flash',
+  apiUrl: undefined,
 });
 
 assert.deepStrictEqual(withProviderControls('gemini', { model: 'gemini-3.5-flash' }), {
@@ -77,7 +95,7 @@ const defaultStorage = new MemoryStorage({
   aiProvider: 'unknown',
 });
 const defaultSettings = loadAISettingsFromStorage(defaultStorage);
-assert.strictEqual(defaultSettings.aiProvider, 'gemini');
+assert.strictEqual(defaultSettings.aiProvider, 'deepseek');
 assert.strictEqual(defaultSettings.geminiApiUrl, DEFAULT_API_URL);
 assert.strictEqual(defaultSettings.deepseekApiUrl, DEFAULT_API_URL);
 

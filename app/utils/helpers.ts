@@ -105,6 +105,48 @@ export function getPosClass(pos: string): string {
   return 'pos-default';
 }
 
+// 新设计：词性分组（6 类颜色）
+export type PosGroup = 'n' | 'v' | 'adj' | 'p' | 'aux' | 'o';
+
+export function getPosGroup(pos: string): PosGroup {
+  const basePos = pos.split('-')[0];
+  switch (basePos) {
+    case '名詞':
+    case '代名詞':
+      return 'n';
+    case '動詞':
+      return 'v';
+    case '形容詞':
+    case '形状詞':
+      return 'adj';
+    case '助詞':
+      return 'p';
+    case '助動詞':
+      return 'aux';
+    default:
+      return 'o';
+  }
+}
+
+// 词性分组对应的 CSS 变量颜色
+export const POS_GROUP_COLORS: Record<PosGroup, string> = {
+  n: 'var(--pos-n)',
+  v: 'var(--pos-v)',
+  adj: 'var(--pos-adj)',
+  p: 'var(--pos-p)',
+  aux: 'var(--pos-aux)',
+  o: 'var(--pos-o)',
+};
+
+export const POS_GROUP_LABELS: Record<PosGroup, string> = {
+  n: '名词',
+  v: '动词',
+  adj: '形容词',
+  p: '助词',
+  aux: '助动词',
+  o: '其他',
+};
+
 // 词性中日对照表
 export const posChineseMap: Record<string, string> = {
   "名詞": "名词", "動詞": "动词", "形容詞": "形容词", "副詞": "副词",

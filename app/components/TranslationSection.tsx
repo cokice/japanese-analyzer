@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { translateText, streamTranslateText } from '../services/api';
 import type { AIProvider } from '../services/api';
 import ThinkingIndicator from './ThinkingIndicator';
+import { Icon } from './Icons';
 
 interface TranslationSectionProps {
   japaneseText: string;
@@ -12,32 +13,6 @@ interface TranslationSectionProps {
   aiProvider: AIProvider;
   useStream?: boolean;
   trigger?: number;
-}
-
-function SentenceTranslateIcon({ isLoading }: { isLoading: boolean }) {
-  if (isLoading) {
-    return (
-      <span className="sentence-translate-icon sentence-translate-icon-loading" aria-hidden="true">
-        <span className="thinking-dot"></span>
-        <span className="thinking-dot"></span>
-        <span className="thinking-dot"></span>
-      </span>
-    );
-  }
-
-  return (
-    <span className="sentence-translate-icon" aria-hidden="true">
-      <svg viewBox="0 0 36 36" role="img" focusable="false">
-        <rect className="translate-icon-card translate-icon-card-back" x="3.75" y="7.25" width="15.5" height="18" rx="4.5" />
-        <rect className="translate-icon-card translate-icon-card-front" x="16.75" y="10.75" width="15.5" height="18" rx="4.5" />
-        <path className="translate-icon-line translate-icon-line-back" d="M8.5 14.5h5.75M8.5 18.25h7.5M8.5 22h4.75" />
-        <path className="translate-icon-line translate-icon-line-front" d="M21.5 17.75h5.75M21.5 21.5H29M21.5 25.25h4.75" />
-        <path className="translate-icon-arrow" d="M14.75 12.25c3.7 0 6.7 2.26 7.85 5.45M22.6 17.7l-3.05-.38 1.55-2.65" />
-        <circle className="translate-icon-dot" cx="11.5" cy="11.75" r="1.65" />
-        <circle className="translate-icon-dot translate-icon-dot-front" cx="24.5" cy="15.25" r="1.65" />
-      </svg>
-    </span>
-  );
 }
 
 export default function TranslationSection({
@@ -51,6 +26,7 @@ export default function TranslationSection({
   const [translation, setTranslation] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   const handleTranslate = async () => {
     if (!japaneseText) {
@@ -95,6 +71,13 @@ export default function TranslationSection({
     }
   };
 
+  const handleCopy = () => {
+    if (!translation) return;
+    navigator.clipboard?.writeText(translation).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  };
+
   const toggleVisibility = () => {
     setIsVisible(!isVisible);
   };
@@ -108,38 +91,54 @@ export default function TranslationSection({
   }, [trigger]);
 
   return (
-    <div id="fullTranslationCard" className="premium-card mt-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-3">
-        <h2 className="text-2xl font-semibold text-gray-700">全文翻译 (中)</h2>
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          <button
-            id="translateSentenceButton"
-            className="sentence-translate-button w-full sm:w-auto"
-            onClick={handleTranslate}
-            disabled={isLoading}
-          >
-            <SentenceTranslateIcon isLoading={isLoading} />
-            <span className="sentence-translate-label">{isLoading ? 'Thinking' : '翻译整句'}</span>
-          </button>
-          <button
-            id="toggleFullTranslationButton"
-            className="premium-button premium-button-outlined text-sm px-3 py-1"
-            onClick={toggleVisibility}
-          >
-            {isVisible ? '隐藏' : '显示'}
-          </button>
-        </div>
+    <section id="fullTranslationCard" className="nd-card">
+      <div className="mb-3 flex items-center">
+        <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>全文翻译（中）</h2>
+        <div className="flex-1" />
+        <button
+          id="translateSentenceButton"
+          className="nd-soft-btn"
+          onClick={handleTranslate}
+          disabled={isLoading}
+        >
+          {Icon.copy}
+          <span>{isLoading ? 'Thinking…' : '翻译整句'}</span>
+        </button>
       </div>
 
       {isVisible && (
-        <div id="fullTranslationOutput" className="text-gray-800 p-3 bg-gray-50 rounded-lg min-h-[50px] whitespace-pre-wrap">
+        <>
           {isLoading && !translation ? (
             <ThinkingIndicator />
           ) : (
-            translation
+            <p
+              className="mb-3.5 mt-1 whitespace-pre-wrap text-[16px] leading-7"
+              style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
+            >
+              {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译整句。</span>}
+            </p>
           )}
-        </div>
+        </>
       )}
-    </div>
+
+      <div className="flex items-center">
+        <div className="flex-1" />
+        <button
+          onClick={handleCopy}
+          className="nd-ghost-btn"
+          style={copied ? { color: 'var(--primary)' } : undefined}
+          disabled={!translation}
+        >
+          {Icon.copy}<span>{copied ? '已复制' : '复制'}</span>
+        </button>
+        <button
+          id="toggleFullTranslationButton"
+          className="nd-ghost-btn"
+          onClick={toggleVisibility}
+        >
+          <span>{isVisible ? '隐藏' : '显示'}</span>
+        </button>
+      </div>
+    </section>
   );
 }

@@ -39,13 +39,13 @@ export interface StoredAISettings {
 
 // 默认API地址 - 使用本地API路由
 export const DEFAULT_API_URL = "/api";
-export const DEFAULT_AI_PROVIDER: AIProvider = 'gemini';
+export const DEFAULT_AI_PROVIDER: AIProvider = 'deepseek';
 export const GEMINI_MODEL_NAME = "gemini-3.5-flash";
 export const DEEPSEEK_MODEL_NAME = "deepseek-v4-flash";
-export const MODEL_NAME = GEMINI_MODEL_NAME;
+export const MODEL_NAME = DEEPSEEK_MODEL_NAME;
 
 export function normalizeAIProvider(value?: string | null): AIProvider {
-  return value === 'deepseek' ? 'deepseek' : DEFAULT_AI_PROVIDER;
+  return value === 'gemini' || value === 'deepseek' ? value : DEFAULT_AI_PROVIDER;
 }
 
 export function getModelName(provider: AIProvider = DEFAULT_AI_PROVIDER): string {
@@ -136,7 +136,8 @@ export async function analyzeSentence(
 3. 合理处理助词，应当与前后词汇适当分离。
 4. 避免过度分词，特别是对于构成一个语法或语义单位的组合。
 5. 对于复合词，如"持って行く"，根据语义和使用习惯确定是作为一个词还是分开处理。
-6. 重要：如果待解析的句子中包含换行符，请在对应的位置输出一个JSON对象：{"word": "\n", "pos": "改行", "furigana": "", "romaji": ""}.
+6. 标点符号不要标记为普通词，不要给标点生成假名或罗马音。为了保留原文显示，若需要输出标点，只能使用 {"word": "标点原文", "pos": "記号", "furigana": "", "romaji": ""}，不能分配名词、助词、其他等词性。包括但不限于：。 、 ， . , ？ ? ！ ! ： : ； ; 「 」 『 』 （ ） ( ) 等。
+7. 重要：如果待解析的句子中包含换行符，请在对应的位置输出一个JSON对象：{"word": "\n", "pos": "改行", "furigana": "", "romaji": ""}.
 
 确保输出是严格的JSON格式，不包含任何markdown或其他非JSON字符。
 
@@ -205,7 +206,8 @@ export async function streamAnalyzeSentence(
 3. 合理处理助词，应当与前后词汇适当分离。
 4. 避免过度分词，特别是对于构成一个语法或语义单位的组合。
 5. 对于复合词，如"持って行く"，根据语义和使用习惯确定是作为一个词还是分开处理。
-6. 重要：如果待解析的句子中包含换行符，请在对应的位置输出一个JSON对象：{"word": "\n", "pos": "改行", "furigana": "", "romaji": ""}.
+6. 标点符号不要标记为普通词，不要给标点生成假名或罗马音。为了保留原文显示，若需要输出标点，只能使用 {"word": "标点原文", "pos": "記号", "furigana": "", "romaji": ""}，不能分配名词、助词、其他等词性。包括但不限于：。 、 ， . , ？ ? ！ ! ： : ； ; 「 」 『 』 （ ） ( ) 等。
+7. 重要：如果待解析的句子中包含换行符，请在对应的位置输出一个JSON对象：{"word": "\n", "pos": "改行", "furigana": "", "romaji": ""}.
 
 确保输出是严格的JSON格式，不包含任何markdown或其他非JSON字符。
 

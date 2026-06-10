@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import InputSection from './components/InputSection';
 import AnalysisResult from './components/AnalysisResult';
 import TranslationSection from './components/TranslationSection';
 import SettingsModal from './components/SettingsModal';
-import TopToolbar from './components/TopToolbar';
+import Header from './components/Header';
 import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
 import ThinkingIndicator from './components/ThinkingIndicator';
+import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
+import { useWordDetail } from './hooks/useWordDetail';
+import { Sakura } from './components/Icons';
 import {
   analyzeSentence,
   TokenData,
@@ -18,7 +22,6 @@ import {
   loadAISettingsFromStorage,
   streamAnalyzeSentence
 } from './services/api';
-import { FaExclamationTriangle, FaExclamationCircle } from 'react-icons/fa';
 
 export default function Home() {
   const [currentSentence, setCurrentSentence] = useState('');
@@ -30,7 +33,8 @@ export default function Home() {
   const [isJsonParseError, setIsJsonParseError] = useState(false);
   const [translationTrigger, setTranslationTrigger] = useState(0);
   const [showFurigana, setShowFurigana] = useState(true);
-  
+  const [showRomaji, setShowRomaji] = useState(true);
+
   // API设置相关状态
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [aiProvider, setAiProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
@@ -39,7 +43,7 @@ export default function Home() {
   const [deepseekApiKey, setDeepseekApiKey] = useState('');
   const [deepseekApiUrl, setDeepseekApiUrl] = useState(DEFAULT_API_URL);
   const [ttsProvider, setTtsProvider] = useState<'edge' | 'gemini'>('edge');
-  
+
   // 密码验证相关状态
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [requiresAuth, setRequiresAuth] = useState(false);
@@ -48,6 +52,28 @@ export default function Home() {
   const userApiKey = aiProvider === 'gemini' ? geminiApiKey : deepseekApiKey;
   const userApiUrl = aiProvider === 'gemini' ? geminiApiUrl : deepseekApiUrl;
 
+  // 选中词汇（右侧详情面板 / 移动端模态）
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [isDesktop, setIsDesktop] = useState(true);
+  const {
+    wordDetail,
+    isLoading: isWordDetailLoading,
+    isStreamLoading: isWordDetailStreaming,
+    streamContent: wordDetailStreamContent,
+    streamError: wordDetailStreamError,
+    fetchWordDetails,
+    clearWordDetail,
+  } = useWordDetail({ userApiKey, userApiUrl, aiProvider, useStream });
+
+  // 侧栏在 lg(1024px) 以上显示，以下使用模态
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsDesktop(mql.matches);
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+
   // 检查是否需要密码验证
   useEffect(() => {
     const checkAuthRequirement = async () => {
@@ -55,7 +81,7 @@ export default function Home() {
         const response = await fetch('/api/auth');
         const data = await response.json();
         setRequiresAuth(data.requiresAuth);
-        
+
         // 如果不需要验证，直接设置为已认证
         if (!data.requiresAuth) {
           setIsAuthenticated(true);
@@ -73,7 +99,7 @@ export default function Home() {
         setIsAuthenticated(true);
       }
     };
-    
+
     checkAuthRequirement();
   }, []);
 
@@ -82,20 +108,20 @@ export default function Home() {
     const storedAISettings = loadAISettingsFromStorage(localStorage);
     const storedUseStream = localStorage.getItem('useStream');
     const storedTtsProvider = (localStorage.getItem('ttsProvider') || 'edge') as 'edge' | 'gemini';
-    
+
     setAiProvider(storedAISettings.aiProvider);
     setGeminiApiKey(storedAISettings.geminiApiKey);
     setGeminiApiUrl(storedAISettings.geminiApiUrl);
     setDeepseekApiKey(storedAISettings.deepseekApiKey);
     setDeepseekApiUrl(storedAISettings.deepseekApiUrl);
     setTtsProvider(storedTtsProvider);
-    
+
     // 只有当明确设置了值时才更新，否则保持默认值
     if (storedUseStream !== null) {
       setUseStream(storedUseStream === 'true');
     }
   }, []);
-  
+
   // 保存用户API设置
   const handleSaveSettings = (settings: {
     aiProvider: AIProvider;
@@ -162,15 +188,15 @@ export default function Home() {
       if (!content || content.trim() === '') {
         return [];
       }
-      
+
       // 尝试整理内容
       let processedContent = content;
-      
+
       // 如果内容包含markdown代码块，尝试提取
       const jsonMatch = content.match(/```json\n([\s\S]*?)(\n```|$)/);
       if (jsonMatch && jsonMatch[1]) {
         processedContent = jsonMatch[1].trim();
-        
+
         // 检查是否是完整的JSON数组
         if (!processedContent.endsWith(']') && processedContent.startsWith('[')) {
           console.log("发现不完整的JSON块，尝试补全");
@@ -196,7 +222,7 @@ export default function Home() {
         // 直接查找JSON数组
         const arrayStart = processedContent.indexOf('[');
         const arrayEnd = processedContent.lastIndexOf(']');
-        
+
         if (arrayStart !== -1 && arrayEnd === -1) {
           // 找到开始但没找到结束，是不完整的
           const lastObjectEnd = processedContent.lastIndexOf('},');
@@ -211,13 +237,13 @@ export default function Home() {
           processedContent = processedContent.substring(arrayStart, arrayEnd + 1);
         }
       }
-      
+
       // 尝试解析处理后的内容
       try {
         const parsed = JSON.parse(processedContent) as TokenData[];
         // 验证数组中的对象是否有必要的字段
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const validTokens = parsed.filter(item => 
+          const validTokens = parsed.filter(item =>
             item && typeof item === 'object' && 'word' in item && 'pos' in item
           );
           if (validTokens.length > 0) {
@@ -256,18 +282,33 @@ export default function Home() {
   const shouldShowAnalyzer = (): boolean => {
     // 如果已经有解析结果，显示
     if (analyzedTokens.length > 0) return true;
-    
+
     // 如果没有内容，不显示
     if (!streamContent) return false;
-    
+
     // 如果有内容但解析失败，看情况
     if (isJsonParseError) {
       // 如果内容已经包含了完整的单词信息，可能是接近完成了
       return streamContent.includes('"word":') && streamContent.includes('"pos":');
     }
-    
+
     return false;
   };
+
+  const handleCloseWordDetail = useCallback(() => {
+    setSelectedIndex(null);
+    clearWordDetail();
+  }, [clearWordDetail]);
+
+  // 点击词汇 → 查询详情
+  const handleWordClick = useCallback((token: TokenData, index: number) => {
+    if (selectedIndex === index) {
+      handleCloseWordDetail();
+      return;
+    }
+    setSelectedIndex(index);
+    fetchWordDetails(token.word, token.pos, currentSentence, token.furigana, token.romaji);
+  }, [selectedIndex, currentSentence, fetchWordDetails, handleCloseWordDetail]);
 
   const handleAnalyze = async (text: string) => {
     if (!text) return;
@@ -279,7 +320,8 @@ export default function Home() {
     setStreamContent('');
     setAnalyzedTokens([]);
     setIsJsonParseError(false);
-    
+    handleCloseWordDetail();
+
     try {
       if (useStream) {
         // 使用流式API进行分析
@@ -323,16 +365,31 @@ export default function Home() {
     }
   };
 
+  const hasWordDetail = selectedIndex !== null
+    && (isWordDetailLoading || isWordDetailStreaming || wordDetail !== null || !!wordDetailStreamError);
+
+  const wordDetailPanel = (
+    <WordDetailPanel
+      wordDetail={wordDetail}
+      isLoading={isWordDetailLoading}
+      isStreamLoading={isWordDetailStreaming}
+      streamError={wordDetailStreamError}
+      streamContent={wordDetailStreamContent}
+      onClose={handleCloseWordDetail}
+    />
+  );
+
   // 如果需要认证但未认证，只显示登录界面
   if (requiresAuth && !isAuthenticated) {
     return (
       <>
-        <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-          <div className="text-center mb-8">
-            <h1 className="md-typescale-display-medium text-gray-800 dark:text-gray-100 transition-colors duration-200 mb-3">
-              日本語<span className="text-primary">文章解析器</span>
+        <div className="flex min-h-screen flex-col items-center justify-center p-4 transition-colors duration-200">
+          <div className="mb-8 text-center">
+            <div className="mb-4 flex justify-center"><Sakura size={48} /></div>
+            <h1 className="mb-3 text-3xl font-semibold tracking-wide" style={{ color: 'var(--ink)' }}>
+              日本語文章解析
             </h1>
-            <p className="md-typescale-title-medium text-gray-600 dark:text-gray-400 transition-colors duration-200">
+            <p className="text-base" style={{ color: 'var(--ink-3)' }}>
               AI驱动・深入理解日语句子结构与词义
             </p>
           </div>
@@ -348,22 +405,13 @@ export default function Home() {
 
   return (
     <>
-      <div className="min-h-screen flex flex-col items-center justify-start pt-16 sm:pt-20 lg:pt-24 p-3 sm:p-4 bg-white dark:bg-gray-900 transition-colors duration-200">
-        {/* 顶部工具栏 */}
-        <TopToolbar onSettingsClick={() => setIsSettingsModalOpen(true)} />
-        
-        <div className="w-full max-w-3xl">
-          <header className="text-center mb-8 sm:mb-12">
-            <h1 className="md-typescale-display-medium text-gray-800 dark:text-gray-100 transition-colors duration-200 mb-3">
-              日本語<span className="text-primary">文章解析器</span>
-            </h1>
-            <p className="md-typescale-title-medium text-gray-600 dark:text-gray-400 transition-colors duration-200">
-              AI驱动・深入理解日语句子结构与词义
-            </p>
-          </header>
+      <div className="flex min-h-screen flex-col">
+        <Header thinking={isAnalyzing} onSettingsClick={() => setIsSettingsModalOpen(true)} />
 
-          <main>
-            <InputSection 
+        <main className="mx-auto grid w-full max-w-[1480px] flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 lg:grid-cols-[minmax(0,1fr)_360px]">
+          {/* 主列 */}
+          <div className="flex min-w-0 flex-col gap-[22px]">
+            <InputSection
               onAnalyze={handleAnalyze}
               userApiKey={userApiKey}
               userApiUrl={userApiUrl}
@@ -376,58 +424,56 @@ export default function Home() {
             />
 
             {isAnalyzing && (!analyzedTokens.length || !useStream) && (
-              <div className="premium-card">
+              <div className="nd-card">
                 <ThinkingIndicator className="py-6" />
               </div>
             )}
 
             {isJsonParseError && streamContent && (
-              <div className="premium-card">
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-3 sm:p-4 mb-4 transition-colors duration-200">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <FaExclamationTriangle className="text-yellow-500" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-yellow-700 dark:text-yellow-300 transition-colors duration-200">
-                        解析中，已经收到部分内容，但尚未形成完整的结果。
-                      </p>
-                    </div>
-                  </div>
+              <div className="nd-card">
+                <div
+                  className="mb-4 rounded-[10px] p-3 text-sm"
+                  style={{
+                    background: 'color-mix(in oklab, var(--pos-adj) 10%, transparent)',
+                    color: 'var(--ink-2)',
+                    borderLeft: '3px solid var(--pos-adj)',
+                  }}
+                >
+                  解析中，已经收到部分内容，但尚未形成完整的结果。
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md overflow-auto max-h-96 text-xs font-mono whitespace-pre-wrap text-gray-800 dark:text-gray-200 transition-colors duration-200">
+                <div
+                  className="mono max-h-96 overflow-auto whitespace-pre-wrap rounded-[10px] p-3 text-xs"
+                  style={{ background: 'var(--bg)', color: 'var(--ink-2)' }}
+                >
                   {streamContent}
                 </div>
               </div>
             )}
 
             {analysisError && (
-              <div className="premium-card">
-                <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-3 sm:p-4 transition-colors duration-200">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <FaExclamationCircle className="text-red-500" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-red-700 dark:text-red-300 transition-colors duration-200">
-                        解析错误：{analysisError}
-                      </p>
-                    </div>
-                  </div>
+              <div className="nd-card">
+                <div
+                  className="rounded-[10px] p-3 text-sm"
+                  style={{
+                    background: 'color-mix(in oklab, var(--pos-p) 10%, transparent)',
+                    color: 'var(--ink-2)',
+                    borderLeft: '3px solid var(--pos-p)',
+                  }}
+                >
+                  解析错误：{analysisError}
                 </div>
               </div>
             )}
 
             {shouldShowAnalyzer() && (
-              <AnalysisResult 
+              <AnalysisResult
                 tokens={analyzedTokens}
-                originalSentence={currentSentence}
-                userApiKey={userApiKey}
-                userApiUrl={userApiUrl}
-                aiProvider={aiProvider}
                 showFurigana={showFurigana}
                 onShowFuriganaChange={setShowFurigana}
-                useStream={useStream}
+                showRomaji={showRomaji}
+                onShowRomajiChange={setShowRomaji}
+                onWordClick={handleWordClick}
+                selectedIndex={selectedIndex}
               />
             )}
 
@@ -441,14 +487,14 @@ export default function Home() {
                 trigger={translationTrigger}
               />
             )}
-          </main>
+          </div>
 
-          <footer className="text-center mt-8 sm:mt-12 py-4 sm:py-6 border-t border-gray-200 dark:border-gray-700 transition-colors duration-200">
-            <p className="md-typescale-body-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">&copy; 2025 高级日语解析工具 by Howen. All rights reserved.</p>
-            
-          </footer>
-        </div>
-        
+          {/* 侧栏：词汇详情（桌面端） */}
+          <aside className="sticky top-4 hidden flex-col gap-4 self-start lg:flex">
+            {isDesktop && hasWordDetail ? wordDetailPanel : <WordDetailPlaceholder />}
+          </aside>
+        </main>
+
         {/* 设置模态框 */}
         <SettingsModal
           aiProvider={aiProvider}
@@ -463,9 +509,40 @@ export default function Home() {
           onModalClose={() => setIsSettingsModalOpen(!isSettingsModalOpen)}
         />
       </div>
-      
-      {/* AI聊天助手 - 移到主容器外面 */}
-      <AIChat 
+
+      {/* 移动端词汇详情模态 */}
+      {!isDesktop && hasWordDetail && typeof document !== 'undefined' && createPortal(
+        <div
+          id="wordDetailModal"
+          className="word-detail-modal"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCloseWordDetail();
+          }}
+        >
+          <div className="word-detail-modal-content">
+            <button
+              className="modal-close-button"
+              title="关闭详情"
+              onClick={handleCloseWordDetail}
+            >
+              &times;
+            </button>
+            <WordDetailPanel
+              wordDetail={wordDetail}
+              isLoading={isWordDetailLoading}
+              isStreamLoading={isWordDetailStreaming}
+              streamError={wordDetailStreamError}
+              streamContent={wordDetailStreamContent}
+              onClose={handleCloseWordDetail}
+              hideClose
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* AI聊天助手 */}
+      <AIChat
         userApiKey={userApiKey}
         userApiUrl={userApiUrl}
         aiProvider={aiProvider}
