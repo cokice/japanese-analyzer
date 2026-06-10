@@ -882,9 +882,21 @@ rt {
 .read-aloud-button:hover { color: var(--primary-2); }
 
 .word-detail-explanation {
-  background: var(--bg);
-  border-radius: 10px;
   color: var(--ink-2);
+}
+
+.word-detail-explanation strong {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.word-detail-refresh-icon {
+  display: inline-flex;
+  transform-origin: center;
+}
+
+.word-detail-refresh-icon.is-spinning {
+  animation: spin 0.8s linear infinite;
 }
 
 /* 暗色模式下的音频控件 */

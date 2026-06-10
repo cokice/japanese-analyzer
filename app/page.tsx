@@ -310,6 +310,22 @@ export default function Home() {
     fetchWordDetails(token.word, token.pos, currentSentence, token.furigana, token.romaji);
   }, [selectedIndex, currentSentence, fetchWordDetails, handleCloseWordDetail]);
 
+  const handleRefreshWordDetail = useCallback(() => {
+    if (selectedIndex === null) return;
+
+    const token = analyzedTokens[selectedIndex];
+    if (!token) return;
+
+    fetchWordDetails(
+      token.word,
+      token.pos,
+      currentSentence,
+      token.furigana,
+      token.romaji,
+      { force: true }
+    );
+  }, [analyzedTokens, currentSentence, fetchWordDetails, selectedIndex]);
+
   const handleAnalyze = async (text: string) => {
     if (!text) return;
 
@@ -376,6 +392,7 @@ export default function Home() {
       streamError={wordDetailStreamError}
       streamContent={wordDetailStreamContent}
       onClose={handleCloseWordDetail}
+      onRefresh={handleRefreshWordDetail}
     />
   );
 
@@ -540,6 +557,7 @@ export default function Home() {
               streamError={wordDetailStreamError}
               streamContent={wordDetailStreamContent}
               onClose={handleCloseWordDetail}
+              onRefresh={handleRefreshWordDetail}
               hideClose
             />
           </div>

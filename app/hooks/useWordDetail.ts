@@ -21,6 +21,10 @@ interface WordDetailCacheEntry {
   requestId: number;
 }
 
+interface FetchWordDetailsOptions {
+  force?: boolean;
+}
+
 const MAX_WORD_DETAIL_CACHE = 80;
 
 function createPendingDetail(
@@ -205,13 +209,14 @@ export function useWordDetail({ userApiKey, userApiUrl, aiProvider, useStream = 
     pos: string,
     sentence: string,
     furigana?: string,
-    romaji?: string
+    romaji?: string,
+    options: FetchWordDetailsOptions = {}
   ) => {
     const cacheKey = getCacheKey(word, pos, sentence, furigana, romaji);
     const cachedEntry = cacheRef.current.get(cacheKey);
     currentKeyRef.current = cacheKey;
 
-    if (cachedEntry) {
+    if (!options.force && cachedEntry) {
       applyEntryToState(cachedEntry);
       if (cachedEntry.isLoading || cachedEntry.isStreamLoading || cachedEntry.detail || cachedEntry.streamError) {
         return;

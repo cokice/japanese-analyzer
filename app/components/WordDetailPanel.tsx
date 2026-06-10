@@ -12,6 +12,7 @@ interface WordDetailPanelProps {
   streamError: string;
   streamContent: string;
   onClose: () => void;
+  onRefresh?: () => void;
   /* 不在面板中显示关闭按钮（移动端模态自带关闭时） */
   hideClose?: boolean;
 }
@@ -60,6 +61,23 @@ export function WordDetailPlaceholder() {
   );
 }
 
+function escapeHtml(text: string) {
+  return text.replace(/[&<>"']/g, (char) => {
+    switch (char) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      default:
+        return '&#39;';
+    }
+  });
+}
+
 export default function WordDetailPanel({
   wordDetail,
   isLoading,
@@ -67,6 +85,7 @@ export default function WordDetailPanel({
   streamError,
   streamContent,
   onClose,
+  onRefresh,
   hideClose = false,
 }: WordDetailPanelProps) {
   const [isExplanationExpanded, setIsExplanationExpanded] = useState(false);
@@ -91,10 +110,10 @@ export default function WordDetailPanel({
         ? text.substring(0, 5000) + '...'
         : text;
 
-      const formattedText = displayText
+      const formattedText = escapeHtml(displayText)
         .replace(/\n/g, '<br />')
-        .replace(/【([^】]+)】/g, '<strong style="color: var(--primary)">$1</strong>')
-        .replace(/「([^」]+)」/g, '<strong style="color: var(--primary)">$1</strong>');
+        .replace(/【([^】]+)】/g, '<strong>$1</strong>')
+        .replace(/「([^」]+)」/g, '<strong>$1</strong>');
 
       return { __html: formattedText };
     };
@@ -115,7 +134,21 @@ export default function WordDetailPanel({
     return (
       <section className="word-detail-panel">
         <div className="p-5">
-          <h3 className="m-0 mb-3 text-base font-semibold" style={{ color: 'var(--pos-p)' }}>词汇详解（出错）</h3>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="m-0 text-base font-semibold" style={{ color: 'var(--pos-p)' }}>词汇详解（出错）</h3>
+            {onRefresh && (
+              <button
+                type="button"
+                title="重新生成词语详解"
+                aria-label="重新生成词语详解"
+                className="grid cursor-pointer place-items-center rounded-md border-none bg-transparent p-1.5 transition-colors hover:text-[var(--primary)]"
+                style={{ color: 'var(--ink-2)' }}
+                onClick={onRefresh}
+              >
+                {Icon.refresh}
+              </button>
+            )}
+          </div>
           <p className="m-0 text-sm" style={{ color: 'var(--ink-2)' }}>{streamError}</p>
           {streamContent && (
             <div
@@ -141,9 +174,6 @@ export default function WordDetailPanel({
   const accent = POS_GROUP_COLORS[posGroup];
   const display = (wordDetail.originalWord || '').replace(/[、。]/g, '');
   const posLabel = posChineseMap[wordDetail.pos?.split('-')[0] || ''] || POS_GROUP_LABELS[posGroup];
-  const isGenerating = isStreamLoading
-    || wordDetail.explanation === '正在生成解释...'
-    || wordDetail.explanation?.endsWith('...');
 
   return (
     <section className="word-detail-panel">
@@ -165,8 +195,24 @@ export default function WordDetailPanel({
           </span>
         )}
         <div className="flex-1" />
+        {onRefresh && (
+          <button
+            type="button"
+            title="重新生成词语详解"
+            aria-label="重新生成词语详解"
+            className="grid cursor-pointer place-items-center rounded-md border-none bg-transparent p-1.5 transition-colors hover:text-[var(--primary)]"
+            style={{ color: 'var(--ink-2)' }}
+            onClick={onRefresh}
+          >
+            <span className={isStreamLoading ? 'word-detail-refresh-icon is-spinning' : 'word-detail-refresh-icon'}>
+              {Icon.refresh}
+            </span>
+          </button>
+        )}
         <button
+          type="button"
           title="朗读发音"
+          aria-label="朗读发音"
           className="grid cursor-pointer place-items-center rounded-md border-none bg-transparent p-1.5 transition-colors hover:text-[var(--primary)]"
           style={{ color: 'var(--ink-2)' }}
           onClick={() => handleWordSpeak(display)}
@@ -261,26 +307,18 @@ export default function WordDetailPanel({
         {wordDetail.explanation && (
           <DetailSection label="解释">
             <div
-              className={`rounded-[10px] p-3 text-[13px] leading-relaxed ${isGenerating ? 'animate-pulse' : ''}`}
-              style={{ background: 'var(--bg)', color: 'var(--ink-2)' }}
-            >
-              {isGenerating ? (
-                <div className="whitespace-pre-wrap">{wordDetail.explanation}</div>
-              ) : (
-                <>
-                  <div dangerouslySetInnerHTML={formatExplanation(wordDetail.explanation)} />
-                  {showExpandButton && (
-                    <button
-                      onClick={() => setIsExplanationExpanded(!isExplanationExpanded)}
-                      className="mt-3 cursor-pointer border-none bg-transparent text-sm font-medium"
-                      style={{ color: 'var(--primary)' }}
-                    >
-                      {isExplanationExpanded ? '收起 ▲' : '展开全文 ▼'}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+              className="word-detail-explanation text-[13px] leading-relaxed"
+              dangerouslySetInnerHTML={formatExplanation(wordDetail.explanation)}
+            />
+            {showExpandButton && (
+              <button
+                onClick={() => setIsExplanationExpanded(!isExplanationExpanded)}
+                className="mt-3 cursor-pointer border-none bg-transparent text-sm font-medium"
+                style={{ color: 'var(--primary)' }}
+              >
+                {isExplanationExpanded ? '收起 ▲' : '展开全文 ▼'}
+              </button>
+            )}
           </DetailSection>
         )}
       </div>
