@@ -5,6 +5,10 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 export const metadata: Metadata = {
   title: "日本語文章解析器 - AI驱动",
   description: "AI驱动・深入理解日语句子结构与词义",
+  icons: {
+    icon: "/logo/logo.png",
+    apple: "/logo/logo.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -22,6 +26,8 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/logo/logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/logo/logo.png" />
         {/* 预连接字体CDN以提高加载速度 */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

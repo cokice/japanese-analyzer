@@ -339,7 +339,7 @@ export default function InputSection({
           id="japaneseInput"
           className="jp w-full resize-none border-none bg-transparent outline-none"
           rows={5}
-          placeholder="粘贴或输入日语句子…也可上传 / 粘贴图片识别文字。"
+          placeholder="输入日语句子"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onPaste={handlePaste}

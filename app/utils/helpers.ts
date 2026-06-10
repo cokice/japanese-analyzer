@@ -262,9 +262,7 @@ function createPlayableUrlFromPcm(base64: string, mimeType: string): string {
 }
 
 // 默认API URL
-const DEFAULT_API_URL = 
-  process.env.API_URL || 
-  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const DEFAULT_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 // 保存API设置到localStorage
 export function saveApiSettings(apiKey: string, apiUrl: string): void {
@@ -291,13 +289,13 @@ export function getApiSettings(): { apiKey: string, apiUrl: string } {
     const savedApiUrl = localStorage.getItem('userApiUrl') || DEFAULT_API_URL;
     
     // 尝试从环境变量读取默认值（如果本地没有值）
-    const apiKey = savedApiKey || process.env.API_KEY || '';
+    const apiKey = savedApiKey;
     const apiUrl = savedApiUrl;
     
     return { apiKey, apiUrl };
   }
   return { 
-    apiKey: process.env.API_KEY || '', 
+    apiKey: '',
     apiUrl: DEFAULT_API_URL 
   };
-} 
+}

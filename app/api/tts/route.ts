@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // API配置
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_TTS_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent';
 const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
 const MODEL_NAME = 'gemini-3.1-flash-tts-preview';

@@ -1,4 +1,4 @@
-// 新设计内联描边图标（移植自 japannewdesign 原型）
+// 新设计内联描边图标
 import React from 'react';
 
 interface IconWrapProps {

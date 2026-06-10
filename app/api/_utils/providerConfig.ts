@@ -26,7 +26,7 @@ function getDefaultApiUrl(provider: AIProvider): string {
     return process.env.DEEPSEEK_API_URL || DEEPSEEK_OPENAI_API_URL;
   }
 
-  return process.env.GEMINI_API_URL || process.env.API_URL || GEMINI_OPENAI_API_URL;
+  return process.env.GEMINI_API_URL || GEMINI_OPENAI_API_URL;
 }
 
 function getDefaultApiKey(provider: AIProvider): string {
@@ -34,7 +34,7 @@ function getDefaultApiKey(provider: AIProvider): string {
     return process.env.DEEPSEEK_API_KEY || '';
   }
 
-  return process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+  return process.env.GEMINI_API_KEY || '';
 }
 
 export function resolveProviderConfig(

@@ -453,14 +453,20 @@ export default function Home() {
             {analysisError && (
               <div className="nd-card">
                 <div
-                  className="rounded-[10px] p-3 text-sm"
+                  className="flex items-start gap-2 rounded-[10px] p-3 text-sm"
                   style={{
                     background: 'color-mix(in oklab, var(--pos-p) 10%, transparent)',
                     color: 'var(--ink-2)',
-                    borderLeft: '3px solid var(--pos-p)',
                   }}
                 >
-                  解析错误：{analysisError}
+                  <span
+                    className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[12px] font-bold leading-none"
+                    style={{ background: 'var(--pos-p)', color: '#fff' }}
+                    aria-hidden="true"
+                  >
+                    !
+                  </span>
+                  <span>解析错误：{analysisError}</span>
                 </div>
               </div>
             )}

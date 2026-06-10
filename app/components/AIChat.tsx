@@ -11,7 +11,6 @@ interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
 }
 
 interface AIChatProps {
@@ -58,8 +57,7 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
       setMessages([{
         id: Date.now().toString(),
         role: 'assistant',
-        content: welcomeContent,
-        timestamp: new Date()
+        content: welcomeContent
       }]);
     }
   }, [isOpen, messages.length, currentSentence]);
@@ -70,8 +68,7 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: inputValue.trim(),
-      timestamp: new Date()
+      content: inputValue.trim()
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -82,8 +79,7 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
     const tempAssistantMessage: ChatMessage = {
       id: assistantMessageId,
       role: 'assistant',
-      content: '',
-      timestamp: new Date()
+      content: ''
     };
 
     setMessages((prev) => [...prev, tempAssistantMessage]);
@@ -286,27 +282,10 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
                         )}
                       </div>
                     )}
-                    <div className="mt-2 text-[11px]" style={{ color: isUser ? 'rgba(255,255,255,.72)' : 'var(--ink-3)' }}>
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
                   </div>
                 </div>
               );
             })}
-
-            {isLoading && (
-              <div className="flex justify-start">
-                <div
-                  className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm"
-                  style={{ background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink-3)' }}
-                >
-                  <span className="nd-dots" aria-hidden="true">
-                    <span /><span /><span />
-                  </span>
-                  <span>AI 正在思考...</span>
-                </div>
-              </div>
-            )}
 
             <div ref={messagesEndRef} />
           </div>

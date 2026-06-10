@@ -1,7 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import ThemeToggle from './ThemeToggle';
-import { Icon, Sakura } from './Icons';
+import { Icon } from './Icons';
 
 interface HeaderProps {
   thinking: boolean;
@@ -11,11 +12,16 @@ interface HeaderProps {
 export default function Header({ onSettingsClick }: HeaderProps) {
   return (
     <header className="flex items-center px-4 py-4 sm:px-9 sm:py-5">
-      <div className="flex items-center gap-3">
-        <Sakura size={30} />
-        <h1 className="m-0 text-lg sm:text-[22px] font-semibold tracking-wide" style={{ color: 'var(--ink)' }}>
-          日本語文章解析
-        </h1>
+      <div className="flex min-w-0 items-center">
+        <Image
+          src="/logo/logo-text.png"
+          alt="日本語文章解析"
+          width={1323}
+          height={330}
+          priority
+          sizes="(min-width: 640px) 290px, 210px"
+          className="h-9 w-auto max-w-[210px] object-contain sm:h-11 sm:max-w-[290px]"
+        />
       </div>
       <div className="flex-1" />
       <div className="flex items-center gap-1 sm:gap-2">

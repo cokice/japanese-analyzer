@@ -11,7 +11,9 @@ import {
 } from '../app/services/api';
 import {
   DEFAULT_AI_PROVIDER as SERVER_DEFAULT_AI_PROVIDER,
+  GEMINI_OPENAI_API_URL,
   normalizeAIProvider as normalizeServerAIProvider,
+  resolveProviderConfig,
   withProviderControls
 } from '../app/api/_utils/providerConfig';
 
@@ -57,6 +59,47 @@ assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-v4-fl
   model: 'deepseek-v4-flash',
   thinking: { type: 'disabled' },
 });
+
+const oldGeminiApiKey = process.env.GEMINI_API_KEY;
+const oldGeminiApiUrl = process.env.GEMINI_API_URL;
+const oldLegacyApiKey = process.env.API_KEY;
+const oldLegacyApiUrl = process.env.API_URL;
+
+try {
+  delete process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_API_URL;
+  process.env.API_KEY = 'legacy-key';
+  process.env.API_URL = 'https://legacy.example/chat/completions';
+
+  const defaultGeminiConfig = resolveProviderConfig(
+    { headers: new Headers() } as any,
+    { provider: 'gemini' }
+  );
+  assert.strictEqual(defaultGeminiConfig.apiKey, '');
+  assert.strictEqual(defaultGeminiConfig.apiUrl, GEMINI_OPENAI_API_URL);
+
+  process.env.GEMINI_API_KEY = 'gemini-key';
+  process.env.GEMINI_API_URL = 'https://gemini.example/chat/completions';
+
+  const envGeminiConfig = resolveProviderConfig(
+    { headers: new Headers() } as any,
+    { provider: 'gemini' }
+  );
+  assert.strictEqual(envGeminiConfig.apiKey, 'gemini-key');
+  assert.strictEqual(envGeminiConfig.apiUrl, 'https://gemini.example/chat/completions');
+} finally {
+  if (oldGeminiApiKey === undefined) delete process.env.GEMINI_API_KEY;
+  else process.env.GEMINI_API_KEY = oldGeminiApiKey;
+
+  if (oldGeminiApiUrl === undefined) delete process.env.GEMINI_API_URL;
+  else process.env.GEMINI_API_URL = oldGeminiApiUrl;
+
+  if (oldLegacyApiKey === undefined) delete process.env.API_KEY;
+  else process.env.API_KEY = oldLegacyApiKey;
+
+  if (oldLegacyApiUrl === undefined) delete process.env.API_URL;
+  else process.env.API_URL = oldLegacyApiUrl;
+}
 
 class MemoryStorage implements StorageLike {
   private values = new Map<string, string>();
