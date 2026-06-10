@@ -518,6 +518,10 @@ export default function Home() {
           </aside>
         </main>
 
+        <footer className="px-4 pb-6 pt-1 text-center text-xs sm:px-9" style={{ color: 'var(--ink-3)' }}>
+          AI也可能会犯错，请核查重要信息。
+        </footer>
+
         {/* 设置模态框 */}
         <SettingsModal
           aiProvider={aiProvider}
