@@ -1,6 +1,6 @@
 'use client';
 
-import { containsKanji, getPosClass, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, generateFuriganaParts } from '../utils/helpers';
+import { containsKanji, getPosClass, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap } from '../utils/helpers';
 import { TokenData } from '../services/api';
 import { Icon } from './Icons';
 
@@ -82,37 +82,32 @@ export default function AnalysisResult({
             && token.furigana !== token.word
             && containsKanji(token.word)
             && !isPunct;
+          const furiganaText = hasFurigana ? token.furigana! : '';
 
           return (
             <span
               key={index}
               className={`word-unit-wrapper tooltip ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}`}
             >
+              {!isPunct && (
+                <span className="furigana-text" style={{ opacity: showFurigana && furiganaText ? 1 : 0 }}>
+                  {furiganaText || '\u00a0'}
+                </span>
+              )}
               <span
                 className={`word-token ${isPunct ? 'no-click' : ''}`}
                 onClick={isPunct ? undefined : () => onWordClick(token, index)}
               >
-                {hasFurigana
-                  ? generateFuriganaParts(token.word, token.furigana!).map((part, i) =>
-                      part.ruby ? (
-                        <ruby key={i}>
-                          {part.base}
-                          <rt style={{ opacity: showFurigana ? 1 : 0 }}>{part.ruby}</rt>
-                        </ruby>
-                      ) : (
-                        <span key={i}>{part.base}</span>
-                      )
-                    )
-                  : token.word}
+                {token.word}
               </span>
 
               {/* 词性下划线 */}
               {!isPunct && <span className={`pos-underline ${getPosClass(token.pos)}`} />}
 
               {/* 罗马音 */}
-              {token.romaji && !isPunct && (
+              {!isPunct && (
                 <span className="romaji-text" style={{ opacity: showRomaji ? 1 : 0 }}>
-                  {token.romaji}
+                  {token.romaji || '\u00a0'}
                 </span>
               )}
 

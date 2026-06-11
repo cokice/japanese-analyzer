@@ -386,9 +386,10 @@ input, textarea {
 
 .word-unit-wrapper {
   position: relative;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
+  display: inline-grid;
+  grid-template-rows: 13px auto 7px 13px;
+  justify-items: center;
+  align-items: end;
   padding: 0 4px;
   margin: 8px 1px 0;
   font-size: 24px;
@@ -402,13 +403,15 @@ input, textarea {
 }
 
 .word-unit-wrapper.is-punct {
-  align-self: flex-end;
   padding: 0 1px;
   margin: 8px 0 0 -1px;
-  transform: translateY(-21px);
   font-size: 22px;
   font-weight: 500;
   color: var(--ink);
+}
+
+.word-unit-wrapper.is-punct .word-token {
+  grid-row: 2;
 }
 
 .word-unit-wrapper.active-unit {
@@ -419,16 +422,16 @@ input, textarea {
   .word-unit-wrapper { font-size: 19px; }
   .word-unit-wrapper.is-punct {
     font-size: 18px;
-    transform: translateY(-19px);
   }
 }
 
 .word-token {
   position: relative;
-  display: inline-block;
+  display: block;
   cursor: pointer;
   transition: color 0.2s ease;
   line-height: 1.15;
+  white-space: nowrap;
 }
 
 .word-token.no-click { cursor: default; }
@@ -436,7 +439,9 @@ input, textarea {
 /* 词性下划线 */
 .pos-underline {
   height: 2px;
-  align-self: stretch;
+  width: 100%;
+  align-self: start;
+  justify-self: stretch;
   margin-top: 4px;
   border-radius: 2px;
   background: var(--pos-o);
@@ -450,16 +455,14 @@ input, textarea {
 .pos-underline.pos-記号 { background: transparent; }
 
 .romaji-text {
-  margin-top: 3px;
   font-size: 10px;
   color: var(--ink-3);
   letter-spacing: 0.5px;
   font-weight: 400;
   line-height: 1.2;
-  min-height: 13px;
   user-select: none;
   text-align: center;
-  width: 100%;
+  white-space: nowrap;
   font-family: "JetBrains Mono", ui-monospace, monospace;
 }
 
@@ -467,24 +470,19 @@ input, textarea {
   .romaji-text { font-size: 9px; }
 }
 
-/* 假名注音 */
-ruby {
-  ruby-position: over;
-  text-align: center;
-}
-
-rt {
+.furigana-text {
   font-size: 10px;
   font-weight: 400;
   color: var(--ink-3);
   user-select: none;
   line-height: 1.1;
   text-align: center;
+  white-space: nowrap;
   font-family: "Noto Sans JP", sans-serif;
 }
 
 @media (max-width: 640px) {
-  rt { font-size: 8px; }
+  .furigana-text { font-size: 8px; }
 }
 
 /* 解析结果底栏 */
