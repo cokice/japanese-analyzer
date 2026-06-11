@@ -57,7 +57,6 @@ body {
 }
 
 .jp { font-family: "Noto Sans JP", "Noto Sans SC", sans-serif; }
-.jp-serif { font-family: "Noto Serif JP", "Noto Sans JP", serif; }
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
 
 /* ========== 卡片 ========== */
@@ -74,20 +73,6 @@ body {
     padding: 16px 16px;
     border-radius: 14px;
   }
-}
-
-/* 旧类名兼容：沿用新卡片样式 */
-.premium-card {
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 22px 26px;
-  box-shadow: 0 1px 2px rgba(20, 10, 40, 0.03);
-  margin-bottom: 1.5rem;
-}
-
-@media (max-width: 640px) {
-  .premium-card { padding: 16px 16px; }
 }
 
 /* ========== 按钮 ========== */
@@ -227,71 +212,6 @@ body {
   flex: 0 0 auto;
 }
 
-/* 兼容旧按钮类 */
-.premium-button {
-  padding: 0.6rem 1.4rem;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.premium-button-primary,
-.premium-button-success {
-  background-color: var(--primary);
-  color: #ffffff;
-  border: none;
-  box-shadow: 0 4px 14px -4px rgba(109, 76, 219, 0.55);
-}
-
-.premium-button-primary:hover,
-.premium-button-success:hover {
-  background-color: var(--primary-2);
-}
-
-.premium-button-secondary {
-  background-color: var(--primary-soft);
-  color: var(--primary);
-  border: none;
-}
-
-.premium-button-outlined {
-  background-color: transparent;
-  color: var(--primary);
-  border: 1px solid var(--line-2);
-  box-shadow: none;
-}
-
-.premium-button-outlined:hover {
-  border-color: var(--primary);
-  background-color: var(--primary-soft);
-}
-
-/* ========== Pill 标签 ========== */
-.nd-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  border-radius: 6px;
-  background: var(--primary-soft);
-  color: var(--primary);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.nd-pill-green { background: #e7f7ee; color: #0f9d58; }
-.nd-pill-blue { background: #e8f0fe; color: #2563eb; }
-.dark .nd-pill-green { background: rgba(16, 185, 129, 0.16); color: #34d399; }
-.dark .nd-pill-blue { background: rgba(59, 130, 246, 0.16); color: #60a5fa; }
-
 /* ========== 开关 Toggle ========== */
 .nd-toggle {
   width: 38px;
@@ -321,43 +241,6 @@ body {
 }
 
 .nd-toggle[aria-pressed="true"] .nd-toggle-knob { left: 18px; }
-
-/* ========== 状态胶囊（Thinking） ========== */
-.nd-status-pill {
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  color: var(--ink-3);
-  font-size: 12.5px;
-  font-weight: 500;
-  transition: background 0.2s, color 0.2s;
-}
-
-.nd-status-pill.thinking {
-  background: var(--primary-soft);
-  color: var(--primary);
-}
-
-.nd-status-pill .nd-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.4;
-}
-
-.nd-status-pill.thinking .nd-status-dot {
-  opacity: 1;
-  animation: ndPulse 1.2s infinite ease-in-out;
-}
-
-@keyframes ndPulse {
-  0%, 80%, 100% { opacity: 0.4; }
-  40% { opacity: 1; }
-}
 
 .nd-dots {
   display: inline-flex;
@@ -500,6 +383,12 @@ input, textarea {
 .pos-underline.pos-助詞 { background: var(--pos-p); }
 .pos-underline.pos-助動詞 { background: var(--pos-aux); }
 .pos-underline.pos-記号 { background: transparent; }
+.pos-underline.pos-group-n { background: var(--pos-n); }
+.pos-underline.pos-group-v { background: var(--pos-v); }
+.pos-underline.pos-group-adj { background: var(--pos-adj); }
+.pos-underline.pos-group-p { background: var(--pos-p); }
+.pos-underline.pos-group-aux { background: var(--pos-aux); }
+.pos-underline.pos-group-o { background: var(--pos-o); }
 
 .romaji-text {
   font-size: 10px;
@@ -954,26 +843,6 @@ input, textarea {
   bottom: auto;
 }
 
-.morphing-popover-trigger-shell {
-  position: relative;
-  display: inline-grid;
-  place-items: center;
-}
-
-.morphing-popover-trigger-shell-fab {
-  width: 48px;
-  height: 48px;
-}
-
-.morphing-popover-trigger-content {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  color: #fff;
-}
-
 /* ========== 滚动条 ========== */
 ::-webkit-scrollbar {
   width: 8px;
@@ -1000,19 +869,6 @@ input, textarea {
   margin-top: 0.5rem;
   min-height: 1.2em;
 }
-
-.read-aloud-button {
-  background: none;
-  border: none;
-  color: var(--primary);
-  cursor: pointer;
-  font-size: 1.05em;
-  padding: 0 0.3em;
-  margin-left: 0.3em;
-  vertical-align: middle;
-}
-
-.read-aloud-button:hover { color: var(--primary-2); }
 
 .word-detail-explanation {
   color: var(--ink-2);
@@ -1100,7 +956,6 @@ input, textarea {
 /* 日语输入框字体 */
 textarea,
 input[type="text"],
-.japanese-text,
 #japaneseInput {
   font-family: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
   -webkit-font-smoothing: antialiased;

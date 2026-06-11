@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AssistantModalPrimitive } from '@assistant-ui/react';
+import { AssistantModalPrimitive, TextMessagePartProvider } from '@assistant-ui/react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { streamChat, ChatMessage as APIMessage } from '../services/api';
 import type { AIProvider } from '../services/api';
 import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
-import { FlowAnimatedMarkdown } from '@/components/ui/flow-animated-markdown';
-import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
+import { MarkdownText } from '@/components/ui/markdown-text';
 
 interface ChatMessage {
   id: string;
@@ -235,6 +234,11 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
       <div className={`flex-1 space-y-3 overflow-y-auto ${expanded ? 'p-6' : 'p-4'}`}>
         {messages.map((message) => {
           const isUser = message.role === 'user';
+          const isRunningAssistant =
+            !isUser &&
+            isLoading &&
+            message.id === messages[messages.length - 1]?.id;
+
           return (
             <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
               <div
@@ -250,14 +254,10 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
                   {isUser ? (
                     <div className="whitespace-pre-wrap">{message.content}</div>
                   ) : (
-                    <div className="flow-markdown ai-chat-markdown max-w-none">
-                      <FlowAnimatedMarkdown
-                        content={preserveLineBreaksForMarkdown(escapeHtmlForMarkdown(message.content))}
-                        animation="fadeIn"
-                        sep="word"
-                        animationDuration="0.35s"
-                        animationTimingFunction="ease-out"
-                      />
+                    <div className="ai-chat-markdown max-w-none">
+                      <TextMessagePartProvider text={message.content} isRunning={isRunningAssistant}>
+                        <MarkdownText />
+                      </TextMessagePartProvider>
                     </div>
                   )}
                 </AutoAnimateHeight>

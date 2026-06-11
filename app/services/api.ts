@@ -124,6 +124,7 @@ function buildAnalyzePrompt(sentence: string): string {
 5. 对于复合词，如"持って行く"，根据语义和使用习惯确定是作为一个词还是分开处理。
 6. 标点符号不要标记为普通词，不要给标点生成假名或罗马音。为了保留原文显示，若需要输出标点，只能使用 {"word": "标点原文", "pos": "記号", "furigana": "", "romaji": ""}，不能分配名词、助词、其他等词性。包括但不限于：。 、 ， . , ？ ? ！ ! ： : ； ; 「 」 『 』 （ ） ( ) 等。
 7. 重要：如果待解析的句子中包含换行符，请在对应的位置输出一个JSON对象：{"word": "\n", "pos": "改行", "furigana": "", "romaji": ""}.
+8. "pos" 字段必须使用日文标准词性标签，不要使用中文词性。优先从这些值中选择：名詞、動詞、形容詞、形状詞、助詞、助動詞、代名詞、副詞、接続詞、連体詞、感動詞、接頭辞、接尾辞、フィラー、その他、記号、改行。
 
 确保输出是严格的JSON格式，不包含任何markdown或其他非JSON字符。
 
@@ -315,7 +316,7 @@ export async function streamAnalyzeSentence(
     }
     
     await readOpenAIContentStream(response, onChunk, onError, {
-      debounceMs: 16,
+      debounceMs: 60,
       parseWarning: 'Failed to parse streaming JSON chunk:',
     });
   } catch (error) {

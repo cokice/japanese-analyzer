@@ -1,0 +1,38 @@
+
+> japanese-analyzer@0.1.0 dev
+> next dev --turbopack
+
+   ▲ Next.js 15.5.9 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://100.106.201.69:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1015ms
+ ○ Compiling / ...
+ ✓ Compiled / in 4.1s
+ GET / 200 in 4816ms
+ GET / 200 in 188ms
+ GET / 200 in 187ms
+ ✓ Compiled /api/auth in 314ms
+ GET /api/auth 200 in 371ms
+ GET / 200 in 142ms
+ GET / 200 in 93ms
+ ✓ Compiled /api/analyze in 139ms
+ POST /api/translate 200 in 2088ms
+ POST /api/translate 200 in 2151ms
+ POST /api/analyze 200 in 9309ms
+ POST /api/translate 200 in 1911ms
+ POST /api/analyze 200 in 9171ms
+ POST /api/translate 200 in 1939ms
+ POST /api/analyze 200 in 9291ms
+ ✓ Compiled in 524ms
+ POST /api/translate 200 in 2030ms
+ GET / 200 in 417ms
+ GET /api/auth 200 in 298ms
+ POST /api/translate 200 in 1155ms
+ POST /api/translate 200 in 1336ms
+ POST /api/analyze 200 in 2917ms
+ ✓ Compiled /api/word-detail in 85ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 731ms
