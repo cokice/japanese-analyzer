@@ -1,87 +1,135 @@
-# Japanese Sentence Analyzer (日本語文章解析器) 🈁
+# 日本語文章解析
 
-[![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](#📄-许可证)
-[![Demo](https://img.shields.io/badge/demo-online-blue.svg)](https://japanese-analyzer-demo.vercel.app/)
+面向中文学习者的日语句子解析工具。输入一句日语，应用会拆解词汇、读音、罗马音、词性、整句翻译和单词详解，并提供图片识别、朗读和 AI 日语助手。
 
-> **使用 AI大模型 驱动的日语句子深度解析工具**  
->面向中文学习者，支持 Gemini Flash（`gemini-3.5-flash`）和 DeepSeek（`deepseek-v4-flash`）分析、拆解句法结构、标注词性、呈现发音与释义，让读懂日语不再困难。
----
+<p align="center">
+  <img src="./public/logo/logo-text.png" alt="日本語文章解析" width="360" />
+</p>
 
-## ✨ 主要特性
-| 功能 | 描述 |
-| :-- | :-- |
-| 🔍 **智能句法标注** | 一键输出词性、假名、罗马音与语法成分 |
-| 📚 **多维词义解释** | 支持 Gemini / DeepSeek 提供精准中文释义 |
-| 🖼️ **OCR 图像识别** | 从截图或照片中提取日语文本并立即解析（仅 Gemini 支持） |
-| 🔈 **原声 TTS 朗读** | 集成 Gemini TTS（`gemini-3.1-flash-tts-preview`）, 朗读整段日语 |
-| 🔄 **整句翻译** | 双语对照，迅速把握整体含义 |
-| 🌐 **流式响应** | 基于流式 API，交互更丝滑 |
-| 🌙 **暗黑模式** | 支持亮色/暗色/跟随系统三种主题模式 |
-| 🔐 **访问控制** | 可选的密码保护功能，保护私有部署，不被盗刷 |
-| ⚙️ **高度可配置** | 支持自定义 Gemini / DeepSeek API Key / Endpoint |
+<p align="center">
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" /></a>
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black" />
+  <img alt="React" src="https://img.shields.io/badge/React-19-61dafb" />
+</p>
 
----
+## 界面预览
 
-## 🚀 在线体验
-立即在浏览器中试用 👉 **[Demo](https://japanese-analyzer-demo.vercel.app/)**
-国内访问地址 👉 **[国内访问](https://nihongodemo.howen.ink/)**
-> 注意：当前 Demo 网站使用的是免费的 API Key，可能存在不稳定情况。请勿滥用，如有大量使用需求，建议根据下方教程申请您自己的 API Key（完全免费）。
-> 测试网站的免费api最近老被刷爆了，还是建议申请自己的apikey填在测试网站使用即可
+### 主界面
 
-## 📺 演示视频
+![主界面](./docs/images/app-home.png)
 
+### 模型与 API 设置
 
-https://github.com/user-attachments/assets/5039cb62-135e-48e1-971d-960d6b82cacf
+![模型与 API 设置](./docs/images/provider-settings.png)
 
+### 移动端 AI 日语助手
 
----
-## 🛠️ 在线部署指南
+![移动端 AI 日语助手](./docs/images/mobile-chat.png)
 
-1. 访问 Google Aistudio 官网 👉 **[aistudio](https://aistudio.google.com/)**
-2. 点击页面右上角的 **“Get API Key”** 按钮
-3. 在弹出窗口中选择已有项目，或点击创建新项目（完全免费）
-4. 创建后复制生成的 API Key，并妥善保存
-5. 您可以将该 API Key 应用于：
-   - 自行部署完整项目
-   - 或在 Demo 网站右上角“设置”中自定义使用您的 API Key
+## 功能
 
-### 一键部署到 Vercel（推荐）
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer&env=API_KEY)
+- 句子解析：分词、假名、罗马音、词性标记和中文释义。
+- 单词详解：点击词汇查看读音、释义、语法角色和上下文解释。
+- 整句翻译：生成中文整句翻译，方便快速理解语境。
+- 图片识别：上传或粘贴图片提取日语文字。当前仅 Gemini 支持。
+- 朗读：支持 Edge TTS 和 Gemini TTS。
+- AI 日语助手：围绕日语语法、词汇、文化和当前句子提问。
+- 双模型服务商：文本模型支持 Gemini 和 DeepSeek，默认使用 DeepSeek。
+- 本地浏览器设置：用户可以在设置弹窗中为 Gemini / DeepSeek 分别填入自己的 API Key 和 Endpoint。
+- 可选访问密码：部署后可用 `CODE` 做简单访问控制。
 
-1. **Fork** 本仓库到自己的 GitHub 账户  
-2. 在 [Vercel](https://vercel.com/) 中 **Import** 该仓库  
-3. 在 *Project Settings › Environment Variables* 添加：  
-4. 文本解析支持 Gemini 和 DeepSeek；图片识别仅支持 Gemini。
-   | 变量名 | 必填 | 说明 |
-   | :--- | :---: | :--- |
-   | `GEMINI_API_KEY` | ❌ | 你的 Gemini API 密钥；也可继续使用旧变量 `API_KEY` |
-   | `GEMINI_API_URL` | ❌ | Gemini OpenAI 兼容接口地址；也可继续使用旧变量 `API_URL` |
-   | `DEEPSEEK_API_KEY` | ❌ | 你的 DeepSeek API 密钥 |
-   | `DEEPSEEK_API_URL` | ❌ | DeepSeek OpenAI 兼容接口地址（留空使用官方默认） |
-   | `CODE` | ❌ | 访问密码（设置后需要密码才能使用应用） |
+## 模型说明
 
-DeepSeek 默认走 `https://api.deepseek.com/chat/completions`，模型为 `deepseek-v4-flash`，并关闭思考模式。选择 DeepSeek 时，上传图片和粘贴图片识别会自动禁用。
+| 能力 | 默认模型 / 服务 | 说明 |
+| --- | --- | --- |
+| 文本解析 | `deepseek-v4-flash` | 默认文本服务商是 DeepSeek。 |
+| Gemini 文本解析 | `gemini-3.5-flash` | 可在设置中切换到 Gemini。 |
+| 图片识别 | Gemini | DeepSeek 当前不支持图片识别，选择 DeepSeek 时图片上传和粘贴识别会关闭。 |
+| 朗读 | Edge TTS / Gemini TTS | 默认使用 Edge TTS；Gemini TTS 需要 Gemini API Key。 |
 
+## 快速开始
 
+```bash
+git clone https://github.com/cokice/japanese-analyzer.git
+cd japanese-analyzer
+npm install
+```
 
-## 🤝 如何贡献
-我们热忱欢迎任何形式的贡献！
+复制环境变量模板：
 
-- 🐛 **报告 Bug**：在 Issues 中描述复现步骤  
-- 🚀 **提出功能**：新特性 Idea & 需求讨论  
-- 💻 **提交代码**：Pull Request  
+```powershell
+Copy-Item .env.example .env.local
+```
 
-> 在提交 PR 之前请先创建 Issue 进行沟通，保持方向一致。
----
+编辑 `.env.local`。如果只想先跑文本解析，建议先配置 DeepSeek：
 
-## 📄 许可证
-本项目基于 **[MIT License](LICENSE)** 发布。© 2025 Japanese Analyzer
+```env
+DEEPSEEK_API_KEY=your_deepseek_api_key
+DEEPSEEK_API_URL=https://api.deepseek.com/chat/completions
 
----
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
 
-## 📬 联系方式
-如有问题，请开一个 Issue 交流
+CODE=
+```
 
-## Star History
+启动开发环境：
 
-[![Star History Chart](https://api.star-history.com/svg?repos=cokice/japanese-analyzer&type=Date)](https://www.star-history.com/#cokice/japanese-analyzer&Date)
+```bash
+npm run dev
+```
+
+打开 `http://127.0.0.1:3000`。
+
+## 环境变量
+
+| 变量 | 必填 | 用途 |
+| --- | --- | --- |
+| `DEEPSEEK_API_KEY` | 推荐 | DeepSeek API Key。默认文本服务商是 DeepSeek。 |
+| `DEEPSEEK_API_URL` | 可选 | DeepSeek OpenAI 兼容接口地址；留空使用官方默认地址。 |
+| `GEMINI_API_KEY` | 可选 | Gemini API Key。用于 Gemini 文本解析、图片识别和 Gemini TTS。 |
+| `GEMINI_API_URL` | 可选 | Gemini OpenAI 兼容接口地址；留空使用官方默认地址。 |
+| `CODE` | 可选 | 访问密码。设置后访问应用需要先输入密码。 |
+
+说明：
+
+- `DEEPSEEK_API_KEY` 和 `GEMINI_API_KEY` 是服务器端默认密钥，不会暴露到前端。
+- 用户也可以在右上角设置中填写自己的 Key，设置仅保存在浏览器本地。
+- 不要提交 `.env.local`，仓库已经默认忽略本地环境变量文件。
+
+## 部署到 Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer)
+
+部署步骤：
+
+1. Fork 或导入本仓库到 Vercel。
+2. 在 Vercel 项目的 `Settings -> Environment Variables` 中配置环境变量。
+3. 至少配置 `DEEPSEEK_API_KEY`，这样默认文本解析可以直接使用。
+4. 如需图片识别或 Gemini TTS，再配置 `GEMINI_API_KEY`。
+5. 重新部署项目。
+
+## 开发命令
+
+```bash
+npm run dev      # 本地开发
+npm test         # 运行 API / provider 配置测试
+npm run build    # 生产构建，发布前建议先跑
+```
+
+## 项目结构
+
+```text
+app/
+  api/                 # Next.js API routes
+  api/_utils/          # provider 配置与 OpenAI 兼容代理
+  components/          # 输入区、解析结果、设置弹窗、AI 助手等组件
+  hooks/               # 单词详情和交互逻辑
+  services/            # 前端 API 调用与本地设置迁移
+docs/images/           # README 截图
+tests/                 # 轻量测试
+```
+
+## 许可证
+
+本项目基于 [MIT License](./LICENSE) 发布。

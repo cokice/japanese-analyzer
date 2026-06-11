@@ -43,3 +43,9 @@ next-env.d.ts
 
 .vercel
 /.claude/
+
+# local design reference
+/japannewdesign/
+
+# IDE
+/.idea/

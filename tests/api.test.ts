@@ -6,16 +6,30 @@ import {
   getModelName,
   getRequestProviderPayload,
   loadAISettingsFromStorage,
+  normalizeAIProvider,
   type StorageLike
 } from '../app/services/api';
-import { withProviderControls } from '../app/api/_utils/providerConfig';
+import {
+  DEFAULT_AI_PROVIDER as SERVER_DEFAULT_AI_PROVIDER,
+  GEMINI_OPENAI_API_URL,
+  normalizeAIProvider as normalizeServerAIProvider,
+  resolveProviderConfig,
+  withProviderControls
+} from '../app/api/_utils/providerConfig';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
 assert.strictEqual(getApiEndpoint('chat'), '/api/chat');
 
-assert.strictEqual(DEFAULT_AI_PROVIDER, 'gemini');
-assert.strictEqual(getModelName(), 'gemini-3.5-flash');
+assert.strictEqual(DEFAULT_AI_PROVIDER, 'deepseek');
+assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
+assert.strictEqual(getModelName(), 'deepseek-v4-flash');
+assert.strictEqual(normalizeAIProvider('gemini'), 'gemini');
+assert.strictEqual(normalizeAIProvider('deepseek'), 'deepseek');
+assert.strictEqual(normalizeAIProvider('unknown'), 'deepseek');
+assert.strictEqual(normalizeServerAIProvider('gemini'), 'gemini');
+assert.strictEqual(normalizeServerAIProvider('deepseek'), 'deepseek');
+assert.strictEqual(normalizeServerAIProvider('unknown'), 'deepseek');
 assert.strictEqual(getModelName('deepseek'), 'deepseek-v4-flash');
 
 assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
@@ -30,6 +44,12 @@ assert.deepStrictEqual(getRequestProviderPayload('deepseek', 'https://api.deepse
   apiUrl: 'https://api.deepseek.com/chat/completions',
 });
 
+assert.deepStrictEqual(getRequestProviderPayload(), {
+  provider: 'deepseek',
+  model: 'deepseek-v4-flash',
+  apiUrl: undefined,
+});
+
 assert.deepStrictEqual(withProviderControls('gemini', { model: 'gemini-3.5-flash' }), {
   model: 'gemini-3.5-flash',
   reasoning_effort: 'minimal',
@@ -39,6 +59,50 @@ assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-v4-fl
   model: 'deepseek-v4-flash',
   thinking: { type: 'disabled' },
 });
+
+const oldGeminiApiKey = process.env.GEMINI_API_KEY;
+const oldGeminiApiUrl = process.env.GEMINI_API_URL;
+const oldLegacyApiKey = process.env.API_KEY;
+const oldLegacyApiUrl = process.env.API_URL;
+const createProviderConfigRequest = () => (
+  { headers: new Headers() } as Parameters<typeof resolveProviderConfig>[0]
+);
+
+try {
+  delete process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_API_URL;
+  process.env.API_KEY = 'legacy-key';
+  process.env.API_URL = 'https://legacy.example/chat/completions';
+
+  const defaultGeminiConfig = resolveProviderConfig(
+    createProviderConfigRequest(),
+    { provider: 'gemini' }
+  );
+  assert.strictEqual(defaultGeminiConfig.apiKey, '');
+  assert.strictEqual(defaultGeminiConfig.apiUrl, GEMINI_OPENAI_API_URL);
+
+  process.env.GEMINI_API_KEY = 'gemini-key';
+  process.env.GEMINI_API_URL = 'https://gemini.example/chat/completions';
+
+  const envGeminiConfig = resolveProviderConfig(
+    createProviderConfigRequest(),
+    { provider: 'gemini' }
+  );
+  assert.strictEqual(envGeminiConfig.apiKey, 'gemini-key');
+  assert.strictEqual(envGeminiConfig.apiUrl, 'https://gemini.example/chat/completions');
+} finally {
+  if (oldGeminiApiKey === undefined) delete process.env.GEMINI_API_KEY;
+  else process.env.GEMINI_API_KEY = oldGeminiApiKey;
+
+  if (oldGeminiApiUrl === undefined) delete process.env.GEMINI_API_URL;
+  else process.env.GEMINI_API_URL = oldGeminiApiUrl;
+
+  if (oldLegacyApiKey === undefined) delete process.env.API_KEY;
+  else process.env.API_KEY = oldLegacyApiKey;
+
+  if (oldLegacyApiUrl === undefined) delete process.env.API_URL;
+  else process.env.API_URL = oldLegacyApiUrl;
+}
 
 class MemoryStorage implements StorageLike {
   private values = new Map<string, string>();
@@ -77,7 +141,7 @@ const defaultStorage = new MemoryStorage({
   aiProvider: 'unknown',
 });
 const defaultSettings = loadAISettingsFromStorage(defaultStorage);
-assert.strictEqual(defaultSettings.aiProvider, 'gemini');
+assert.strictEqual(defaultSettings.aiProvider, 'deepseek');
 assert.strictEqual(defaultSettings.geminiApiUrl, DEFAULT_API_URL);
 assert.strictEqual(defaultSettings.deepseekApiUrl, DEFAULT_API_URL);
 

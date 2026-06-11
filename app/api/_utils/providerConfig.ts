@@ -2,17 +2,17 @@ import { NextRequest } from 'next/server';
 
 export type AIProvider = 'gemini' | 'deepseek';
 
-export const DEFAULT_AI_PROVIDER: AIProvider = 'gemini';
-export const GEMINI_MODEL_NAME = 'gemini-3.5-flash';
-export const DEEPSEEK_MODEL_NAME = 'deepseek-v4-flash';
+export const DEFAULT_AI_PROVIDER: AIProvider = 'deepseek';
+const GEMINI_MODEL_NAME = 'gemini-3.5-flash';
+const DEEPSEEK_MODEL_NAME = 'deepseek-v4-flash';
 export const GEMINI_OPENAI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-export const DEEPSEEK_OPENAI_API_URL = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_OPENAI_API_URL = 'https://api.deepseek.com/chat/completions';
 
 export function normalizeAIProvider(value: unknown): AIProvider {
-  return value === 'deepseek' ? 'deepseek' : DEFAULT_AI_PROVIDER;
+  return value === 'gemini' || value === 'deepseek' ? value : DEFAULT_AI_PROVIDER;
 }
 
-export function getDefaultModelName(provider: AIProvider): string {
+function getDefaultModelName(provider: AIProvider): string {
   return provider === 'deepseek' ? DEEPSEEK_MODEL_NAME : GEMINI_MODEL_NAME;
 }
 
@@ -26,7 +26,7 @@ function getDefaultApiUrl(provider: AIProvider): string {
     return process.env.DEEPSEEK_API_URL || DEEPSEEK_OPENAI_API_URL;
   }
 
-  return process.env.GEMINI_API_URL || process.env.API_URL || GEMINI_OPENAI_API_URL;
+  return process.env.GEMINI_API_URL || GEMINI_OPENAI_API_URL;
 }
 
 function getDefaultApiKey(provider: AIProvider): string {
@@ -34,7 +34,7 @@ function getDefaultApiKey(provider: AIProvider): string {
     return process.env.DEEPSEEK_API_KEY || '';
   }
 
-  return process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+  return process.env.GEMINI_API_KEY || '';
 }
 
 export function resolveProviderConfig(
