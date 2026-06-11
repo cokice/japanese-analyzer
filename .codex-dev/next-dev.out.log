@@ -8,13 +8,22 @@
    - Environments: .env.local
 
  ✓ Starting...
- ✓ Ready in 974ms
+ ✓ Ready in 972ms
  ○ Compiling / ...
- ✓ Compiled / in 4s
- GET / 200 in 4581ms
- ✓ Compiled /api/auth in 181ms
- GET /api/auth 200 in 475ms
+ ✓ Compiled / in 4.1s
+ GET / 200 in 4687ms
+ GET / 200 in 98ms
+ ✓ Compiled /api/auth in 152ms
+ GET /api/auth 200 in 438ms
+ ✓ Compiled /api/analyze in 117ms
+ POST /api/translate 200 in 1872ms
+ POST /api/translate 200 in 2027ms
+ POST /api/analyze 200 in 9497ms
  GET / 200 in 99ms
- ✓ Compiled /api/analyze in 170ms
- POST /api/translate 200 in 2087ms
- POST /api/translate 200 in 2137ms
+ GET /api/auth 200 in 275ms
+ POST /api/translate 200 in 1732ms
+ POST /api/translate 200 in 1878ms
+ POST /api/analyze 200 in 9683ms
+ ✓ Compiled /api/word-detail in 91ms
+ POST /api/word-detail 200 in 5311ms
+ POST /api/translate 200 in 1867ms

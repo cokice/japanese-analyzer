@@ -175,6 +175,11 @@ async function readOpenAIContentStream(
       return;
     }
 
+    if (debounceMs <= 0) {
+      onChunk(content, false);
+      return;
+    }
+
     updateTimeout = setTimeout(() => {
       onChunk(content, false);
     }, debounceMs);
@@ -316,7 +321,7 @@ export async function streamAnalyzeSentence(
     }
     
     await readOpenAIContentStream(response, onChunk, onError, {
-      debounceMs: 60,
+      debounceMs: 0,
       parseWarning: 'Failed to parse streaming JSON chunk:',
     });
   } catch (error) {
@@ -356,7 +361,7 @@ export async function streamTranslateText(
     }
     
     await readOpenAIContentStream(response, onChunk, onError, {
-      debounceMs: 16,
+      debounceMs: 60,
       parseWarning: 'Failed to parse streaming JSON chunk:',
     });
   } catch (error) {
