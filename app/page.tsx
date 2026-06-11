@@ -396,7 +396,11 @@ export default function Home() {
   return (
     <>
       <div className="flex min-h-screen flex-col">
-        <Header thinking={isAnalyzing} onSettingsClick={() => setIsSettingsModalOpen(true)} />
+        <Header
+          thinking={isAnalyzing}
+          aiProvider={aiProvider}
+          onSettingsClick={() => setIsSettingsModalOpen(true)}
+        />
 
         <main className="mx-auto grid w-full max-w-[1480px] flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* 主列 */}

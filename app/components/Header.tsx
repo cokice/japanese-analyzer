@@ -1,15 +1,20 @@
 'use client';
 
 import Image from 'next/image';
+import type { AIProvider } from '../services/api';
 import ThemeToggle from './ThemeToggle';
 import { Icon } from './Icons';
+import { ProviderLogo, PROVIDER_LABELS } from './ProviderLogo';
 
 interface HeaderProps {
   thinking: boolean;
+  aiProvider: AIProvider;
   onSettingsClick?: () => void;
 }
 
-export default function Header({ onSettingsClick }: HeaderProps) {
+export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
+  const providerLabel = PROVIDER_LABELS[aiProvider];
+
   return (
     <header className="flex items-center px-4 py-4 sm:px-9 sm:py-5">
       <div className="flex min-w-0 items-center">
@@ -25,6 +30,14 @@ export default function Header({ onSettingsClick }: HeaderProps) {
       </div>
       <div className="flex-1" />
       <div className="flex items-center gap-1 sm:gap-2">
+        <span
+          className="provider-indicator"
+          title={`当前模型服务商：${providerLabel}`}
+          aria-label={`当前模型服务商：${providerLabel}`}
+        >
+          <ProviderLogo provider={aiProvider} className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span>{providerLabel}</span>
+        </span>
         <a
           href="https://github.com/cokice/japanese-analyzer"
           target="_blank"

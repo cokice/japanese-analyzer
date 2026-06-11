@@ -10,6 +10,7 @@
     "test": "tsx tests/api.test.ts"
   },
   "dependencies": {
+    "@radix-ui/react-switch": "^1.3.0",
     "@tailwindcss/typography": "^0.5.16",
     "autoprefixer": "^10.4.21",
     "clsx": "^2.1.1",

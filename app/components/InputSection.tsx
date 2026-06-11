@@ -6,6 +6,7 @@ import type { AIProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
 import { Icon } from './Icons';
 import { TextShimmer } from '@/components/ui/text-shimmer';
+import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
 
 interface InputSectionProps {
   onAnalyze: (text: string) => void;
@@ -72,12 +73,46 @@ export default function InputSection({
   const [selectedRate, setSelectedRate] = useState(0);
   const [selectedVoice, setSelectedVoice] = useState('Kore');
   const [selectedStyle, setSelectedStyle] = useState('');
+  const [submitState, setSubmitState] = useState<StateMorphButtonState>('idle');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const submitStartedRef = useRef(false);
+  const wasAnalyzingRef = useRef(false);
+  const submitResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 监听外部分析状态，同步内部loading状态
   useEffect(() => {
     setIsLoading(isAnalyzing);
+
+    if (isAnalyzing) {
+      wasAnalyzingRef.current = true;
+      if (submitStartedRef.current) {
+        if (submitResetTimerRef.current) {
+          clearTimeout(submitResetTimerRef.current);
+          submitResetTimerRef.current = null;
+        }
+        setSubmitState('loading');
+      }
+      return;
+    }
+
+    if (wasAnalyzingRef.current && submitStartedRef.current) {
+      wasAnalyzingRef.current = false;
+      setSubmitState('success');
+      submitResetTimerRef.current = setTimeout(() => {
+        setSubmitState('idle');
+        submitStartedRef.current = false;
+        submitResetTimerRef.current = null;
+      }, 1500);
+    }
   }, [isAnalyzing]);
+
+  useEffect(() => {
+    return () => {
+      if (submitResetTimerRef.current) {
+        clearTimeout(submitResetTimerRef.current);
+      }
+    };
+  }, []);
 
   // 从本地存储加载TTS设置
   useEffect(() => {
@@ -114,6 +149,8 @@ export default function InputSection({
       return;
     }
 
+    submitStartedRef.current = true;
+    setSubmitState('loading');
     onAnalyze(inputText);
   };
 
@@ -546,15 +583,12 @@ export default function InputSection({
           )}
 
           {/* 解析按钮 */}
-          <button
+          <StateMorphButton
             id="analyzeButton"
-            className="nd-primary-btn"
             onClick={handleAnalyze}
             disabled={isLoading}
-          >
-            {Icon.search}
-            <span>{isLoading ? '解析中…' : '解析'}</span>
-          </button>
+            state={submitState}
+          />
         </div>
 
         {/* 隐藏的文件输入 */}

@@ -6,6 +6,11 @@ import type { AIProvider } from '../services/api';
 import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { FlowAnimatedMarkdown } from '@/components/ui/flow-animated-markdown';
+import {
+  MorphingPopover,
+  MorphingPopoverContent,
+  MorphingPopoverTrigger,
+} from '@/components/ui/morphing-popover';
 import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 
 interface ChatMessage {
@@ -36,14 +41,14 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && isExpanded) {
+      if (e.key === 'Escape' && isExpanded) {
         setIsExpanded(false);
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, isExpanded]);
+  }, [isExpanded]);
 
   useEffect(() => {
     scrollToBottom();
@@ -156,31 +161,129 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
     }
   };
 
-  const toggleChat = () => {
-    setIsOpen(!isOpen);
-    if (!isOpen) {
+  const handlePopoverOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
-  const panelStyle = isExpanded
-    ? {
-        top: '50%',
-        left: '50%',
-        width: 'min(860px, calc(100vw - 32px))',
-        height: 'min(720px, calc(100vh - 48px))',
-        transform: 'translate(-50%, -50%)',
-      }
-    : {
-        right: '28px',
-        bottom: '92px',
-        width: 'min(390px, calc(100vw - 32px))',
-        height: '520px',
-      };
+  const openExpanded = () => {
+    setIsOpen(false);
+    setIsExpanded(true);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const closeChat = () => {
+    setIsOpen(false);
+    setIsExpanded(false);
+  };
+
+  const renderChatPanel = (expanded: boolean) => (
+    <>
+      <div
+        className="flex items-center gap-3 border-b px-4 py-3"
+        style={{ borderColor: 'var(--line)', background: 'var(--bg)' }}
+      >
+        <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+          {Icon.chat}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="m-0 text-sm font-semibold" style={{ color: 'var(--ink)' }}>AI 日语助手</h3>
+          <p className="m-0 mt-0.5 truncate text-xs" style={{ color: 'var(--ink-3)' }}>
+            {currentSentence ? '结合当前句子回答' : '语法、词汇和学习问题'}
+          </p>
+        </div>
+        <button
+          onClick={expanded ? () => {
+            setIsExpanded(false);
+            setIsOpen(true);
+          } : openExpanded}
+          className="nd-icon-btn"
+          title={expanded ? '收缩窗口' : '展开窗口'}
+          type="button"
+        >
+          {expanded ? Icon.compress : Icon.expand}
+        </button>
+        <button
+          onClick={closeChat}
+          className="nd-icon-btn"
+          title="关闭聊天"
+          type="button"
+        >
+          {Icon.xSm}
+        </button>
+      </div>
+
+      <div className={`flex-1 space-y-3 overflow-y-auto ${expanded ? 'p-6' : 'p-4'}`}>
+        {messages.map((message) => {
+          const isUser = message.role === 'user';
+          return (
+            <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className={`${expanded ? 'max-w-[72%]' : 'max-w-[82%]'} rounded-2xl px-4 py-3 text-sm leading-6`}
+                style={{
+                  background: isUser ? 'var(--primary)' : 'var(--bg)',
+                  color: isUser ? '#fff' : 'var(--ink-2)',
+                  border: isUser ? '1px solid var(--primary)' : '1px solid var(--line)',
+                  boxShadow: '0 1px 2px rgba(20,10,40,.03)',
+                }}
+              >
+                <AutoAnimateHeight duration={300}>
+                  {isUser ? (
+                    <div className="whitespace-pre-wrap">{message.content}</div>
+                  ) : (
+                    <div className="flow-markdown ai-chat-markdown max-w-none">
+                      <FlowAnimatedMarkdown
+                        content={preserveLineBreaksForMarkdown(escapeHtmlForMarkdown(message.content))}
+                        animation="fadeIn"
+                        sep="word"
+                        animationDuration="0.35s"
+                        animationTimingFunction="ease-out"
+                      />
+                      {isLoading && message.content && (
+                        <span className="ml-1 inline-block h-4 w-1 animate-pulse rounded-full" style={{ background: 'var(--primary)' }} />
+                      )}
+                    </div>
+                  )}
+                </AutoAnimateHeight>
+              </div>
+            </div>
+          );
+        })}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className={`border-t ${expanded ? 'p-5' : 'p-4'}`} style={{ borderColor: 'var(--line)' }}>
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="输入你的日语问题..."
+            className="nd-input min-h-[42px] flex-1 resize-none"
+            rows={expanded ? 3 : 1}
+            disabled={isLoading}
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={!inputValue.trim() || isLoading}
+            className="nd-primary-btn min-h-[42px] px-4"
+            type="button"
+            title="发送"
+          >
+            {Icon.send}
+          </button>
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <>
-      {isOpen && isExpanded && (
+      {isExpanded && (
         <div
           className="fixed inset-0 z-40"
           style={{ background: 'rgba(20,10,40,.45)' }}
@@ -188,122 +291,41 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
         />
       )}
 
-      {isOpen && (
+      {isExpanded && (
         <div
           className="fixed z-50 flex flex-col overflow-hidden rounded-2xl transition-all duration-300"
           style={{
-            ...panelStyle,
+            top: '50%',
+            left: '50%',
+            width: 'min(860px, calc(100vw - 32px))',
+            height: 'min(720px, calc(100vh - 48px))',
+            transform: 'translate(-50%, -50%)',
             background: 'var(--bg-2)',
             border: '1px solid var(--line)',
             boxShadow: '0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06)',
           }}
         >
-          <div
-            className="flex items-center gap-3 border-b px-4 py-3"
-            style={{ borderColor: 'var(--line)', background: 'var(--bg)' }}
-          >
-            <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-              {Icon.chat}
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="m-0 text-sm font-semibold" style={{ color: 'var(--ink)' }}>AI 日语助手</h3>
-              <p className="m-0 mt-0.5 truncate text-xs" style={{ color: 'var(--ink-3)' }}>
-                {currentSentence ? '结合当前句子回答' : '语法、词汇和学习问题'}
-              </p>
-            </div>
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="nd-icon-btn"
-              title={isExpanded ? '收缩窗口' : '展开窗口'}
-              type="button"
-            >
-              {isExpanded ? Icon.compress : Icon.expand}
-            </button>
-            <button
-              onClick={toggleChat}
-              className="nd-icon-btn"
-              title="关闭聊天"
-              type="button"
-            >
-              {Icon.xSm}
-            </button>
-          </div>
-
-          <div className={`flex-1 space-y-3 overflow-y-auto ${isExpanded ? 'p-6' : 'p-4'}`}>
-            {messages.map((message) => {
-              const isUser = message.role === 'user';
-              return (
-                <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`${isExpanded ? 'max-w-[72%]' : 'max-w-[82%]'} rounded-2xl px-4 py-3 text-sm leading-6`}
-                    style={{
-                      background: isUser ? 'var(--primary)' : 'var(--bg)',
-                      color: isUser ? '#fff' : 'var(--ink-2)',
-                      border: isUser ? '1px solid var(--primary)' : '1px solid var(--line)',
-                      boxShadow: '0 1px 2px rgba(20,10,40,.03)',
-                    }}
-                  >
-                    <AutoAnimateHeight duration={300}>
-                      {isUser ? (
-                        <div className="whitespace-pre-wrap">{message.content}</div>
-                      ) : (
-                        <div className="flow-markdown ai-chat-markdown max-w-none">
-                          <FlowAnimatedMarkdown
-                            content={preserveLineBreaksForMarkdown(escapeHtmlForMarkdown(message.content))}
-                            animation="fadeIn"
-                            sep="word"
-                            animationDuration="0.35s"
-                            animationTimingFunction="ease-out"
-                          />
-                          {isLoading && message.content && (
-                            <span className="ml-1 inline-block h-4 w-1 animate-pulse rounded-full" style={{ background: 'var(--primary)' }} />
-                          )}
-                        </div>
-                      )}
-                    </AutoAnimateHeight>
-                  </div>
-                </div>
-              );
-            })}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className={`border-t ${isExpanded ? 'p-5' : 'p-4'}`} style={{ borderColor: 'var(--line)' }}>
-            <div className="flex items-end gap-2">
-              <textarea
-                ref={inputRef}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="输入你的日语问题..."
-                className="nd-input min-h-[42px] flex-1 resize-none"
-                rows={isExpanded ? 3 : 1}
-                disabled={isLoading}
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isLoading}
-                className="nd-primary-btn min-h-[42px] px-4"
-                type="button"
-                title="发送"
-              >
-                {Icon.send}
-              </button>
-            </div>
-          </div>
+          {renderChatPanel(true)}
         </div>
       )}
 
-      {(!isOpen || !isExpanded) && (
-        <button
-          onClick={toggleChat}
-          className="nd-fab"
-          title={isOpen ? '关闭 AI 日语助手' : 'AI 日语助手'}
-          type="button"
+      {!isExpanded && (
+        <MorphingPopover
+          open={isOpen}
+          onOpenChange={handlePopoverOpenChange}
+          className="fixed bottom-7 right-7 z-[9999]"
         >
-          {isOpen ? Icon.xSm : Icon.chat}
-        </button>
+          <MorphingPopoverTrigger
+            className="nd-fab morphing-chat-trigger"
+            title="AI 日语助手"
+            type="button"
+          >
+            {Icon.chat}
+          </MorphingPopoverTrigger>
+          <MorphingPopoverContent className="bottom-0 right-0 flex h-[520px] w-[min(390px,calc(100vw-32px))] max-w-[calc(100vw-32px)] flex-col p-0">
+            {renderChatPanel(false)}
+          </MorphingPopoverContent>
+        </MorphingPopover>
       )}
     </>
   );
