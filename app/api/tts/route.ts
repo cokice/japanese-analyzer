@@ -8,8 +8,8 @@ const MODEL_NAME = 'gemini-3.1-flash-tts-preview';
 
 // Edge TTS 声音配置
 const EDGE_VOICES = {
-  male: 'ja-JP-Masaru:DragonHDLatestNeural',
-  female: 'ja-JP-Nanami:DragonHDLatestNeural'
+  male: 'ja-JP-KeitaNeural',
+  female: 'ja-JP-NanamiNeural'
 };
 
 // Gemini TTS 声音配置
@@ -53,8 +53,11 @@ export async function POST(req: NextRequest) {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         console.error('Edge TTS API error:', data);
+        const message = typeof data.error === 'string'
+          ? data.error
+          : data.error?.message || `Edge TTS 请求失败（HTTP ${response.status}）`;
         return NextResponse.json(
-          { error: data.error || { message: 'Edge TTS 请求失败' } },
+          { error: { message } },
           { status: response.status }
         );
       }

@@ -40,9 +40,13 @@ export interface StoredAISettings {
 // 默认API地址 - 使用本地API路由
 export const DEFAULT_API_URL = "/api";
 export const DEFAULT_AI_PROVIDER: AIProvider = 'deepseek';
-export const GEMINI_MODEL_NAME = "gemini-3.5-flash";
-export const DEEPSEEK_MODEL_NAME = "deepseek-v4-flash";
-export const MODEL_NAME = DEEPSEEK_MODEL_NAME;
+const GEMINI_MODEL_NAME = "gemini-3.5-flash";
+const DEEPSEEK_MODEL_NAME = "deepseek-v4-flash";
+const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
+const EDGE_TTS_VOICES = {
+  male: 'ja-JP-KeitaNeural',
+  female: 'ja-JP-NanamiNeural',
+};
 
 export function normalizeAIProvider(value?: string | null): AIProvider {
   return value === 'gemini' || value === 'deepseek' ? value : DEFAULT_AI_PROVIDER;
@@ -52,7 +56,7 @@ export function getModelName(provider: AIProvider = DEFAULT_AI_PROVIDER): string
   return provider === 'deepseek' ? DEEPSEEK_MODEL_NAME : GEMINI_MODEL_NAME;
 }
 
-export function getProviderApiUrl(apiUrl?: string): string | undefined {
+function getProviderApiUrl(apiUrl?: string): string | undefined {
   return apiUrl && apiUrl !== DEFAULT_API_URL ? apiUrl : undefined;
 }
 
@@ -109,6 +113,118 @@ function getHeaders(userApiKey?: string): HeadersInit {
   return headers;
 }
 
+function buildAnalyzePrompt(sentence: string): string {
+  return `请对以下日语句子进行详细的词法分析，并以JSON数组格式返回结果。每个对象应包含以下字段："word", "pos", "furigana", "romaji"。
+
+请特别注意以下分析要求：
+1. 将助动词与对应动词正确结合。如"食べた"应作为一个单词，而不是分开为"食べ"和"た"。
+2. 正确识别动词的时态变化，如"いた"是"いる"的过去时，应作为一个完整单词处理。
+3. 合理处理助词，应当与前后词汇适当分离。
+4. 避免过度分词，特别是对于构成一个语法或语义单位的组合。
+5. 对于复合词，如"持って行く"，根据语义和使用习惯确定是作为一个词还是分开处理。
+6. 标点符号不要标记为普通词，不要给标点生成假名或罗马音。为了保留原文显示，若需要输出标点，只能使用 {"word": "标点原文", "pos": "記号", "furigana": "", "romaji": ""}，不能分配名词、助词、其他等词性。包括但不限于：。 、 ， . , ？ ? ！ ! ： : ； ; 「 」 『 』 （ ） ( ) 等。
+7. 重要：如果待解析的句子中包含换行符，请在对应的位置输出一个JSON对象：{"word": "\n", "pos": "改行", "furigana": "", "romaji": ""}.
+
+确保输出是严格的JSON格式，不包含任何markdown或其他非JSON字符。
+
+待解析句子： "${sentence}"`;
+}
+
+function getDeltaContentFromStreamData(data: string, parseWarning: string): string {
+  try {
+    const parsed = JSON.parse(data);
+    const content = parsed.choices?.[0]?.delta?.content;
+    return typeof content === 'string' ? content : '';
+  } catch (error) {
+    console.warn(parseWarning, error, data);
+    return '';
+  }
+}
+
+async function readOpenAIContentStream(
+  response: Response,
+  onChunk: (chunk: string, isDone: boolean) => void,
+  onError: (error: Error) => void,
+  options: {
+    debounceMs?: number;
+    parseWarning?: string;
+  } = {}
+): Promise<void> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    onError(new Error('无法创建流式读取器'));
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  const debounceMs = options.debounceMs ?? 16;
+  const parseWarning = options.parseWarning ?? 'Failed to parse streaming JSON chunk:';
+  let buffer = '';
+  let rawContent = '';
+  let updateTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  const emit = (content: string, isComplete: boolean) => {
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+      updateTimeout = null;
+    }
+
+    if (isComplete) {
+      onChunk(content, true);
+      return;
+    }
+
+    updateTimeout = setTimeout(() => {
+      onChunk(content, false);
+    }, debounceMs);
+  };
+
+  const handleData = (data: string): boolean => {
+    if (data === '[DONE]') {
+      emit(rawContent, true);
+      return true;
+    }
+
+    const content = getDeltaContentFromStreamData(data, parseWarning);
+    if (content) {
+      rawContent += content;
+      emit(rawContent, false);
+    }
+
+    return false;
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.trim() === '') continue;
+
+      const trimmedLine = line.trimEnd();
+      if (!trimmedLine.startsWith('data:')) continue;
+
+      const data = trimmedLine.substring(5).trimStart();
+      if (handleData(data)) return;
+    }
+  }
+
+  if (buffer.trim() !== '') {
+    const trimmedBuffer = buffer.trim();
+    if (trimmedBuffer.startsWith('data:')) {
+      const data = trimmedBuffer.substring(5).trimStart();
+      if (handleData(data)) return;
+    }
+  }
+
+  emit(rawContent, true);
+}
+
 // 分析日语句子
 export async function analyzeSentence(
   sentence: string,
@@ -128,20 +244,7 @@ export async function analyzeSentence(
       method: 'POST',
       headers,
       body: JSON.stringify({ 
-        prompt: `请对以下日语句子进行详细的词法分析，并以JSON数组格式返回结果。每个对象应包含以下字段："word", "pos", "furigana", "romaji"。
-
-请特别注意以下分析要求：
-1. 将助动词与对应动词正确结合。如"食べた"应作为一个单词，而不是分开为"食べ"和"た"。
-2. 正确识别动词的时态变化，如"いた"是"いる"的过去时，应作为一个完整单词处理。
-3. 合理处理助词，应当与前后词汇适当分离。
-4. 避免过度分词，特别是对于构成一个语法或语义单位的组合。
-5. 对于复合词，如"持って行く"，根据语义和使用习惯确定是作为一个词还是分开处理。
-6. 标点符号不要标记为普通词，不要给标点生成假名或罗马音。为了保留原文显示，若需要输出标点，只能使用 {"word": "标点原文", "pos": "記号", "furigana": "", "romaji": ""}，不能分配名词、助词、其他等词性。包括但不限于：。 、 ， . , ？ ? ！ ! ： : ； ; 「 」 『 』 （ ） ( ) 等。
-7. 重要：如果待解析的句子中包含换行符，请在对应的位置输出一个JSON对象：{"word": "\n", "pos": "改行", "furigana": "", "romaji": ""}.
-
-确保输出是严格的JSON格式，不包含任何markdown或其他非JSON字符。
-
-待解析句子： "${sentence}"`, 
+        prompt: buildAnalyzePrompt(sentence),
         ...getRequestProviderPayload(provider, userApiUrl)
       })
     });
@@ -198,20 +301,7 @@ export async function streamAnalyzeSentence(
       method: 'POST',
       headers,
       body: JSON.stringify({ 
-        prompt: `请对以下日语句子进行详细的词法分析，并以JSON数组格式返回结果。每个对象应包含以下字段："word", "pos", "furigana", "romaji"。
-
-请特别注意以下分析要求：
-1. 将助动词与对应动词正确结合。如"食べた"应作为一个单词，而不是分开为"食べ"和"た"。
-2. 正确识别动词的时态变化，如"いた"是"いる"的过去时，应作为一个完整单词处理。
-3. 合理处理助词，应当与前后词汇适当分离。
-4. 避免过度分词，特别是对于构成一个语法或语义单位的组合。
-5. 对于复合词，如"持って行く"，根据语义和使用习惯确定是作为一个词还是分开处理。
-6. 标点符号不要标记为普通词，不要给标点生成假名或罗马音。为了保留原文显示，若需要输出标点，只能使用 {"word": "标点原文", "pos": "記号", "furigana": "", "romaji": ""}，不能分配名词、助词、其他等词性。包括但不限于：。 、 ， . , ？ ? ！ ! ： : ； ; 「 」 『 』 （ ） ( ) 等。
-7. 重要：如果待解析的句子中包含换行符，请在对应的位置输出一个JSON对象：{"word": "\n", "pos": "改行", "furigana": "", "romaji": ""}.
-
-确保输出是严格的JSON格式，不包含任何markdown或其他非JSON字符。
-
-待解析句子： "${sentence}"`, 
+        prompt: buildAnalyzePrompt(sentence),
         ...getRequestProviderPayload(provider, userApiUrl),
         stream: true
       })
@@ -224,106 +314,10 @@ export async function streamAnalyzeSentence(
       return;
     }
     
-    // 处理流式响应
-    const reader = response.body?.getReader();
-    if (!reader) {
-      onError(new Error('无法创建流式读取器'));
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let rawContent = '';
-    let done = false;
-    
-    // 添加防抖，减少UI更新频率，提高性能
-    let updateTimeout: ReturnType<typeof setTimeout> | null = null;
-    const updateDebounceTime = 16; // 16ms - 1帧更新，更流畅
-    
-    const debouncedUpdate = (content: string, isComplete: boolean) => {
-      if (updateTimeout) {
-        clearTimeout(updateTimeout);
-      }
-      
-      if (isComplete) {
-        // 最终结果不需要防抖
-        onChunk(content, true);
-        return;
-      }
-      
-      updateTimeout = setTimeout(() => {
-        onChunk(content, false);
-      }, updateDebounceTime);
-    };
-
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      
-      if (value) {
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
-        
-        // 处理buffer中所有完整的行
-        const lines = buffer.split('\n');
-        // 最后一行可能不完整，保留到下一次处理
-        buffer = lines.pop() || '';
-        
-        let hasNewContent = false;
-        
-        for (const line of lines) {
-          if (line.trim() === '') continue;
-          
-          const trimmedLine = line.trimEnd();
-          if (trimmedLine.startsWith('data:')) {
-            const data = trimmedLine.substring(5).trimStart();
-            if (data === '[DONE]') {
-              // 最终结果
-              onChunk(rawContent, true);
-              return;
-            }
-            
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                const content = parsed.choices[0].delta.content;
-                rawContent += content;
-                hasNewContent = true;
-              }
-            } catch (e) {
-              console.warn('Failed to parse streaming JSON chunk:', e, data);
-            }
-          }
-        }
-        
-        // 只有在内容有更新时才触发更新
-        if (hasNewContent) {
-          debouncedUpdate(rawContent, false);
-        }
-      }
-    }
-    
-    // 处理最后可能剩余的数据
-    if (buffer.trim() !== '') {
-      const trimmedBuffer = buffer.trim();
-      if (trimmedBuffer.startsWith('data:')) {
-        const data = trimmedBuffer.substring(5).trimStart();
-        if (data !== '[DONE]') {
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-              const content = parsed.choices[0].delta.content;
-              rawContent += content;
-            }
-          } catch (e) {
-            console.warn('Failed to parse final streaming JSON chunk:', e, data);
-          }
-        }
-      }
-    }
-    
-    // 最终结果
-    onChunk(rawContent, true);
+    await readOpenAIContentStream(response, onChunk, onError, {
+      debounceMs: 16,
+      parseWarning: 'Failed to parse streaming JSON chunk:',
+    });
   } catch (error) {
     console.error('Error in stream analyzing sentence:', error);
     onError(error instanceof Error ? error : new Error('未知错误'));
@@ -360,106 +354,10 @@ export async function streamTranslateText(
       return;
     }
     
-    // 处理流式响应
-    const reader = response.body?.getReader();
-    if (!reader) {
-      onError(new Error('无法创建流式读取器'));
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let rawContent = '';
-    let done = false;
-    
-    // 添加防抖，减少UI更新频率，提高性能
-    let updateTimeout: ReturnType<typeof setTimeout> | null = null;
-    const updateDebounceTime = 16; // 16ms - 1帧更新，更流畅
-    
-    const debouncedUpdate = (content: string, isComplete: boolean) => {
-      if (updateTimeout) {
-        clearTimeout(updateTimeout);
-      }
-      
-      if (isComplete) {
-        // 最终结果不需要防抖
-        onChunk(content, true);
-        return;
-      }
-      
-      updateTimeout = setTimeout(() => {
-        onChunk(content, false);
-      }, updateDebounceTime);
-    };
-
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      
-      if (value) {
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
-        
-        // 处理buffer中所有完整的行
-        const lines = buffer.split('\n');
-        // 最后一行可能不完整，保留到下一次处理
-        buffer = lines.pop() || '';
-        
-        let hasNewContent = false;
-        
-        for (const line of lines) {
-          if (line.trim() === '') continue;
-          
-          const trimmedLine = line.trimEnd();
-          if (trimmedLine.startsWith('data:')) {
-            const data = trimmedLine.substring(5).trimStart();
-            if (data === '[DONE]') {
-              // 最终结果
-              onChunk(rawContent, true);
-              return;
-            }
-            
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                const content = parsed.choices[0].delta.content;
-                rawContent += content;
-                hasNewContent = true;
-              }
-            } catch (e) {
-              console.warn('Failed to parse streaming JSON chunk:', e, data);
-            }
-          }
-        }
-        
-        // 只有在内容有更新时才触发更新
-        if (hasNewContent) {
-          debouncedUpdate(rawContent, false);
-        }
-      }
-    }
-    
-    // 处理最后可能剩余的数据
-    if (buffer.trim() !== '') {
-      const trimmedBuffer = buffer.trim();
-      if (trimmedBuffer.startsWith('data:')) {
-        const data = trimmedBuffer.substring(5).trimStart();
-        if (data !== '[DONE]') {
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-              const content = parsed.choices[0].delta.content;
-              rawContent += content;
-            }
-          } catch (e) {
-            console.warn('Failed to parse final streaming JSON chunk:', e, data);
-          }
-        }
-      }
-    }
-    
-    // 最终结果
-    onChunk(rawContent, true);
+    await readOpenAIContentStream(response, onChunk, onError, {
+      debounceMs: 16,
+      parseWarning: 'Failed to parse streaming JSON chunk:',
+    });
   } catch (error) {
     console.error('Error in stream translating text:', error);
     onError(error instanceof Error ? error : new Error('未知错误'));
@@ -563,86 +461,10 @@ export async function streamWordDetails(
       return;
     }
     
-    // 处理流式响应
-    const reader = response.body?.getReader();
-    if (!reader) {
-      onError(new Error('无法创建流式读取器'));
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let rawContent = '';
-    let done = false;
-    
-    // 添加防抖，减少UI更新频率
-    let updateTimeout: ReturnType<typeof setTimeout> | null = null;
-    const updateDebounceTime = 30; // 30ms - 更快的响应
-    
-    const debouncedUpdate = (content: string, isComplete: boolean) => {
-      if (updateTimeout) {
-        clearTimeout(updateTimeout);
-      }
-      
-      if (isComplete) {
-        // 最终结果不需要防抖
-        onChunk(content, true);
-        return;
-      }
-      
-      updateTimeout = setTimeout(() => {
-        onChunk(content, false);
-      }, updateDebounceTime);
-    };
-
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      
-      if (value) {
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
-        
-        // 处理buffer中所有完整的行
-        const lines = buffer.split('\n');
-        // 最后一行可能不完整，保留到下一次处理
-        buffer = lines.pop() || '';
-        
-        let hasNewContent = false;
-        
-        for (const line of lines) {
-          if (line.trim() === '') continue;
-          
-          const trimmedLine = line.trimEnd();
-          if (trimmedLine.startsWith('data:')) {
-            const data = trimmedLine.substring(5).trimStart();
-            
-            if (data === '[DONE]') {
-              done = true;
-              break;
-            }
-            
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                rawContent += parsed.choices[0].delta.content;
-                hasNewContent = true;
-              }
-            } catch (e) {
-              // 忽略解析错误，继续处理下一行
-              console.warn('解析流式数据时出错:', e, data);
-            }
-          }
-        }
-        
-        if (hasNewContent) {
-          debouncedUpdate(rawContent, false);
-        }
-      }
-    }
-    
-    // 发送最终内容
-    debouncedUpdate(rawContent, true);
+    await readOpenAIContentStream(response, onChunk, onError, {
+      debounceMs: 30,
+      parseWarning: '解析流式数据时出错:',
+    });
     
   } catch (error) {
     console.error('Stream Word Detail error:', error);
@@ -773,123 +595,70 @@ export async function streamExtractTextFromImage(
       return;
     }
     
-    // 处理流式响应
-    const reader = response.body?.getReader();
-    if (!reader) {
-      onError(new Error('无法创建流式读取器'));
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let rawContent = '';
-    let done = false;
-    
-    // 添加防抖，减少UI更新频率，提高性能
-    let updateTimeout: ReturnType<typeof setTimeout> | null = null;
-    const updateDebounceTime = 16; // 16ms - 1帧更新，更流畅
-    
-    const debouncedUpdate = (content: string, isComplete: boolean) => {
-      if (updateTimeout) {
-        clearTimeout(updateTimeout);
-      }
-      
-      if (isComplete) {
-        // 最终结果不需要防抖
-        onChunk(content, true);
-        return;
-      }
-      
-      updateTimeout = setTimeout(() => {
-        onChunk(content, false);
-      }, updateDebounceTime);
-    };
-
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      
-      if (value) {
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
-        
-        // 处理buffer中所有完整的行
-        const lines = buffer.split('\n');
-        // 最后一行可能不完整，保留到下一次处理
-        buffer = lines.pop() || '';
-        
-        let hasNewContent = false;
-        
-        for (const line of lines) {
-          if (line.trim() === '') continue;
-          
-          const trimmedLine = line.trimEnd();
-          if (trimmedLine.startsWith('data:')) {
-            const data = trimmedLine.substring(5).trimStart();
-            if (data === '[DONE]') {
-              // 最终结果
-              onChunk(rawContent, true);
-              return;
-            }
-            
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                const content = parsed.choices[0].delta.content;
-                rawContent += content;
-                hasNewContent = true;
-              }
-            } catch (e) {
-              console.warn('Failed to parse streaming JSON chunk:', e, data);
-            }
-          }
-        }
-        
-        // 只有在内容有更新时才触发更新
-        if (hasNewContent) {
-          debouncedUpdate(rawContent, false);
-        }
-      }
-    }
-    
-    // 处理最后可能剩余的数据
-    if (buffer.trim() !== '') {
-      const trimmedBuffer = buffer.trim();
-      if (trimmedBuffer.startsWith('data:')) {
-        const data = trimmedBuffer.substring(5).trimStart();
-        if (data !== '[DONE]') {
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-              const content = parsed.choices[0].delta.content;
-              rawContent += content;
-            }
-          } catch (e) {
-            console.warn('Failed to parse final streaming JSON chunk:', e, data);
-          }
-        }
-      }
-    }
-    
-    // 最终结果
-    onChunk(rawContent, true);
+    await readOpenAIContentStream(response, onChunk, onError, {
+      debounceMs: 16,
+      parseWarning: 'Failed to parse streaming JSON chunk:',
+    });
   } catch (error) {
     console.error('Error in stream extracting text from image:', error);
     onError(error instanceof Error ? error : new Error('未知错误'));
   }
 }
 
-// 使用Gemini TTS合成语音
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+
+  return btoa(binary);
+}
+
+// 合成语音
 export async function synthesizeSpeech(
   text: string,
   provider: 'edge' | 'gemini' = 'edge',
   options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number } = {},
   userApiKey?: string
 ): Promise<{ audio: string; mimeType: string }> {
+  const { gender = 'female', voice = 'Kore', rate = 0, pitch = 0 } = options;
+
+  if (provider === 'edge') {
+    const response = await fetch(EDGE_TTS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        voice: EDGE_TTS_VOICES[gender],
+        rate,
+        pitch,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const message = typeof errorData.error === 'string'
+        ? errorData.error
+        : errorData.error?.message || `Edge TTS 请求失败（HTTP ${response.status}）`;
+      throw new Error(message);
+    }
+
+    const audioBuffer = await response.arrayBuffer();
+    if (!audioBuffer.byteLength) {
+      throw new Error('Edge TTS 返回空音频');
+    }
+
+    return {
+      audio: arrayBufferToBase64(audioBuffer),
+      mimeType: response.headers.get('content-type') || 'audio/mpeg',
+    };
+  }
+
   const apiUrl = getApiEndpoint('/tts');
   const headers = getHeaders(userApiKey);
-
-  const { gender = 'female', voice = 'Kore', rate = 0, pitch = 0 } = options;
 
   const response = await fetch(apiUrl, {
     method: 'POST',
@@ -942,91 +711,10 @@ export async function streamChat(
       return;
     }
     
-    // 处理流式响应
-    const reader = response.body?.getReader();
-    if (!reader) {
-      onError(new Error('无法创建流式读取器'));
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let rawContent = '';
-    let done = false;
-    
-    // 添加防抖，减少UI更新频率
-    let updateTimeout: ReturnType<typeof setTimeout> | null = null;
-    const updateDebounceTime = 30; // 30ms - 更快的响应
-    
-    const debouncedUpdate = (content: string, isComplete: boolean) => {
-      if (updateTimeout) {
-        clearTimeout(updateTimeout);
-      }
-      
-      if (isComplete) {
-        // 最终结果不需要防抖
-        onChunk(content, true);
-        return;
-      }
-      
-      updateTimeout = setTimeout(() => {
-        onChunk(content, false);
-      }, updateDebounceTime);
-    };
-
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      
-      if (value) {
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
-        
-        // 处理buffer中所有完整的行
-        const lines = buffer.split('\n');
-        // 最后一行可能不完整，保留到下一次处理
-        buffer = lines.pop() || '';
-        
-        let hasNewContent = false;
-        
-        for (const line of lines) {
-          if (line.trim() === '') continue;
-          
-          const trimmedLine = line.trimEnd();
-          if (trimmedLine.startsWith('data:')) {
-            const data = trimmedLine.substring(5).trimStart();
-            
-            if (data === '[DONE]') {
-              done = true;
-              break;
-            }
-            
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
-                const delta = parsed.choices[0].delta;
-                
-                // 处理常规内容
-                if (delta.content) {
-                  rawContent += delta.content;
-                  hasNewContent = true;
-                }
-              }
-            } catch (e) {
-              // 忽略解析错误，继续处理下一行
-              console.warn('解析聊天流式数据时出错:', e, data);
-            }
-          }
-        }
-        
-        if (hasNewContent) {
-          debouncedUpdate(rawContent, false);
-        }
-      }
-    }
-    
-    // 发送最终内容
-    debouncedUpdate(rawContent, true);
+    await readOpenAIContentStream(response, onChunk, onError, {
+      debounceMs: 30,
+      parseWarning: '解析聊天流式数据时出错:',
+    });
     
   } catch (error) {
     console.error('Stream Chat error:', error);
@@ -1034,7 +722,9 @@ export async function streamChat(
   }
 }
 
-// 聊天API - 非流式版本
+/**
+ * @public Retained for non-streaming chat callers.
+ */
 export async function sendChat(
   messages: ChatMessage[],
   userApiKey?: string,

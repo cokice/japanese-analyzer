@@ -64,6 +64,9 @@ const oldGeminiApiKey = process.env.GEMINI_API_KEY;
 const oldGeminiApiUrl = process.env.GEMINI_API_URL;
 const oldLegacyApiKey = process.env.API_KEY;
 const oldLegacyApiUrl = process.env.API_URL;
+const createProviderConfigRequest = () => (
+  { headers: new Headers() } as Parameters<typeof resolveProviderConfig>[0]
+);
 
 try {
   delete process.env.GEMINI_API_KEY;
@@ -72,7 +75,7 @@ try {
   process.env.API_URL = 'https://legacy.example/chat/completions';
 
   const defaultGeminiConfig = resolveProviderConfig(
-    { headers: new Headers() } as any,
+    createProviderConfigRequest(),
     { provider: 'gemini' }
   );
   assert.strictEqual(defaultGeminiConfig.apiKey, '');
@@ -82,7 +85,7 @@ try {
   process.env.GEMINI_API_URL = 'https://gemini.example/chat/completions';
 
   const envGeminiConfig = resolveProviderConfig(
-    { headers: new Headers() } as any,
+    createProviderConfigRequest(),
     { provider: 'gemini' }
   );
   assert.strictEqual(envGeminiConfig.apiKey, 'gemini-key');
