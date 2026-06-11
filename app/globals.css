@@ -399,7 +399,7 @@ input, textarea {
 }
 
 @media (max-width: 640px) {
-  textarea {
+  textarea:not(#japaneseInput) {
     font-size: 16px !important; /* 防止iOS缩放 */
   }
 }
@@ -689,6 +689,7 @@ input, textarea {
 .input-text-shimmer-source {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
+  padding: 0;
 }
 
 .input-text-shimmer-layer-frame {
@@ -703,7 +704,8 @@ input, textarea {
   display: block;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  padding: 2px;
+  padding: 0;
+  margin: 0;
   box-sizing: border-box;
   font-size: 20px;
   line-height: 1.6;
@@ -872,10 +874,104 @@ input, textarea {
 
 .nd-fab:hover { background: var(--primary-2); transform: translateY(-1px); }
 
+.assistant-modal-anchor {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 9999;
+  width: 48px;
+  height: 48px;
+}
+
+.assistant-modal-trigger {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
+  overflow: hidden;
+  transform: none;
+}
+
+.assistant-modal-trigger:hover,
+.assistant-modal-trigger:active {
+  background: var(--primary-2);
+  transform: none;
+}
+
+.assistant-modal-trigger-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.assistant-modal-content-positioner {
+  z-index: 9998;
+  width: min(390px, calc(100vw - 32px));
+  height: min(520px, calc(100vh - 112px));
+  padding: 0;
+  border: 0;
+  outline: none;
+  overflow: visible;
+  pointer-events: none;
+  background: transparent;
+}
+
+.assistant-modal-panel {
+  pointer-events: auto;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg-2);
+  color: var(--ink);
+  box-shadow: 0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06);
+  will-change: transform, opacity;
+}
+
+@media (max-width: 640px) {
+  .assistant-modal-content-positioner {
+    width: min(320px, calc(100vw - 32px));
+    height: min(520px, calc(100vh - 112px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-modal-trigger-icon,
+  .assistant-modal-panel {
+    will-change: auto;
+  }
+}
+
 .morphing-chat-trigger {
   position: relative;
   right: auto;
   bottom: auto;
+}
+
+.morphing-popover-trigger-shell {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+
+.morphing-popover-trigger-shell-fab {
+  width: 48px;
+  height: 48px;
+}
+
+.morphing-popover-trigger-content {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  color: #fff;
 }
 
 /* ========== 滚动条 ========== */
@@ -1009,6 +1105,8 @@ input[type="text"],
   font-family: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
   -webkit-font-smoothing: antialiased;
   caret-color: var(--primary);
+  margin: 0;
+  padding: 0;
 }
 
 /* Safari 输入修复 */
@@ -1017,6 +1115,11 @@ html.safari input[type="text"] {
   -webkit-text-fill-color: var(--ink) !important;
   color: var(--ink) !important;
   opacity: 1 !important;
+}
+
+html.safari textarea.input-text-shimmer-source {
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
 }
 
 html.safari textarea::placeholder,

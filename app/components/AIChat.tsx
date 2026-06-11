@@ -1,16 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { AssistantModalPrimitive } from '@assistant-ui/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { streamChat, ChatMessage as APIMessage } from '../services/api';
 import type { AIProvider } from '../services/api';
 import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { FlowAnimatedMarkdown } from '@/components/ui/flow-animated-markdown';
-import {
-  MorphingPopover,
-  MorphingPopoverContent,
-  MorphingPopoverTrigger,
-} from '@/components/ui/morphing-popover';
 import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 
 interface ChatMessage {
@@ -34,6 +31,26 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const shouldReduceMotion = useReducedMotion();
+  const modalEase = [0.16, 1, 0.3, 1] as const;
+  const panelInitial = shouldReduceMotion
+    ? { opacity: 1 }
+    : { opacity: 0, scale: 0.9, y: 8 };
+  const panelAnimate = shouldReduceMotion
+    ? { opacity: 1 }
+    : { opacity: 1, scale: 1, y: 0 };
+  const panelExit = shouldReduceMotion
+    ? { opacity: 0 }
+    : { opacity: 0, scale: 0.9, y: 8 };
+  const panelEnterTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: 0.2, ease: modalEase };
+  const panelExitTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: 0.15, ease: modalEase };
+  const iconTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: 0.15, ease: modalEase };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -241,9 +258,6 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
                         animationDuration="0.35s"
                         animationTimingFunction="ease-out"
                       />
-                      {isLoading && message.content && (
-                        <span className="ml-1 inline-block h-4 w-1 animate-pulse rounded-full" style={{ background: 'var(--primary)' }} />
-                      )}
                     </div>
                   )}
                 </AutoAnimateHeight>
@@ -310,22 +324,74 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
       )}
 
       {!isExpanded && (
-        <MorphingPopover
+        <AssistantModalPrimitive.Root
           open={isOpen}
           onOpenChange={handlePopoverOpenChange}
-          className="fixed bottom-7 right-7 z-[9999]"
+          unstable_openOnRunStart={false}
         >
-          <MorphingPopoverTrigger
-            className="nd-fab morphing-chat-trigger"
-            title="AI 日语助手"
-            type="button"
+          <AssistantModalPrimitive.Anchor className="assistant-modal-anchor">
+            <AssistantModalPrimitive.Trigger asChild>
+              <button
+                className="nd-fab assistant-modal-trigger"
+                title="AI 日语助手"
+                type="button"
+                aria-label={isOpen ? '关闭 AI 日语助手' : '打开 AI 日语助手'}
+              >
+                <AnimatePresence initial={false} mode="wait">
+                  {isOpen ? (
+                    <motion.span
+                      key="close"
+                      className="assistant-modal-trigger-icon"
+                      initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, rotate: -90, scale: 0.5 }}
+                      animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, rotate: 0, scale: 1 }}
+                      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, rotate: -90, scale: 0.5 }}
+                      transition={iconTransition}
+                    >
+                      {Icon.x}
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="chat"
+                      className="assistant-modal-trigger-icon"
+                      initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, rotate: 90, scale: 0.5 }}
+                      animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, rotate: 0, scale: 1 }}
+                      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, rotate: 90, scale: 0.5 }}
+                      transition={iconTransition}
+                    >
+                      {Icon.chat}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </button>
+            </AssistantModalPrimitive.Trigger>
+          </AssistantModalPrimitive.Anchor>
+
+          <AssistantModalPrimitive.Content
+            forceMount
+            side="top"
+            align="end"
+            sideOffset={12}
+            avoidCollisions={false}
+            dissmissOnInteractOutside
+            className="assistant-modal-content-positioner"
           >
-            {Icon.chat}
-          </MorphingPopoverTrigger>
-          <MorphingPopoverContent className="bottom-0 right-0 flex h-[520px] w-[min(390px,calc(100vw-32px))] max-w-[calc(100vw-32px)] flex-col p-0">
-            {renderChatPanel(false)}
-          </MorphingPopoverContent>
-        </MorphingPopover>
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  key="assistant-chat-panel"
+                  className="assistant-modal-panel"
+                  initial={panelInitial}
+                  animate={panelAnimate}
+                  exit={{ ...panelExit, transition: panelExitTransition }}
+                  transition={panelEnterTransition}
+                  style={{ transformOrigin: 'bottom right' }}
+                >
+                  {renderChatPanel(false)}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </AssistantModalPrimitive.Content>
+        </AssistantModalPrimitive.Root>
       )}
     </>
   );

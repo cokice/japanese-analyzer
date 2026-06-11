@@ -120,17 +120,50 @@ function MorphingPopoverTrigger({
     );
   }
 
+  const ariaLabel =
+    props["aria-label"] ??
+    (typeof props.title === "string" ? props.title : undefined);
+  const isFabTrigger =
+    typeof className === "string" && className.includes("morphing-chat-trigger");
+
   return (
-    <motion.button
-      {...props}
-      layoutId={`popover-trigger-${context.uniqueId}`}
-      onClick={context.open}
-      className={className}
-      aria-expanded={context.isOpen}
-      aria-controls={`popover-content-${context.uniqueId}`}
+    <span
+      className={cn(
+        "morphing-popover-trigger-shell",
+        isFabTrigger && "morphing-popover-trigger-shell-fab"
+      )}
     >
-      {children}
-    </motion.button>
+      <AnimatePresence initial={false}>
+        {!context.isOpen && (
+          <motion.button
+            {...props}
+            layoutId={`popover-container-${context.uniqueId}`}
+            onClick={context.open}
+            className={className}
+            aria-label={ariaLabel}
+            aria-expanded={context.isOpen}
+            aria-controls={`popover-content-${context.uniqueId}`}
+            transition={{ duration: 0.28, ease: [0.2, 0, 0, 1] }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence initial={false}>
+        {!context.isOpen && (
+          <motion.span
+            key="trigger-content"
+            layout="position"
+            className="morphing-popover-trigger-content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            aria-hidden="true"
+          >
+            {children}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </span>
   );
 }
 
@@ -173,7 +206,7 @@ function MorphingPopoverContent({
         <motion.div
           {...props}
           ref={ref}
-          layoutId={`popover-trigger-${context.uniqueId}`}
+          layoutId={`popover-container-${context.uniqueId}`}
           id={`popover-content-${context.uniqueId}`}
           role="dialog"
           aria-modal="true"
@@ -185,8 +218,18 @@ function MorphingPopoverContent({
           animate="animate"
           exit="exit"
           variants={context.variants}
+          transition={{ duration: 0.28, ease: [0.2, 0, 0, 1] }}
         >
-          {children}
+          <motion.div
+            layout="position"
+            className="h-full w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeOut", delay: 0.05 }}
+          >
+            {children}
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
