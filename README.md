@@ -2,6 +2,8 @@
 
 面向中文学习者的日语句子解析工具。输入一句日语，应用会拆解词汇、读音、罗马音、词性、整句翻译和单词详解，并提供图片识别、朗读和 AI 日语助手。
 
+体验链接 https://nihongodemo.howen.ink/
+
 <p align="center">
   <img src="./public/logo/logo-text.png" alt="日本語文章解析" width="360" />
 </p>
