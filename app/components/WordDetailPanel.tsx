@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { WordDetail } from '../services/api';
-import { getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
+import { getPosGroup, normalizePosBase, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
 import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 import { Icon, I } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
@@ -158,7 +158,7 @@ export default function WordDetailPanel({
   const posGroup = getPosGroup(wordDetail.pos || '');
   const accent = POS_GROUP_COLORS[posGroup];
   const display = (wordDetail.originalWord || '').replace(/[、。]/g, '');
-  const posLabel = posChineseMap[wordDetail.pos?.split('-')[0] || ''] || POS_GROUP_LABELS[posGroup];
+  const posLabel = posChineseMap[normalizePosBase(wordDetail.pos)] || POS_GROUP_LABELS[posGroup];
 
   return (
     <section className="word-detail-panel">

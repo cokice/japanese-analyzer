@@ -30,6 +30,11 @@ export default function TranslationSection({
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [canAnimateTranslation, setCanAnimateTranslation] = useState(false);
+
+  useEffect(() => {
+    import('flowtoken').catch(() => {});
+  }, []);
 
   const handleTranslate = async () => {
     if (!japaneseText) {
@@ -39,6 +44,7 @@ export default function TranslationSection({
 
     setIsLoading(true);
     setIsVisible(true); // 确保显示翻译区域
+    setCanAnimateTranslation(false);
     setTranslation(''); // 清空之前的翻译结果
 
     try {
@@ -97,6 +103,17 @@ export default function TranslationSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trigger]);
 
+  useEffect(() => {
+    if (!translation) {
+      setCanAnimateTranslation(false);
+      return;
+    }
+
+    if (!isLoading || translation.length >= 16 || /[。！？.!?，,、\n]/.test(translation)) {
+      setCanAnimateTranslation(true);
+    }
+  }, [isLoading, translation]);
+
   return (
     <section id="fullTranslationCard" className="nd-card">
       <div className="mb-3 flex items-center">
@@ -122,13 +139,17 @@ export default function TranslationSection({
               className="flow-markdown full-translation-markdown mb-3.5 mt-1 text-[16px] leading-7"
               style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
             >
-              <FlowAnimatedMarkdown
-                content={animatedTranslation}
-                animation="fadeIn"
-                sep="word"
-                animationDuration="0.35s"
-                animationTimingFunction="ease-out"
-              />
+              {canAnimateTranslation ? (
+                <FlowAnimatedMarkdown
+                  content={animatedTranslation}
+                  animation="fadeIn"
+                  sep="word"
+                  animationDuration="0.35s"
+                  animationTimingFunction="ease-out"
+                />
+              ) : (
+                <span className="whitespace-pre-wrap">{translation}</span>
+              )}
             </div>
           ) : (
             <p
