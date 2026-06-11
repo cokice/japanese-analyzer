@@ -12,6 +12,7 @@
   <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" /></a>
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black" />
   <img alt="React" src="https://img.shields.io/badge/React-19-61dafb" />
+  <a href="https://linux.do/"><img alt="LINUX DO" src="https://img.shields.io/badge/LINUX%20DO-%E6%96%B0%E7%9A%84%E7%90%86%E6%83%B3%E5%9E%8B%E7%A4%BE%E5%8C%BA-f8c12c" /></a>
 </p>
 
 ## 界面预览
@@ -131,6 +132,9 @@ app/
 docs/images/           # README 截图
 tests/                 # 轻量测试
 ```
+## 致谢
+
+- 感谢 [LINUX DO](https://linux.do/) 社区的支持与推广
 
 ## 许可证
 
