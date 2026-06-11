@@ -30,7 +30,6 @@ export default function Home() {
   const [analysisError, setAnalysisError] = useState('');
   const [useStream, setUseStream] = useState<boolean>(true);
   const [streamContent, setStreamContent] = useState('');
-  const [isJsonParseError, setIsJsonParseError] = useState(false);
   const [translationTrigger, setTranslationTrigger] = useState(0);
   const [showFurigana, setShowFurigana] = useState(true);
   const [showRomaji, setShowRomaji] = useState(true);
@@ -251,15 +250,12 @@ export default function Home() {
           }
         }
         return [];
-      } catch (e) {
-        console.log("无法解析处理后的JSON:", processedContent);
-        console.error(e);
+      } catch {
         return [];
       }
     } catch (e) {
       console.error("解析JSON时出错:", e);
       console.debug("尝试解析的内容:", content);
-      setIsJsonParseError(true);
       return [];
     }
   };
@@ -270,30 +266,12 @@ export default function Home() {
       const tokens = parseStreamContent(streamContent);
       if (tokens.length > 0) {
         setAnalyzedTokens(tokens);
-        setIsJsonParseError(false);
-      } else if (streamContent.includes('{') && streamContent.includes('"word":')) {
-        // 有内容但解析失败，可能是不完整的JSON
-        setIsJsonParseError(true);
       }
     }
   }, [streamContent, isAnalyzing]);
 
   // 添加函数，检查是否显示分析器
-  const shouldShowAnalyzer = (): boolean => {
-    // 如果已经有解析结果，显示
-    if (analyzedTokens.length > 0) return true;
-
-    // 如果没有内容，不显示
-    if (!streamContent) return false;
-
-    // 如果有内容但解析失败，看情况
-    if (isJsonParseError) {
-      // 如果内容已经包含了完整的单词信息，可能是接近完成了
-      return streamContent.includes('"word":') && streamContent.includes('"pos":');
-    }
-
-    return false;
-  };
+  const shouldShowAnalyzer = (): boolean => analyzedTokens.length > 0;
 
   const handleCloseWordDetail = useCallback(() => {
     setSelectedIndex(null);
@@ -335,7 +313,6 @@ export default function Home() {
     setTranslationTrigger(Date.now());
     setStreamContent('');
     setAnalyzedTokens([]);
-    setIsJsonParseError(false);
     handleCloseWordDetail();
 
     try {
@@ -351,10 +328,6 @@ export default function Home() {
               const tokens = parseStreamContent(chunk);
               if (tokens.length > 0) {
                 setAnalyzedTokens(tokens);
-                setIsJsonParseError(false);
-              } else if (chunk && chunk.includes('{') && chunk.includes('"word":')) {
-                // 最终内容仍然解析失败
-                setIsJsonParseError(true);
               }
             }
           },
@@ -443,27 +416,6 @@ export default function Home() {
             {isAnalyzing && (!analyzedTokens.length || !useStream) && (
               <div className="nd-card">
                 <ThinkingIndicator className="py-6" />
-              </div>
-            )}
-
-            {isJsonParseError && streamContent && (
-              <div className="nd-card">
-                <div
-                  className="mb-4 rounded-[10px] p-3 text-sm"
-                  style={{
-                    background: 'color-mix(in oklab, var(--pos-adj) 10%, transparent)',
-                    color: 'var(--ink-2)',
-                    borderLeft: '3px solid var(--pos-adj)',
-                  }}
-                >
-                  解析中，已经收到部分内容，但尚未形成完整的结果。
-                </div>
-                <div
-                  className="mono max-h-96 overflow-auto whitespace-pre-wrap rounded-[10px] p-3 text-xs"
-                  style={{ background: 'var(--bg)', color: 'var(--ink-2)' }}
-                >
-                  {streamContent}
-                </div>
               </div>
             )}
 

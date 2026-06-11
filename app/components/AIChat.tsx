@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { streamChat, ChatMessage as APIMessage } from '../services/api';
 import type { AIProvider } from '../services/api';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Icon } from './Icons';
+import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
+import { FlowAnimatedMarkdown } from '@/components/ui/flow-animated-markdown';
+import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 
 interface ChatMessage {
   id: string;
@@ -242,46 +243,24 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
                       boxShadow: '0 1px 2px rgba(20,10,40,.03)',
                     }}
                   >
-                    {isUser ? (
-                      <div className="whitespace-pre-wrap">{message.content}</div>
-                    ) : (
-                      <div className="max-w-none">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            code: (props) => {
-                              const { className, children } = props;
-                              const inline = !className;
-                              return !inline ? (
-                                <pre
-                                  className="overflow-x-auto rounded-[10px] p-3 text-xs"
-                                  style={{ background: 'var(--bg-2)', color: 'var(--ink)' }}
-                                >
-                                  <code className={className}>{children}</code>
-                                </pre>
-                              ) : (
-                                <code
-                                  className="rounded px-1 py-0.5 text-xs"
-                                  style={{ background: 'var(--bg-2)', color: 'var(--primary)' }}
-                                >
-                                  {children}
-                                </code>
-                              );
-                            },
-                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                            ul: ({ children }) => <ul className="mb-2 list-disc pl-4">{children}</ul>,
-                            ol: ({ children }) => <ol className="mb-2 list-decimal pl-4">{children}</ol>,
-                            li: ({ children }) => <li className="mb-1">{children}</li>,
-                            strong: ({ children }) => <strong style={{ color: 'var(--primary)' }}>{children}</strong>,
-                          }}
-                        >
-                          {message.content}
-                        </ReactMarkdown>
-                        {isLoading && message.content && (
-                          <span className="ml-1 inline-block h-4 w-1 animate-pulse rounded-full" style={{ background: 'var(--primary)' }} />
-                        )}
-                      </div>
-                    )}
+                    <AutoAnimateHeight duration={300}>
+                      {isUser ? (
+                        <div className="whitespace-pre-wrap">{message.content}</div>
+                      ) : (
+                        <div className="flow-markdown ai-chat-markdown max-w-none">
+                          <FlowAnimatedMarkdown
+                            content={preserveLineBreaksForMarkdown(escapeHtmlForMarkdown(message.content))}
+                            animation="fadeIn"
+                            sep="word"
+                            animationDuration="0.35s"
+                            animationTimingFunction="ease-out"
+                          />
+                          {isLoading && message.content && (
+                            <span className="ml-1 inline-block h-4 w-1 animate-pulse rounded-full" style={{ background: 'var(--primary)' }} />
+                          )}
+                        </div>
+                      )}
+                    </AutoAnimateHeight>
                   </div>
                 </div>
               );

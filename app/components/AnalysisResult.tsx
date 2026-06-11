@@ -3,6 +3,7 @@
 import { containsKanji, getPosClass, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap } from '../utils/helpers';
 import { TokenData } from '../services/api';
 import { Icon } from './Icons';
+import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 
 interface AnalysisResultProps {
   tokens: TokenData[];
@@ -69,57 +70,59 @@ export default function AnalysisResult({
         </div>
       </div>
 
-      {/* 分词结果 */}
-      <div id="analyzedSentenceOutput">
-        {tokens.map((token, index) => {
-          if (token.pos === '改行') {
-            return <span key={index} style={{ flexBasis: '100%', height: 0 }} />;
-          }
+      <AutoAnimateHeight duration={300}>
+        {/* 分词结果 */}
+        <div id="analyzedSentenceOutput">
+          {tokens.map((token, index) => {
+            if (token.pos === '改行') {
+              return <span key={index} style={{ flexBasis: '100%', height: 0 }} />;
+            }
 
-          const isPunct = isPunctuationToken(token);
-          const isActive = selectedIndex === index;
-          const hasFurigana = !!token.furigana
-            && token.furigana !== token.word
-            && containsKanji(token.word)
-            && !isPunct;
-          const furiganaText = hasFurigana ? token.furigana! : '';
+            const isPunct = isPunctuationToken(token);
+            const isActive = selectedIndex === index;
+            const hasFurigana = !!token.furigana
+              && token.furigana !== token.word
+              && containsKanji(token.word)
+              && !isPunct;
+            const furiganaText = hasFurigana ? token.furigana! : '';
 
-          return (
-            <span
-              key={index}
-              className={`word-unit-wrapper tooltip ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}`}
-            >
-              {!isPunct && (
-                <span className="furigana-text" style={{ opacity: showFurigana && furiganaText ? 1 : 0 }}>
-                  {furiganaText || '\u00a0'}
-                </span>
-              )}
+            return (
               <span
-                className={`word-token ${isPunct ? 'no-click' : ''}`}
-                onClick={isPunct ? undefined : () => onWordClick(token, index)}
+                key={index}
+                className={`word-unit-wrapper tooltip ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}`}
               >
-                {token.word}
+                {!isPunct && (
+                  <span className="furigana-text" style={{ opacity: showFurigana && furiganaText ? 1 : 0 }}>
+                    {furiganaText || '\u00a0'}
+                  </span>
+                )}
+                <span
+                  className={`word-token ${isPunct ? 'no-click' : ''}`}
+                  onClick={isPunct ? undefined : () => onWordClick(token, index)}
+                >
+                  {token.word}
+                </span>
+
+                {/* 词性下划线 */}
+                {!isPunct && <span className={`pos-underline ${getPosClass(token.pos)}`} />}
+
+                {/* 罗马音 */}
+                {!isPunct && (
+                  <span className="romaji-text" style={{ opacity: showRomaji ? 1 : 0 }}>
+                    {token.romaji || '\u00a0'}
+                  </span>
+                )}
+
+                {!isPunct && (
+                  <span className="tooltiptext">
+                    {posChineseMap[token.pos.split('-')[0]] || posChineseMap['default']}
+                  </span>
+                )}
               </span>
-
-              {/* 词性下划线 */}
-              {!isPunct && <span className={`pos-underline ${getPosClass(token.pos)}`} />}
-
-              {/* 罗马音 */}
-              {!isPunct && (
-                <span className="romaji-text" style={{ opacity: showRomaji ? 1 : 0 }}>
-                  {token.romaji || '\u00a0'}
-                </span>
-              )}
-
-              {!isPunct && (
-                <span className="tooltiptext">
-                  {posChineseMap[token.pos.split('-')[0]] || posChineseMap['default']}
-                </span>
-              )}
-            </span>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </AutoAnimateHeight>
 
       <div className="analysis-footer">
         {/* 提示 */}

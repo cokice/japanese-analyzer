@@ -3,7 +3,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { WordDetail } from '../services/api';
 import { getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
+import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 import { Icon, I } from './Icons';
+import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
+import { FlowAnimatedMarkdown } from '@/components/ui/flow-animated-markdown';
 
 interface WordDetailPanelProps {
   wordDetail: WordDetail | null;
@@ -61,23 +64,6 @@ export function WordDetailPlaceholder() {
   );
 }
 
-function escapeHtml(text: string) {
-  return text.replace(/[&<>"']/g, (char) => {
-    switch (char) {
-      case '&':
-        return '&amp;';
-      case '<':
-        return '&lt;';
-      case '>':
-        return '&gt;';
-      case '"':
-        return '&quot;';
-      default:
-        return '&#39;';
-    }
-  });
-}
-
 export default function WordDetailPanel({
   wordDetail,
   isLoading,
@@ -102,20 +88,19 @@ export default function WordDetailPanel({
 
   // 格式化解释文本，支持换行和高亮
   const formatExplanation = useMemo(() => {
-    return (text: string): { __html: string } | undefined => {
-      if (!text) return undefined;
+    return (text: string): string => {
+      if (!text) return '';
 
       const isLongText = text.length > 5000;
       const displayText = isLongText && !isExplanationExpanded
         ? text.substring(0, 5000) + '...'
         : text;
 
-      const formattedText = escapeHtml(displayText)
-        .replace(/\n/g, '<br />')
-        .replace(/【([^】]+)】/g, '<strong>$1</strong>')
-        .replace(/「([^」]+)」/g, '<strong>$1</strong>');
+      const formattedText = escapeHtmlForMarkdown(displayText)
+        .replace(/【([^】]+)】/g, '**$1**')
+        .replace(/「([^」]+)」/g, '**$1**');
 
-      return { __html: formattedText };
+      return preserveLineBreaksForMarkdown(formattedText);
     };
   }, [isExplanationExpanded]);
 
@@ -291,36 +276,43 @@ export default function WordDetailPanel({
 
       {/* 正文 */}
       <div className="max-h-[460px] overflow-y-auto px-5 pb-5 pt-1">
-        <DetailSection label="释义">
-          <div
-            className={`text-sm leading-relaxed ${wordDetail.chineseTranslation === '加载中...' ? 'animate-pulse' : ''}`}
-            style={{ color: 'var(--ink)' }}
-          >
-            <span
-              className="mono mr-2.5 text-[11px] font-semibold"
-              style={{ color: accent }}
-            >01</span>
-            {wordDetail.chineseTranslation}
-          </div>
-        </DetailSection>
-
-        {wordDetail.explanation && (
-          <DetailSection label="解释">
+        <AutoAnimateHeight duration={300}>
+          <DetailSection label="释义">
             <div
-              className="word-detail-explanation text-[13px] leading-relaxed"
-              dangerouslySetInnerHTML={formatExplanation(wordDetail.explanation)}
-            />
-            {showExpandButton && (
-              <button
-                onClick={() => setIsExplanationExpanded(!isExplanationExpanded)}
-                className="mt-3 cursor-pointer border-none bg-transparent text-sm font-medium"
-                style={{ color: 'var(--primary)' }}
-              >
-                {isExplanationExpanded ? '收起 ▲' : '展开全文 ▼'}
-              </button>
-            )}
+              className={`text-sm leading-relaxed ${wordDetail.chineseTranslation === '加载中...' ? 'animate-pulse' : ''}`}
+              style={{ color: 'var(--ink)' }}
+            >
+              <span
+                className="mono mr-2.5 text-[11px] font-semibold"
+                style={{ color: accent }}
+              >01</span>
+              {wordDetail.chineseTranslation}
+            </div>
           </DetailSection>
-        )}
+
+          {wordDetail.explanation && (
+            <DetailSection label="解释">
+              <div className="flow-markdown word-detail-explanation text-[13px] leading-relaxed">
+                <FlowAnimatedMarkdown
+                  content={formatExplanation(wordDetail.explanation)}
+                  animation="fadeIn"
+                  sep="word"
+                  animationDuration="0.35s"
+                  animationTimingFunction="ease-out"
+                />
+              </div>
+              {showExpandButton && (
+                <button
+                  onClick={() => setIsExplanationExpanded(!isExplanationExpanded)}
+                  className="mt-3 cursor-pointer border-none bg-transparent text-sm font-medium"
+                  style={{ color: 'var(--primary)' }}
+                >
+                  {isExplanationExpanded ? '收起 ▲' : '展开全文 ▼'}
+                </button>
+              )}
+            </DetailSection>
+          )}
+        </AutoAnimateHeight>
       </div>
     </section>
   );

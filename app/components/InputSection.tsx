@@ -5,6 +5,7 @@ import { extractTextFromImage, streamExtractTextFromImage } from '../services/ap
 import type { AIProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
 import { Icon } from './Icons';
+import { TextShimmer } from '@/components/ui/text-shimmer';
 
 interface InputSectionProps {
   onAnalyze: (text: string) => void;
@@ -332,29 +333,46 @@ export default function InputSection({
     });
   };
 
+  const inputTextStyle = {
+    color: 'var(--ink)',
+    fontSize: '20px',
+    lineHeight: 1.6,
+    letterSpacing: '0.3px',
+    minHeight: '148px',
+  };
+  const showInputShimmer = isLoading && inputText.trim().length > 0;
+
   return (
     <div className="w-full">
       <section className="nd-card">
-        <textarea
-          id="japaneseInput"
-          className="jp w-full resize-none border-none bg-transparent outline-none"
-          rows={5}
-          placeholder="输入日语句子"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onPaste={handlePaste}
-          style={{
-            color: 'var(--ink)',
-            fontSize: '20px',
-            lineHeight: 1.6,
-            letterSpacing: '0.3px',
-            minHeight: '148px',
-          }}
-          autoCapitalize="none"
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck="false"
-        ></textarea>
+        <div className="relative">
+          <textarea
+            id="japaneseInput"
+            className={`jp w-full resize-none border-none bg-transparent outline-none ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
+            rows={5}
+            placeholder="输入日语句子"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onPaste={handlePaste}
+            style={inputTextStyle}
+            autoCapitalize="none"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck="false"
+          ></textarea>
+          {showInputShimmer && (
+            <div className="input-text-shimmer-layer-frame" aria-hidden="true">
+              <TextShimmer
+                as="div"
+                className="input-text-shimmer-layer jp"
+                duration={1.35}
+                spread={1.4}
+              >
+                {inputText}
+              </TextShimmer>
+            </div>
+          )}
+        </div>
 
         <div className="mt-3.5 flex items-center">
           {/* 左侧工具按钮区域 */}
