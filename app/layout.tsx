@@ -1,6 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import "flowtoken/dist/styles.css";
 import "streamdown/styles.css";
+import "@fontsource/noto-sans-sc/chinese-simplified-400.css";
+import "@fontsource/noto-sans-sc/chinese-simplified-500.css";
+import "@fontsource/noto-sans-sc/chinese-simplified-600.css";
+import "@fontsource/noto-sans-sc/chinese-simplified-700.css";
+import "@fontsource/noto-sans-jp/japanese-400.css";
+import "@fontsource/noto-sans-jp/japanese-500.css";
+import "@fontsource/noto-sans-jp/japanese-700.css";
+import "@fontsource/noto-serif-jp/japanese-500.css";
+import "@fontsource/noto-serif-jp/japanese-700.css";
+import "@fontsource/jetbrains-mono/latin-400.css";
+import "@fontsource/jetbrains-mono/latin-500.css";
 import "./globals.css";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
@@ -30,15 +41,6 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/logo/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo/logo.png" />
-        {/* 预连接字体CDN以提高加载速度 */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
-        {/* 新设计字体：中文正文、日文正文、日文衬线、等宽 */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
         {/* 主题初始化脚本 - 防止闪烁 */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
