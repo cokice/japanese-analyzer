@@ -1,3 +1,5 @@
+import { TextShimmer } from '@/components/ui/text-shimmer';
+
 interface ThinkingIndicatorProps {
   className?: string;
   label?: string;
@@ -9,12 +11,9 @@ export default function ThinkingIndicator({
 }: ThinkingIndicatorProps) {
   return (
     <div className={`ai-thinking-indicator ${className}`} role="status" aria-live="polite">
-      <span className="ai-thinking-dots" aria-hidden="true">
-        <span className="thinking-dot"></span>
-        <span className="thinking-dot"></span>
-        <span className="thinking-dot"></span>
-      </span>
-      <span className="ai-thinking-text" data-text={label}>{label}</span>
+      <TextShimmer as="span" className="ai-thinking-text" duration={1.35} spread={1.4}>
+        {label}
+      </TextShimmer>
     </div>
   );
 }

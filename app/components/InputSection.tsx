@@ -5,6 +5,8 @@ import { extractTextFromImage, streamExtractTextFromImage } from '../services/ap
 import type { AIProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
 import { Icon } from './Icons';
+import { TextShimmer } from '@/components/ui/text-shimmer';
+import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
 
 interface InputSectionProps {
   onAnalyze: (text: string) => void;
@@ -71,12 +73,46 @@ export default function InputSection({
   const [selectedRate, setSelectedRate] = useState(0);
   const [selectedVoice, setSelectedVoice] = useState('Kore');
   const [selectedStyle, setSelectedStyle] = useState('');
+  const [submitState, setSubmitState] = useState<StateMorphButtonState>('idle');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const submitStartedRef = useRef(false);
+  const wasAnalyzingRef = useRef(false);
+  const submitResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 监听外部分析状态，同步内部loading状态
   useEffect(() => {
     setIsLoading(isAnalyzing);
+
+    if (isAnalyzing) {
+      wasAnalyzingRef.current = true;
+      if (submitStartedRef.current) {
+        if (submitResetTimerRef.current) {
+          clearTimeout(submitResetTimerRef.current);
+          submitResetTimerRef.current = null;
+        }
+        setSubmitState('loading');
+      }
+      return;
+    }
+
+    if (wasAnalyzingRef.current && submitStartedRef.current) {
+      wasAnalyzingRef.current = false;
+      setSubmitState('success');
+      submitResetTimerRef.current = setTimeout(() => {
+        setSubmitState('idle');
+        submitStartedRef.current = false;
+        submitResetTimerRef.current = null;
+      }, 1500);
+    }
   }, [isAnalyzing]);
+
+  useEffect(() => {
+    return () => {
+      if (submitResetTimerRef.current) {
+        clearTimeout(submitResetTimerRef.current);
+      }
+    };
+  }, []);
 
   // 从本地存储加载TTS设置
   useEffect(() => {
@@ -113,6 +149,8 @@ export default function InputSection({
       return;
     }
 
+    submitStartedRef.current = true;
+    setSubmitState('loading');
     onAnalyze(inputText);
   };
 
@@ -332,29 +370,46 @@ export default function InputSection({
     });
   };
 
+  const inputTextStyle = {
+    color: 'var(--ink)',
+    fontSize: '20px',
+    lineHeight: 1.6,
+    letterSpacing: '0.3px',
+    minHeight: '148px',
+  };
+  const showInputShimmer = isLoading && inputText.trim().length > 0;
+
   return (
     <div className="w-full">
       <section className="nd-card">
-        <textarea
-          id="japaneseInput"
-          className="jp w-full resize-none border-none bg-transparent outline-none"
-          rows={5}
-          placeholder="输入日语句子"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onPaste={handlePaste}
-          style={{
-            color: 'var(--ink)',
-            fontSize: '20px',
-            lineHeight: 1.6,
-            letterSpacing: '0.3px',
-            minHeight: '148px',
-          }}
-          autoCapitalize="none"
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck="false"
-        ></textarea>
+        <div className="relative">
+          <textarea
+            id="japaneseInput"
+            className={`jp w-full resize-none border-none bg-transparent outline-none ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
+            rows={5}
+            placeholder="输入日语句子"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onPaste={handlePaste}
+            style={inputTextStyle}
+            autoCapitalize="none"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck="false"
+          ></textarea>
+          {showInputShimmer && (
+            <div className="input-text-shimmer-layer-frame" aria-hidden="true">
+              <TextShimmer
+                as="div"
+                className="input-text-shimmer-layer jp"
+                duration={1.35}
+                spread={1.4}
+              >
+                {inputText}
+              </TextShimmer>
+            </div>
+          )}
+        </div>
 
         <div className="mt-3.5 flex items-center">
           {/* 左侧工具按钮区域 */}
@@ -528,15 +583,12 @@ export default function InputSection({
           )}
 
           {/* 解析按钮 */}
-          <button
+          <StateMorphButton
             id="analyzeButton"
-            className="nd-primary-btn"
             onClick={handleAnalyze}
             disabled={isLoading}
-          >
-            {Icon.search}
-            <span>{isLoading ? '解析中…' : '解析'}</span>
-          </button>
+            state={submitState}
+          />
         </div>
 
         {/* 隐藏的文件输入 */}

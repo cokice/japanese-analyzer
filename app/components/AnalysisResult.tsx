@@ -1,8 +1,10 @@
 'use client';
 
-import { containsKanji, getPosClass, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap } from '../utils/helpers';
+import { containsKanji, getPosClass, POS_GROUP_COLORS, POS_GROUP_LABELS } from '../utils/helpers';
 import { TokenData } from '../services/api';
 import { Icon } from './Icons';
+import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
+import { Switch } from '@/components/ui/switch';
 
 interface AnalysisResultProps {
   tokens: TokenData[];
@@ -14,11 +16,17 @@ interface AnalysisResultProps {
   selectedIndex: number | null;
 }
 
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  on,
+  onChange,
+  ariaLabel,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  ariaLabel: string;
+}) {
   return (
-    <button className="nd-toggle" onClick={() => onChange(!on)} aria-pressed={on} type="button">
-      <span className="nd-toggle-knob" />
-    </button>
+    <Switch checked={on} onCheckedChange={onChange} aria-label={ariaLabel} />
   );
 }
 
@@ -60,66 +68,63 @@ export default function AnalysisResult({
         <div className="flex items-center gap-4 sm:gap-[18px]">
           <label className="inline-flex cursor-pointer items-center gap-2">
             <span className="text-[13px]" style={{ color: 'var(--ink-3)' }}>显示假名</span>
-            <Toggle on={showFurigana} onChange={onShowFuriganaChange} />
+            <Toggle on={showFurigana} onChange={onShowFuriganaChange} ariaLabel="显示假名" />
           </label>
           <label className="inline-flex cursor-pointer items-center gap-2">
             <span className="text-[13px]" style={{ color: 'var(--ink-3)' }}>显示罗马音</span>
-            <Toggle on={showRomaji} onChange={onShowRomajiChange} />
+            <Toggle on={showRomaji} onChange={onShowRomajiChange} ariaLabel="显示罗马音" />
           </label>
         </div>
       </div>
 
-      {/* 分词结果 */}
-      <div id="analyzedSentenceOutput">
-        {tokens.map((token, index) => {
-          if (token.pos === '改行') {
-            return <span key={index} style={{ flexBasis: '100%', height: 0 }} />;
-          }
+      <AutoAnimateHeight duration={300}>
+        {/* 分词结果 */}
+        <div id="analyzedSentenceOutput">
+          {tokens.map((token, index) => {
+            if (token.pos === '改行') {
+              return <span key={index} style={{ flexBasis: '100%', height: 0 }} />;
+            }
 
-          const isPunct = isPunctuationToken(token);
-          const isActive = selectedIndex === index;
-          const hasFurigana = !!token.furigana
-            && token.furigana !== token.word
-            && containsKanji(token.word)
-            && !isPunct;
-          const furiganaText = hasFurigana ? token.furigana! : '';
+            const isPunct = isPunctuationToken(token);
+            const isActive = selectedIndex === index;
+            const hasFurigana = !!token.furigana
+              && token.furigana !== token.word
+              && containsKanji(token.word)
+              && !isPunct;
+            const furiganaText = hasFurigana ? token.furigana! : '';
 
-          return (
-            <span
-              key={index}
-              className={`word-unit-wrapper tooltip ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}`}
-            >
-              {!isPunct && (
-                <span className="furigana-text" style={{ opacity: showFurigana && furiganaText ? 1 : 0 }}>
-                  {furiganaText || '\u00a0'}
-                </span>
-              )}
+            return (
               <span
-                className={`word-token ${isPunct ? 'no-click' : ''}`}
-                onClick={isPunct ? undefined : () => onWordClick(token, index)}
+                key={index}
+                className={`word-unit-wrapper ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}`}
               >
-                {token.word}
+                {!isPunct && (
+                  <span className="furigana-text" style={{ opacity: showFurigana && furiganaText ? 1 : 0 }}>
+                    {furiganaText || '\u00a0'}
+                  </span>
+                )}
+                <span
+                  className={`word-token ${isPunct ? 'no-click' : ''}`}
+                  onClick={isPunct ? undefined : () => onWordClick(token, index)}
+                >
+                  {token.word}
+                </span>
+
+                {/* 词性下划线 */}
+                {!isPunct && <span className={`pos-underline ${getPosClass(token.pos)}`} />}
+
+                {/* 罗马音 */}
+                {!isPunct && (
+                  <span className="romaji-text" style={{ opacity: showRomaji ? 1 : 0 }}>
+                    {token.romaji || '\u00a0'}
+                  </span>
+                )}
+
               </span>
-
-              {/* 词性下划线 */}
-              {!isPunct && <span className={`pos-underline ${getPosClass(token.pos)}`} />}
-
-              {/* 罗马音 */}
-              {!isPunct && (
-                <span className="romaji-text" style={{ opacity: showRomaji ? 1 : 0 }}>
-                  {token.romaji || '\u00a0'}
-                </span>
-              )}
-
-              {!isPunct && (
-                <span className="tooltiptext">
-                  {posChineseMap[token.pos.split('-')[0]] || posChineseMap['default']}
-                </span>
-              )}
-            </span>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </AutoAnimateHeight>
 
       <div className="analysis-footer">
         {/* 提示 */}

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import "flowtoken/dist/styles.css";
 import "./globals.css";
 import { ThemeProvider } from "./contexts/ThemeContext";
 

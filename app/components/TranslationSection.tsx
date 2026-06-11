@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { translateText, streamTranslateText } from '../services/api';
 import type { AIProvider } from '../services/api';
 import ThinkingIndicator from './ThinkingIndicator';
 import { Icon } from './Icons';
+import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
+import { FlowAnimatedMarkdown } from '@/components/ui/flow-animated-markdown';
+import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 
 interface TranslationSectionProps {
   japaneseText: string;
@@ -82,6 +85,10 @@ export default function TranslationSection({
     setIsVisible(!isVisible);
   };
 
+  const animatedTranslation = useMemo(() => {
+    return preserveLineBreaksForMarkdown(escapeHtmlForMarkdown(translation));
+  }, [translation]);
+
   // 当trigger变化时自动开始翻译
   useEffect(() => {
     if (trigger && japaneseText) {
@@ -106,10 +113,23 @@ export default function TranslationSection({
         </button>
       </div>
 
-      {isVisible && (
-        <>
-          {isLoading && !translation ? (
+      <AutoAnimateHeight duration={300}>
+        {isVisible ? (
+          isLoading && !translation ? (
             <ThinkingIndicator />
+          ) : translation ? (
+            <div
+              className="flow-markdown full-translation-markdown mb-3.5 mt-1 text-[16px] leading-7"
+              style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
+            >
+              <FlowAnimatedMarkdown
+                content={animatedTranslation}
+                animation="fadeIn"
+                sep="word"
+                animationDuration="0.35s"
+                animationTimingFunction="ease-out"
+              />
+            </div>
           ) : (
             <p
               className="mb-3.5 mt-1 whitespace-pre-wrap text-[16px] leading-7"
@@ -117,9 +137,9 @@ export default function TranslationSection({
             >
               {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译整句。</span>}
             </p>
-          )}
-        </>
-      )}
+          )
+        ) : null}
+      </AutoAnimateHeight>
 
       <div className="flex items-center">
         <div className="flex-1" />
