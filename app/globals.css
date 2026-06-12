@@ -51,12 +51,12 @@
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: "Noto Sans SC", system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
 
-.jp { font-family: "Noto Sans JP", "Noto Sans SC", sans-serif; }
+.jp { font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", "Hiragino Sans", system-ui, sans-serif; }
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
 
 /* ========== 卡片 ========== */
