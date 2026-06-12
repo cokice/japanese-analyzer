@@ -101,6 +101,60 @@ npm run dev
 - 用户也可以在右上角设置中填写自己的 Key，设置仅保存在浏览器本地。
 - 不要提交 `.env.local`，仓库已经默认忽略本地环境变量文件。
 
+### 用 AI Agent 部署(Claude Code / Codex)
+
+如果你使用 Claude Code 或 Codex 等 AI 编程助手,可以直接把下面的提示词发给它,让它在你的 VPS 上完成部署:
+
+````markdown
+# 部署任务:japanese-analyzer
+
+请帮我在这台 VPS 上用 Docker 部署 japanese-analyzer(一个日语句子解析 Web 应用)。
+
+## 目标
+
+- 使用 Docker Hub 镜像 `howenhowen/japanese-analyzer:latest`(多架构,amd64/arm64 都有)
+- 容器监听 3002,映射宿主机 3002 端口
+- 容器名 `japanese-analyzer`,设置 `--restart unless-stopped`
+
+## 环境变量
+
+通过环境变量注入,不要写进镜像:
+
+- `DEEPSEEK_API_KEY`:必填,默认文本解析用 DeepSeek(我会提供,或提示我填入)
+- `GEMINI_API_KEY`:可选,用于图片识别和 Gemini TTS,没有就跳过
+- `CODE`:可选访问密码,留空即不启用
+- `DEEPSEEK_API_URL` / `GEMINI_API_URL`:留空使用官方默认地址即可
+
+推荐用 docker compose 管理:仓库里有 `docker-compose.hub.yml`,配合 `.env.production`(从 `.env.production.example` 复制)使用;或者直接 `docker run` 也行,你看哪个更合适。
+
+## 域名与 HTTPS(询问后再做)
+
+容器跑通后,询问我是否需要绑定域名并配置 HTTPS 反向代理:
+
+- 如果我说不需要,直接用 `http://VPS_IP:3002` 访问即可,跳过本节
+- 如果我提供域名(例如 `nihongodemo.howen.ink`):
+  - 先检查服务器上是否已有 Nginx / Caddy,优先复用现有的,不要重复装一套
+  - 都没有的话推荐 Caddy(自动签发和续期 Let's Encrypt 证书,配置最简单)
+  - 反代到 `127.0.0.1:3002`,配置 HTTPS 并把 HTTP 重定向到 HTTPS
+  - 提醒我先把域名 A 记录解析到这台 VPS,并确认 80/443 端口在防火墙/安全组已放行
+  - 配好后用 `curl -I https://域名` 验证证书和反代是否正常
+
+## 验收标准
+
+1. 容器正常运行,`docker logs` 无报错
+2. `curl http://127.0.0.1:3002` 能返回页面
+3. 重启服务器后容器能自动拉起
+4. (如配置了域名)https 访问正常,证书有效
+
+## 注意
+
+- 如果 3002 端口被占用,先告诉我再换端口,不要擅自杀掉占用进程
+- API Key 属于敏感信息,不要 echo 到日志或写入不必要的文件
+- 修改现有 Nginx/Caddy 配置前先备份原文件
+- 部署完成后告诉我访问地址和后续更新镜像的命令(pull → rm → run 或 compose pull && up -d)
+````
+
+
 ## 部署到 Vercel
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer)
