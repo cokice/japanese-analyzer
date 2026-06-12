@@ -16,7 +16,6 @@ import { Sakura } from './components/Icons';
 import {
   analyzeSentence,
   TokenData,
-  DEFAULT_API_URL,
   DEFAULT_AI_PROVIDER,
   AIProvider,
   loadAISettingsFromStorage,
@@ -38,9 +37,7 @@ export default function Home() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [aiProvider, setAiProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
   const [geminiApiKey, setGeminiApiKey] = useState('');
-  const [geminiApiUrl, setGeminiApiUrl] = useState(DEFAULT_API_URL);
   const [deepseekApiKey, setDeepseekApiKey] = useState('');
-  const [deepseekApiUrl, setDeepseekApiUrl] = useState(DEFAULT_API_URL);
   const [ttsProvider, setTtsProvider] = useState<'edge' | 'gemini'>('edge');
 
   // 密码验证相关状态
@@ -49,7 +46,6 @@ export default function Home() {
   const [authError, setAuthError] = useState('');
 
   const userApiKey = aiProvider === 'gemini' ? geminiApiKey : deepseekApiKey;
-  const userApiUrl = aiProvider === 'gemini' ? geminiApiUrl : deepseekApiUrl;
 
   // 选中词汇（右侧详情面板 / 移动端模态）
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -62,7 +58,7 @@ export default function Home() {
     streamError: wordDetailStreamError,
     fetchWordDetails,
     clearWordDetail,
-  } = useWordDetail({ userApiKey, userApiUrl, aiProvider, useStream });
+  } = useWordDetail({ userApiKey, aiProvider, useStream });
 
   // 侧栏在 lg(1024px) 以上显示，以下使用模态
   useEffect(() => {
@@ -110,9 +106,7 @@ export default function Home() {
 
     setAiProvider(storedAISettings.aiProvider);
     setGeminiApiKey(storedAISettings.geminiApiKey);
-    setGeminiApiUrl(storedAISettings.geminiApiUrl);
     setDeepseekApiKey(storedAISettings.deepseekApiKey);
-    setDeepseekApiUrl(storedAISettings.deepseekApiUrl);
     setTtsProvider(storedTtsProvider);
 
     // 只有当明确设置了值时才更新，否则保持默认值
@@ -125,27 +119,23 @@ export default function Home() {
   const handleSaveSettings = (settings: {
     aiProvider: AIProvider;
     geminiApiKey: string;
-    geminiApiUrl: string;
     deepseekApiKey: string;
-    deepseekApiUrl: string;
     useStream: boolean;
   }) => {
     localStorage.setItem('aiProvider', settings.aiProvider);
     localStorage.setItem('geminiApiKey', settings.geminiApiKey);
-    localStorage.setItem('geminiApiUrl', settings.geminiApiUrl);
     localStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
-    localStorage.setItem('deepseekApiUrl', settings.deepseekApiUrl);
     localStorage.setItem('useStream', settings.useStream.toString());
+    localStorage.removeItem('geminiApiUrl');
+    localStorage.removeItem('deepseekApiUrl');
+    localStorage.removeItem('userApiUrl');
 
-    // 保留旧键，方便旧版本或其他工具读取 Gemini 配置。
+    // 保留旧键，方便旧版本或其他工具读取 Gemini 密钥配置。
     localStorage.setItem('userApiKey', settings.geminiApiKey);
-    localStorage.setItem('userApiUrl', settings.geminiApiUrl);
 
     setAiProvider(settings.aiProvider);
     setGeminiApiKey(settings.geminiApiKey);
-    setGeminiApiUrl(settings.geminiApiUrl);
     setDeepseekApiKey(settings.deepseekApiKey);
-    setDeepseekApiUrl(settings.deepseekApiUrl);
     setUseStream(settings.useStream);
   };
 
@@ -337,12 +327,11 @@ export default function Home() {
             setIsAnalyzing(false);
           },
           userApiKey,
-          userApiUrl,
           aiProvider
         );
       } else {
         // 使用传统API进行分析
-        const tokens = await analyzeSentence(text, userApiKey, userApiUrl, aiProvider);
+        const tokens = await analyzeSentence(text, userApiKey, aiProvider);
         setAnalyzedTokens(tokens);
         setIsAnalyzing(false);
       }
@@ -408,7 +397,6 @@ export default function Home() {
             <InputSection
               onAnalyze={handleAnalyze}
               userApiKey={userApiKey}
-              userApiUrl={userApiUrl}
               aiProvider={aiProvider}
               geminiApiKey={geminiApiKey}
               useStream={useStream}
@@ -460,7 +448,6 @@ export default function Home() {
               <TranslationSection
                 japaneseText={currentSentence}
                 userApiKey={userApiKey}
-                userApiUrl={userApiUrl}
                 aiProvider={aiProvider}
                 useStream={useStream}
                 trigger={translationTrigger}
@@ -482,10 +469,7 @@ export default function Home() {
         <SettingsModal
           aiProvider={aiProvider}
           geminiApiKey={geminiApiKey}
-          geminiApiUrl={geminiApiUrl}
           deepseekApiKey={deepseekApiKey}
-          deepseekApiUrl={deepseekApiUrl}
-          defaultApiUrl={DEFAULT_API_URL}
           useStream={useStream}
           onSaveSettings={handleSaveSettings}
           isModalOpen={isSettingsModalOpen}
@@ -528,7 +512,6 @@ export default function Home() {
       {/* AI聊天助手 */}
       <AIChat
         userApiKey={userApiKey}
-        userApiUrl={userApiUrl}
         aiProvider={aiProvider}
         currentSentence={currentSentence}
       />

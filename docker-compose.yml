@@ -1,0 +1,15 @@
+services:
+  japanese-analyzer:
+    image: ${DOCKER_IMAGE:-japanese-analyzer:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: "3002"
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "3002:3002"
+    restart: unless-stopped

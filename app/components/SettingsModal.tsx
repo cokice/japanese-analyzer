@@ -8,37 +8,24 @@ import { ProviderLogo, PROVIDER_LABELS } from './ProviderLogo';
 interface SettingsPayload {
   aiProvider: AIProvider;
   geminiApiKey: string;
-  geminiApiUrl: string;
   deepseekApiKey: string;
-  deepseekApiUrl: string;
   useStream: boolean;
 }
 
 interface SettingsModalProps {
   aiProvider: AIProvider;
   geminiApiKey: string;
-  geminiApiUrl: string;
   deepseekApiKey: string;
-  deepseekApiUrl: string;
-  defaultApiUrl: string;
   useStream: boolean;
   onSaveSettings: (settings: SettingsPayload) => void;
   isModalOpen: boolean;
   onModalClose: () => void;
 }
 
-const PROVIDER_PLACEHOLDERS: Record<AIProvider, string> = {
-  gemini: '例如: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  deepseek: '例如: https://api.deepseek.com/chat/completions',
-};
-
 export default function SettingsModal({
   aiProvider,
   geminiApiKey,
-  geminiApiUrl,
   deepseekApiKey,
-  deepseekApiUrl,
-  defaultApiUrl,
   useStream,
   onSaveSettings,
   isModalOpen,
@@ -46,20 +33,16 @@ export default function SettingsModal({
 }: SettingsModalProps) {
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(aiProvider);
   const [geminiKey, setGeminiKey] = useState(geminiApiKey);
-  const [geminiUrl, setGeminiUrl] = useState(geminiApiUrl === defaultApiUrl ? '' : geminiApiUrl);
   const [deepseekKey, setDeepseekKey] = useState(deepseekApiKey);
-  const [deepseekUrl, setDeepseekUrl] = useState(deepseekApiUrl === defaultApiUrl ? '' : deepseekApiUrl);
   const [streamEnabled, setStreamEnabled] = useState(useStream);
   const [status, setStatus] = useState('');
 
   useEffect(() => {
     setSelectedProvider(aiProvider);
     setGeminiKey(geminiApiKey);
-    setGeminiUrl(geminiApiUrl === defaultApiUrl ? '' : geminiApiUrl);
     setDeepseekKey(deepseekApiKey);
-    setDeepseekUrl(deepseekApiUrl === defaultApiUrl ? '' : deepseekApiUrl);
     setStreamEnabled(useStream);
-  }, [aiProvider, geminiApiKey, geminiApiUrl, deepseekApiKey, deepseekApiUrl, defaultApiUrl, useStream]);
+  }, [aiProvider, geminiApiKey, deepseekApiKey, useStream]);
 
   const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
@@ -68,7 +51,6 @@ export default function SettingsModal({
   };
 
   const currentApiKey = selectedProvider === 'gemini' ? geminiKey : deepseekKey;
-  const currentApiUrl = selectedProvider === 'gemini' ? geminiUrl : deepseekUrl;
 
   const setCurrentApiKey = (value: string) => {
     if (selectedProvider === 'gemini') {
@@ -78,21 +60,11 @@ export default function SettingsModal({
     }
   };
 
-  const setCurrentApiUrl = (value: string) => {
-    if (selectedProvider === 'gemini') {
-      setGeminiUrl(value);
-    } else {
-      setDeepseekUrl(value);
-    }
-  };
-
   const handleSaveSettings = () => {
     onSaveSettings({
       aiProvider: selectedProvider,
       geminiApiKey: geminiKey.trim(),
-      geminiApiUrl: geminiUrl.trim() || defaultApiUrl,
       deepseekApiKey: deepseekKey.trim(),
-      deepseekApiUrl: deepseekUrl.trim() || defaultApiUrl,
       useStream: streamEnabled,
     });
 
@@ -126,7 +98,7 @@ export default function SettingsModal({
             <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>自定义 API 设置</h3>
           </div>
           <p className="m-0 text-sm leading-6" style={{ color: 'var(--ink-3)' }}>
-            应用默认使用服务器端密钥，也可以为 Gemini 和 DeepSeek 分别配置浏览器本地设置。
+            应用默认使用服务器端密钥，也可以为 Gemini 和 DeepSeek 分别配置浏览器本地密钥。上游端点由服务器配置。
           </p>
         </div>
 
@@ -187,23 +159,6 @@ export default function SettingsModal({
             value={currentApiKey}
             onChange={(e) => setCurrentApiKey(e.target.value)}
           />
-        </div>
-
-        <div className="mb-4">
-          <label htmlFor="modalApiUrlInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-            {PROVIDER_LABELS[selectedProvider]} API URL（可选）
-          </label>
-          <input
-            type="text"
-            id="modalApiUrlInput"
-            className="nd-input"
-            placeholder={PROVIDER_PLACEHOLDERS[selectedProvider]}
-            value={currentApiUrl}
-            onChange={(e) => setCurrentApiUrl(e.target.value)}
-          />
-          <p className="mt-1.5 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
-            留空则使用服务器端默认端点；自定义地址需是 OpenAI 兼容的 chat completions 接口。
-          </p>
         </div>
 
         <div className="mb-5 rounded-[12px] p-3" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>

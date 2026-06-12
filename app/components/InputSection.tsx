@@ -11,7 +11,6 @@ import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-m
 interface InputSectionProps {
   onAnalyze: (text: string) => void;
   userApiKey?: string;
-  userApiUrl?: string;
   aiProvider: AIProvider;
   geminiApiKey?: string;
   useStream?: boolean;
@@ -53,7 +52,6 @@ const TTS_STYLES = [
 export default function InputSection({
   onAnalyze,
   userApiKey,
-  userApiUrl,
   aiProvider,
   geminiApiKey,
   useStream = true, // 默认启用流式输出
@@ -263,12 +261,11 @@ export default function InputSection({
           },
           imageExtractionPrompt,
           userApiKey,
-          userApiUrl,
           aiProvider
         );
       } else {
         // 使用传统API进行图片文字提取
-        const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, userApiUrl, aiProvider);
+        const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, aiProvider);
         setInputText(extractedText);
         setUploadStatus('文字提取成功！请确认后点击"解析"。');
         setUploadStatusClass('mt-2 text-sm');

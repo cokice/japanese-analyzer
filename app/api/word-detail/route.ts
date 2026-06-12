@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
-import { resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
+import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
 
 export async function POST(req: NextRequest) {
   try {
@@ -67,6 +67,13 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
+    if (error instanceof ProviderConfigError) {
+      return NextResponse.json(
+        { error: { message: error.message } },
+        { status: error.status }
+      );
+    }
+
     console.error('Server error (Word Detail):', error);
     return NextResponse.json(
       { error: { message: error instanceof Error ? error.message : '服务器错误' } },
