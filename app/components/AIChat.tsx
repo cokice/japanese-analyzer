@@ -17,12 +17,11 @@ interface ChatMessage {
 
 interface AIChatProps {
   userApiKey?: string;
-  userApiUrl?: string;
   aiProvider: AIProvider;
   currentSentence?: string;
 }
 
-export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSentence }: AIChatProps) {
+export default function AIChat({ userApiKey, aiProvider, currentSentence }: AIChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -156,7 +155,6 @@ export default function AIChat({ userApiKey, userApiUrl, aiProvider, currentSent
           setIsLoading(false);
         },
         userApiKey,
-        userApiUrl,
         aiProvider
       );
     } catch (error) {

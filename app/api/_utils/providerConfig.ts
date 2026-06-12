@@ -8,6 +8,16 @@ const DEEPSEEK_MODEL_NAME = 'deepseek-v4-flash';
 export const GEMINI_OPENAI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const DEEPSEEK_OPENAI_API_URL = 'https://api.deepseek.com/chat/completions';
 
+export class ProviderConfigError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status = 400) {
+    super(message);
+    this.name = 'ProviderConfigError';
+    this.status = status;
+  }
+}
+
 export function normalizeAIProvider(value: unknown): AIProvider {
   return value === 'gemini' || value === 'deepseek' ? value : DEFAULT_AI_PROVIDER;
 }
@@ -46,13 +56,19 @@ export function resolveProviderConfig(
   } = {}
 ) {
   const provider = normalizeAIProvider(options.provider);
-  const customApiUrl = typeof options.apiUrl === 'string' ? options.apiUrl.trim() : '';
   const customModel = typeof options.model === 'string' ? options.model.trim() : '';
+  const hasClientApiUrl = typeof options.apiUrl === 'string'
+    ? options.apiUrl.trim().length > 0
+    : options.apiUrl !== undefined && options.apiUrl !== null;
+
+  if (hasClientApiUrl) {
+    throw new ProviderConfigError('客户端不再支持自定义 API URL，请在服务器环境变量中配置上游端点。');
+  }
 
   return {
     provider,
     apiKey: getBearerToken(req) || getDefaultApiKey(provider),
-    apiUrl: customApiUrl || getDefaultApiUrl(provider),
+    apiUrl: getDefaultApiUrl(provider),
     model: customModel || getDefaultModelName(provider),
   };
 }

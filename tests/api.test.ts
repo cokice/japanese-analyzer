@@ -1,7 +1,6 @@
 import assert from 'assert';
 import {
   DEFAULT_AI_PROVIDER,
-  DEFAULT_API_URL,
   getApiEndpoint,
   getModelName,
   getRequestProviderPayload,
@@ -12,6 +11,7 @@ import {
 import {
   DEFAULT_AI_PROVIDER as SERVER_DEFAULT_AI_PROVIDER,
   GEMINI_OPENAI_API_URL,
+  ProviderConfigError,
   normalizeAIProvider as normalizeServerAIProvider,
   resolveProviderConfig,
   withProviderControls
@@ -35,19 +35,16 @@ assert.strictEqual(getModelName('deepseek'), 'deepseek-v4-flash');
 assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
   provider: 'gemini',
   model: 'gemini-3.5-flash',
-  apiUrl: undefined,
 });
 
-assert.deepStrictEqual(getRequestProviderPayload('deepseek', 'https://api.deepseek.com/chat/completions'), {
+assert.deepStrictEqual(getRequestProviderPayload('deepseek'), {
   provider: 'deepseek',
   model: 'deepseek-v4-flash',
-  apiUrl: 'https://api.deepseek.com/chat/completions',
 });
 
 assert.deepStrictEqual(getRequestProviderPayload(), {
   provider: 'deepseek',
   model: 'deepseek-v4-flash',
-  apiUrl: undefined,
 });
 
 assert.deepStrictEqual(withProviderControls('gemini', { model: 'gemini-3.5-flash' }), {
@@ -66,6 +63,18 @@ const oldLegacyApiKey = process.env.API_KEY;
 const oldLegacyApiUrl = process.env.API_URL;
 const createProviderConfigRequest = () => (
   { headers: new Headers() } as Parameters<typeof resolveProviderConfig>[0]
+);
+
+assert.throws(
+  () => resolveProviderConfig(
+    createProviderConfigRequest(),
+    { provider: 'gemini', apiUrl: 'https://attacker.example/chat/completions' }
+  ),
+  (error) => (
+    error instanceof ProviderConfigError &&
+    error.status === 400 &&
+    error.message.includes('客户端不再支持自定义 API URL')
+  )
 );
 
 try {
@@ -130,19 +139,17 @@ const migratedSettings = loadAISettingsFromStorage(migratedStorage);
 assert.deepStrictEqual(migratedSettings, {
   aiProvider: 'deepseek',
   geminiApiKey: 'legacy-gemini-key',
-  geminiApiUrl: 'https://legacy.example/v1/chat/completions',
   deepseekApiKey: 'deepseek-key',
-  deepseekApiUrl: DEFAULT_API_URL,
 });
 assert.strictEqual(migratedStorage.getItem('geminiApiKey'), 'legacy-gemini-key');
-assert.strictEqual(migratedStorage.getItem('geminiApiUrl'), 'https://legacy.example/v1/chat/completions');
+assert.strictEqual(migratedStorage.getItem('geminiApiUrl'), null);
 
 const defaultStorage = new MemoryStorage({
   aiProvider: 'unknown',
 });
 const defaultSettings = loadAISettingsFromStorage(defaultStorage);
 assert.strictEqual(defaultSettings.aiProvider, 'deepseek');
-assert.strictEqual(defaultSettings.geminiApiUrl, DEFAULT_API_URL);
-assert.strictEqual(defaultSettings.deepseekApiUrl, DEFAULT_API_URL);
+assert.strictEqual(defaultSettings.geminiApiKey, '');
+assert.strictEqual(defaultSettings.deepseekApiKey, '');
 
 console.log('All tests passed');

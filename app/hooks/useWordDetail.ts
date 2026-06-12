@@ -7,7 +7,6 @@ import { containsKanji } from '../utils/helpers';
 
 interface UseWordDetailOptions {
   userApiKey?: string;
-  userApiUrl?: string;
   aiProvider: AIProvider;
   useStream?: boolean;
 }
@@ -46,7 +45,7 @@ function createPendingDetail(
 }
 
 // 词汇详情获取（含流式实时解析），从 AnalysisResult 提取
-export function useWordDetail({ userApiKey, userApiUrl, aiProvider, useStream = true }: UseWordDetailOptions) {
+export function useWordDetail({ userApiKey, aiProvider, useStream = true }: UseWordDetailOptions) {
   const [wordDetail, setWordDetail] = useState<WordDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreamLoading, setIsStreamLoading] = useState(false);
@@ -97,7 +96,7 @@ export function useWordDetail({ userApiKey, userApiUrl, aiProvider, useStream = 
     cacheRef.current.clear();
     currentKeyRef.current = null;
     resetVisibleState();
-  }, [userApiKey, userApiUrl, aiProvider, useStream, resetVisibleState]);
+  }, [userApiKey, aiProvider, useStream, resetVisibleState]);
 
   const getCacheKey = useCallback((
     word: string,
@@ -107,14 +106,13 @@ export function useWordDetail({ userApiKey, userApiUrl, aiProvider, useStream = 
     romaji?: string
   ) => JSON.stringify({
     provider: aiProvider,
-    apiUrl: userApiUrl || '',
     mode: useStream ? 'stream' : 'standard',
     sentence,
     word,
     pos,
     furigana: furigana || '',
     romaji: romaji || '',
-  }), [aiProvider, userApiUrl, useStream]);
+  }), [aiProvider, useStream]);
 
   // 实时解析流式内容的部分字段
   const parseStreamContentRealtime = useCallback((content: string) => {
@@ -293,12 +291,11 @@ export function useWordDetail({ userApiKey, userApiUrl, aiProvider, useStream = 
         furigana,
         romaji,
         userApiKey,
-        userApiUrl,
         aiProvider
       );
     } else {
       try {
-        const details = await getWordDetails(word, pos, sentence, furigana, romaji, userApiKey, userApiUrl, aiProvider);
+        const details = await getWordDetails(word, pos, sentence, furigana, romaji, userApiKey, aiProvider);
         const activeEntry = cacheRef.current.get(cacheKey);
         if (!activeEntry || activeEntry.requestId !== requestId) return;
 
@@ -337,7 +334,6 @@ export function useWordDetail({ userApiKey, userApiUrl, aiProvider, useStream = 
     syncCurrentEntry,
     useStream,
     userApiKey,
-    userApiUrl,
   ]);
 
   const clearWordDetail = useCallback(() => {

@@ -12,7 +12,6 @@ import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/m
 interface TranslationSectionProps {
   japaneseText: string;
   userApiKey?: string;
-  userApiUrl?: string;
   aiProvider: AIProvider;
   useStream?: boolean;
   trigger?: number;
@@ -21,7 +20,6 @@ interface TranslationSectionProps {
 export default function TranslationSection({
   japaneseText,
   userApiKey,
-  userApiUrl,
   aiProvider,
   useStream = true, // 默认为true，保持向后兼容
   trigger
@@ -64,12 +62,11 @@ export default function TranslationSection({
             setIsLoading(false);
           },
           userApiKey,
-          userApiUrl,
           aiProvider
         );
       } else {
         // 使用传统API进行翻译
-        const translatedText = await translateText(japaneseText, userApiKey, userApiUrl, aiProvider);
+        const translatedText = await translateText(japaneseText, userApiKey, aiProvider);
         setTranslation(translatedText);
         setIsLoading(false);
       }

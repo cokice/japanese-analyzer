@@ -25,6 +25,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .next-dev*.log
+/.codex-dev/
 
 # env files
 .env*.local

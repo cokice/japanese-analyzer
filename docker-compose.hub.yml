@@ -1,0 +1,12 @@
+services:
+  japanese-analyzer:
+    image: ${DOCKER_IMAGE:-howenhowen/japanese-analyzer:latest}
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: "3002"
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "3002:3002"
+    restart: unless-stopped

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
-import { resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
+import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
 
 // 配置API路由支持大尺寸请求
 export const config = {
@@ -31,10 +31,7 @@ export async function POST(req: NextRequest) {
     const { imageData, prompt, model, apiUrl, stream = false, provider } = parsedBody;
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
 
-    if (
-      providerConfig.provider === 'deepseek' ||
-      (typeof apiUrl === 'string' && apiUrl.toLowerCase().includes('deepseek'))
-    ) {
+    if (providerConfig.provider === 'deepseek') {
       return NextResponse.json(
         { error: { message: 'DeepSeek 当前不支持图片识别，请切换 Gemini 后重试。' } },
         { status: 400 }
@@ -147,6 +144,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data);
     }
   } catch (error) {
+    if (error instanceof ProviderConfigError) {
+      return NextResponse.json(
+        { error: { message: error.message } },
+        { status: error.status }
+      );
+    }
+
     console.error('Server error (Image):', error);
     return NextResponse.json(
       { error: { message: error instanceof Error ? error.message : '服务器错误' } },
