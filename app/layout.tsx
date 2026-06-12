@@ -1,15 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "flowtoken/dist/styles.css";
 import "streamdown/styles.css";
-import "@fontsource/noto-sans-sc/chinese-simplified-400.css";
-import "@fontsource/noto-sans-sc/chinese-simplified-500.css";
-import "@fontsource/noto-sans-sc/chinese-simplified-600.css";
-import "@fontsource/noto-sans-sc/chinese-simplified-700.css";
 import "@fontsource/noto-sans-jp/japanese-400.css";
 import "@fontsource/noto-sans-jp/japanese-500.css";
 import "@fontsource/noto-sans-jp/japanese-700.css";
-import "@fontsource/noto-serif-jp/japanese-500.css";
-import "@fontsource/noto-serif-jp/japanese-700.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import "./globals.css";
