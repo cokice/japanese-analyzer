@@ -37,6 +37,7 @@
 - 双模型服务商：文本模型支持 Gemini 和 DeepSeek，默认使用 DeepSeek。
 - 本地浏览器设置：用户可以在设置弹窗中为 Gemini / DeepSeek 分别填入自己的 API Key。
 - 可选访问密码：部署后可用 `CODE` 做简单访问控制。
+- Docker 部署：支持 Docker Compose 和 Docker Hub 多架构镜像。
 
 ## 模型说明
 
@@ -111,48 +112,66 @@ npm run dev
 
 ## Docker 部署
 
-容器默认监听 `3002`，示例配置会把宿主机 `3002` 映射到容器 `3002`。
+项目提供 Docker Hub 多架构镜像，支持 `linux/amd64` 和 `linux/arm64`。容器默认监听 `3002`，下面示例会把宿主机 `3002` 映射到容器 `3002`。
 
-准备生产环境变量：
-
-```powershell
-Copy-Item .env.production.example .env.production
-```
-
-编辑 `.env.production`，至少填入一个可用的文本模型 Key。该文件已被 `.gitignore` 忽略，不要提交真实密钥。
-
-本机或 VPS 源码构建运行：
+拉取镜像：
 
 ```bash
-docker compose up -d --build
+docker pull howenhowen/japanese-analyzer:latest
 ```
+
+启动容器：
+
+```bash
+docker run -d \
+  --name japanese-analyzer \
+  --restart unless-stopped \
+  -p 3002:3002 \
+  -e DEEPSEEK_API_KEY="your_deepseek_api_key" \
+  -e GEMINI_API_KEY="your_gemini_api_key" \
+  -e CODE="" \
+  howenhowen/japanese-analyzer:latest
+```
+
+访问：
+
+```text
+http://your-vps-ip:3002
+```
+
+如果只使用 DeepSeek 文本解析，可以不填 `GEMINI_API_KEY`；如果不需要访问密码，可以保持 `CODE=""`。不需要自定义接口地址时，`DEEPSEEK_API_URL` 和 `GEMINI_API_URL` 也可以不用填，应用会使用默认地址。
 
 查看日志：
 
 ```bash
-docker compose logs -f japanese-analyzer
+docker logs -f japanese-analyzer
 ```
 
-构建并推送 Docker Hub 多架构镜像：
+更新镜像：
 
 ```bash
-docker login
-docker buildx create --name japanese-analyzer-builder --use
-docker buildx inspect --bootstrap
-docker buildx build --platform linux/amd64,linux/arm64 -t howenhowen/japanese-analyzer:latest --push .
+docker pull howenhowen/japanese-analyzer:latest
+docker rm -f japanese-analyzer
+docker run -d \
+  --name japanese-analyzer \
+  --restart unless-stopped \
+  -p 3002:3002 \
+  -e DEEPSEEK_API_KEY="your_deepseek_api_key" \
+  -e GEMINI_API_KEY="your_gemini_api_key" \
+  -e CODE="" \
+  howenhowen/japanese-analyzer:latest
 ```
 
-在 VPS 上从 Docker Hub 拉取运行：
+也可以用 Docker Compose 管理容器。复制 `.env.production.example` 为 `.env.production` 并填入密钥后执行：
 
 ```bash
-docker compose -f docker-compose.hub.yml pull
 docker compose -f docker-compose.hub.yml up -d
 ```
 
-应用地址：
+镜像名：
 
 ```text
-http://your-vps-ip:3002
+howenhowen/japanese-analyzer:latest
 ```
 
 ## GitHub Actions 自动构建
