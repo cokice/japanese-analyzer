@@ -165,7 +165,7 @@ http://your-vps-ip:3002
 - `npm run build`
 - Docker image build
 
-推送到 `howendev/dev`、仓库默认分支或 `v*` tag 时，如果配置了 Docker Hub secrets，会自动构建并推送多架构镜像。
+推送到 `howendev/dev`、仓库默认分支或 `v*` tag 时，如果配置了 Docker Hub secrets，会自动构建并推送多架构镜像。`linux/amd64` 会在 `ubuntu-latest` 上构建，`linux/arm64` 会在 `ubuntu-24.04-arm` 上构建，最后合并成同一组 Docker tag。
 
 分支发布会生成：
 
