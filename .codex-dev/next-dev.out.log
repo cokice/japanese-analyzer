@@ -16,14 +16,24 @@
  ✓ Compiled /api/auth in 152ms
  GET /api/auth 200 in 438ms
  ✓ Compiled /api/analyze in 117ms
- POST /api/translate 200 in 1872ms
- POST /api/translate 200 in 2027ms
- POST /api/analyze 200 in 9497ms
- GET / 200 in 99ms
- GET /api/auth 200 in 275ms
- POST /api/translate 200 in 1732ms
- POST /api/translate 200 in 1878ms
- POST /api/analyze 200 in 9683ms
- ✓ Compiled /api/word-detail in 91ms
- POST /api/word-detail 200 in 5311ms
- POST /api/translate 200 in 1867ms
+ POST /api/translate 200 in 18 ✓ Compiled /api/analyze in 138ms
+ POST /api/translate 200 in 1724ms
+ POST /api/translate 200 in 2301ms
+ POST /api/analyze 200 in 9064ms
+ ✓ Compiled /api/word-detail in 87ms
+ POST /api/word-detail 200 in 4789ms
+ POST /api/word-detail 200 in 6880ms
+ GET / 200 in 86ms
+ GET /api/auth 200 in 266ms
+ POST /api/translate 200 in 1798ms
+ POST /api/translate 200 in 1944ms
+ POST /api/analyze 200 in 9486ms
+ GET / 200 in 193ms
+ GET /api/auth 200 in 289ms
+   ▲ Next.js 15.5.9 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://169.254.83.107:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1040ms
