@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       model: providerConfig.model,
       messages: [{ role: 'user', content: buildEpubPrompt(sentence) }],
       stream: false,
+      max_tokens: 16384,
     });
 
     const proxied = await proxyOpenAICompatibleRequest({
@@ -97,11 +98,16 @@ export async function POST(req: NextRequest) {
       const content = data?.choices?.[0]?.message?.content;
       if (typeof content === 'string') {
         const clean = content.replace(/```json\n?|\n?```/g, '').trim();
-        const parsed = JSON.parse(clean);
-        summary = {
-          sectionCount: parsed.sections?.length ?? 0,
-          sections: parsed.sections?.map((s: { text: string }) => s.text) ?? [],
-        };
+        try {
+          const parsed = JSON.parse(clean);
+          summary = {
+            sectionCount: parsed.sections?.length ?? 0,
+            sections: parsed.sections?.map((s: { text: string }) => s.text) ?? [],
+          };
+        } catch {
+          // JSON 可能被截断，记录原始长度
+          summary = { rawLength: clean.length, note: 'JSON truncated, could not parse sections' };
+        }
       }
     } catch { /* ignore parse errors in logging */ }
 

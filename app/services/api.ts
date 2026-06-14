@@ -747,11 +747,38 @@ export async function generateEpubContent(
         if (jsonMatch && jsonMatch[1]) {
           responseContent = jsonMatch[1];
         }
-        const parsed = JSON.parse(responseContent);
-        if (parsed.sections && Array.isArray(parsed.sections)) {
+        let parsed: { sections?: EpubSection[] } | null = null;
+        try {
+          parsed = JSON.parse(responseContent);
+        } catch {
+          // JSON 可能被截断（长文本常见），尝试修复
+          let repaired = responseContent.trimEnd();
+          // 去掉最后不完整的字段（从最后一个未闭合的 " 或 , 处截断）
+          const lastComplete = repaired.lastIndexOf('"}');
+          if (lastComplete > 0) {
+            repaired = repaired.slice(0, lastComplete + 2) + '\n]';
+            // 确保 sections 数组闭合
+            if (!repaired.trimEnd().endsWith(']}')) {
+              repaired = repaired.trimEnd();
+              if (!repaired.endsWith(']')) repaired += '\n]';
+              if (!repaired.endsWith('}')) repaired += '\n}';
+            }
+          }
+          try {
+            parsed = JSON.parse(repaired);
+          } catch {
+            // 最终回退：尝试找最后一个完整对象
+            const lastObj = repaired.lastIndexOf('},');
+            if (lastObj > 0) {
+              const fallback = repaired.slice(0, lastObj + 1) + '\n]\n}';
+              parsed = JSON.parse(fallback);
+            }
+          }
+        }
+        if (parsed?.sections && Array.isArray(parsed.sections) && parsed.sections.length > 0) {
           return parsed.sections as EpubSection[];
         }
-        throw new Error('返回数据缺少 sections 字段');
+        throw new Error('返回数据缺少 sections 字段或 JSON 无法修复');
       } catch (e) {
         console.error('Failed to parse JSON from epub response:', e, responseContent);
         throw new Error('Epub 生成结果 JSON 格式错误');

@@ -86,6 +86,11 @@ export default function EpubExport({
       });
   }, [currentSentence, userApiKey, aiProvider]);
 
+  // 取前10个有效字符作为文件名前缀（去掉标点符号和特殊字符）
+  const filenamePrefix = currentSentence
+    .replace(/[\s。、，．！？：；「」『』（）()…・\-　]/g, '')
+    .slice(0, 10);
+
   const handleDownload = useCallback(async () => {
     if (!epubSections || epubSections.length === 0) return;
 
@@ -93,13 +98,14 @@ export default function EpubExport({
     try {
       const blob = await generateEpubBlob({ sections: epubSections });
       const today = new Date().toISOString().slice(0, 10);
-      downloadEpub(blob, `日语解析笔记-${today}.epub`);
+      const prefix = filenamePrefix || '日语解析笔记';
+      downloadEpub(blob, `${prefix}-${today}.epub`);
     } catch (err) {
       console.error('Epub 生成失败:', err);
     } finally {
       setIsDownloading(false);
     }
-  }, [epubSections]);
+  }, [epubSections, filenamePrefix]);
 
   if (!active) return null;
 
