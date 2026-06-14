@@ -62,6 +62,6 @@ jobs:
           app-name: 'japanese-analyzer'
           slot-name: 'Production'
           package: .
-          startup-command: 'npx next start'
+                    startup-command: 'node /node_modules/.bin/next start'
                             
           
