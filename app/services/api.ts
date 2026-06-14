@@ -22,6 +22,12 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface EpubSection {
+  text: string;
+  words: string[];
+  translation: string;
+}
+
 export type AIProvider = 'gemini' | 'deepseek';
 
 export interface StorageLike {
@@ -703,6 +709,63 @@ export async function streamChat(
 /**
  * @public Retained for non-streaming chat callers.
  */
+// Epub 内容生成
+export async function generateEpubContent(
+  sentence: string,
+  userApiKey?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
+): Promise<EpubSection[]> {
+  if (!sentence) {
+    throw new Error('缺少句子');
+  }
+
+  try {
+    const apiUrl = getApiEndpoint('/epub');
+    const headers = getHeaders(userApiKey);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        sentence,
+        ...getRequestProviderPayload(provider),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('API Error (Epub):', errorData);
+      throw new Error(`Epub 生成失败：${errorData.error?.message || response.statusText || '未知错误'}`);
+    }
+
+    const result = await response.json();
+
+    if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
+      let responseContent = result.choices[0].message.content;
+      try {
+        const jsonMatch = responseContent.match(/```json\n([\s\S]*?)\n```/);
+        if (jsonMatch && jsonMatch[1]) {
+          responseContent = jsonMatch[1];
+        }
+        const parsed = JSON.parse(responseContent);
+        if (parsed.sections && Array.isArray(parsed.sections)) {
+          return parsed.sections as EpubSection[];
+        }
+        throw new Error('返回数据缺少 sections 字段');
+      } catch (e) {
+        console.error('Failed to parse JSON from epub response:', e, responseContent);
+        throw new Error('Epub 生成结果 JSON 格式错误');
+      }
+    } else {
+      console.error('Unexpected API response structure (Epub):', result);
+      throw new Error('Epub 生成结果格式错误');
+    }
+  } catch (error) {
+    console.error('Error generating epub content:', error);
+    throw error;
+  }
+}
+
 export async function sendChat(
   messages: ChatMessage[],
   userApiKey?: string,

@@ -9,6 +9,7 @@ import SettingsModal from './components/SettingsModal';
 import Header from './components/Header';
 import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
+import EpubExport from './components/EpubExport';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
@@ -32,6 +33,8 @@ export default function Home() {
   const [translationTrigger, setTranslationTrigger] = useState(0);
   const [showFurigana, setShowFurigana] = useState(true);
   const [showRomaji, setShowRomaji] = useState(true);
+  const [activeTab, setActiveTab] = useState<'analysis' | 'epub'>('analysis');
+  const [epubTrigger, setEpubTrigger] = useState(0);
 
   // API设置相关状态
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -300,6 +303,7 @@ export default function Home() {
     setIsAnalyzing(true);
     setAnalysisError('');
     setCurrentSentence(text);
+    setActiveTab('analysis');
     setTranslationTrigger(Date.now());
     setStreamContent('');
     setAnalyzedTokens([]);
@@ -393,7 +397,8 @@ export default function Home() {
 
         <main className="mx-auto grid w-full max-w-[1480px] flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* 主列 */}
-          <div className="flex min-w-0 flex-col gap-[22px]">
+          <div className="flex min-w-0 flex-col">
+     
             <InputSection
               onAnalyze={handleAnalyze}
               userApiKey={userApiKey}
@@ -403,6 +408,11 @@ export default function Home() {
               ttsProvider={ttsProvider}
               onTtsProviderChange={handleTtsProviderChange}
               isAnalyzing={isAnalyzing}
+              onEpubClick={(text) => {
+                setCurrentSentence(text);
+                setActiveTab('epub');
+                setEpubTrigger((n) => n + 1);
+              }}
             />
 
             {isAnalyzing && (!analyzedTokens.length || !useStream) && (
@@ -412,7 +422,7 @@ export default function Home() {
             )}
 
             {analysisError && (
-              <div className="nd-card">
+              <div className="nd-card mb-[22px]">
                 <div
                   className="flex items-start gap-2 rounded-[10px] p-3 text-sm"
                   style={{
@@ -432,27 +442,60 @@ export default function Home() {
               </div>
             )}
 
-            {shouldShowAnalyzer() && (
-              <AnalysisResult
-                tokens={analyzedTokens}
-                showFurigana={showFurigana}
-                onShowFuriganaChange={setShowFurigana}
-                showRomaji={showRomaji}
-                onShowRomajiChange={setShowRomaji}
-                onWordClick={handleWordClick}
-                selectedIndex={selectedIndex}
-              />
+            {/* 标签页切换 —— 有内容时显示 */}
+            {currentSentence && (
+              <div className="epub-tab-bar">
+                <button
+                  className={`epub-tab${activeTab === 'analysis' ? ' active' : ''}`}
+                  onClick={() => setActiveTab('analysis')}
+                >
+                  解析结果
+                </button>
+                <button
+                  className={`epub-tab${activeTab === 'epub' ? ' active' : ''}`}
+                  onClick={() => setActiveTab('epub')}
+                >
+                  阅读增强（Epub）
+                </button>
+              </div>
             )}
 
-            {currentSentence && (
-              <TranslationSection
-                japaneseText={currentSentence}
-                userApiKey={userApiKey}
-                aiProvider={aiProvider}
-                useStream={useStream}
-                trigger={translationTrigger}
-              />
+            {/* Tab 1: 解析结果 */}
+            {activeTab === 'analysis' && (
+              <>
+                {shouldShowAnalyzer() && (
+                  <AnalysisResult
+                    tokens={analyzedTokens}
+                    showFurigana={showFurigana}
+                    onShowFuriganaChange={setShowFurigana}
+                    showRomaji={showRomaji}
+                    onShowRomajiChange={setShowRomaji}
+                    onWordClick={handleWordClick}
+                    selectedIndex={selectedIndex}
+                  />
+                )}
+
+                {currentSentence && (
+                  <TranslationSection
+                    japaneseText={currentSentence}
+                    userApiKey={userApiKey}
+                    aiProvider={aiProvider}
+                    useStream={useStream}
+                    trigger={translationTrigger}
+                  />
+                )}
+              </>
             )}
+
+            {/* Tab 2: 阅读增强（Epub） */}
+            {/* Tab 2: 阅读增强（Epub）—— 始终挂载避免重复请求 */}
+            <EpubExport
+              currentSentence={currentSentence}
+              userApiKey={userApiKey}
+              aiProvider={aiProvider}
+              active={activeTab === 'epub'}
+              generateTrigger={epubTrigger}
+            />
           </div>
 
           {/* 侧栏：词汇详情（桌面端） */}

@@ -17,6 +17,7 @@ interface InputSectionProps {
   ttsProvider: 'edge' | 'gemini';
   onTtsProviderChange: (provider: 'edge' | 'gemini') => void;
   isAnalyzing?: boolean;
+  onEpubClick?: (text: string) => void;
 }
 
 // TTS配置选项
@@ -57,7 +58,8 @@ export default function InputSection({
   useStream = true, // 默认启用流式输出
   ttsProvider,
   onTtsProviderChange,
-  isAnalyzing = false
+  isAnalyzing = false,
+  onEpubClick,
 }: InputSectionProps) {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -578,6 +580,26 @@ export default function InputSection({
               {Icon.x}
             </button>
           )}
+
+          {/* Epub 导出按钮 —— 始终显示，与提交按钮同风格 */}
+          <button
+            className="nd-primary-btn mr-3"
+            onClick={() => onEpubClick?.(inputText)}
+            type="button"
+            title="一键分解并导出 Epub"
+            style={{
+              background: '#10b981',
+              boxShadow: '0 4px 14px -4px rgba(16, 185, 129, 0.55)',
+            }}
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              <path d="M12 7v7" />
+              <path d="M9 11l3 3 3-3" />
+            </svg>
+            增强阅读模式
+          </button>
 
           {/* 解析按钮 */}
           <StateMorphButton

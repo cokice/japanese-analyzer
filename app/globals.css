@@ -862,6 +862,128 @@ input, textarea {
   background: var(--ink-3);
 }
 
+/* ========== Epub 导出预览 ========== */
+/* 标签页切换栏 */
+.epub-tab-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: -1px;
+  position: relative;
+  z-index: 1;
+}
+
+.epub-tab {
+  padding: 8px 20px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.epub-tab:hover {
+  color: var(--ink-2);
+  background: color-mix(in oklab, var(--bg-2) 60%, transparent);
+}
+
+.epub-tab.active {
+  color: var(--ink);
+  background: var(--bg-2);
+  border-color: var(--line);
+}
+
+.epub-preview-panel {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 26px;
+  box-shadow: 0 1px 2px rgba(20, 10, 40, 0.03);
+  animation: detailIn 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.epub-preview-panel .epub-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.epub-preview-panel .epub-preview-title h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.epub-preview-content {
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* 原文标题行 */
+.epub-preview-content .epub-original {
+  margin-bottom: 16px;
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+/* 逐词解析列表 —— 紧凑行距 */
+.epub-preview-content .epub-word-list {
+  margin-bottom: 10px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.epub-preview-content .epub-word-list li {
+  margin-bottom: 2px;
+  padding-left: 6px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* 译文引用样式 */
+.epub-preview-content .epub-translation {
+  margin-top: 10px;
+  padding: 6px 0 6px 12px;
+  border-left: 3px solid var(--line-2);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  font-style: normal;
+}
+
+/* 段落分隔 */
+.epub-section-divider {
+  border-top: 1px dashed var(--line);
+  margin-top: 18px;
+  padding-top: 16px;
+}
+
+/* 下载按钮区域 */
+.epub-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+  .epub-preview-panel {
+    padding: 16px 16px;
+    border-radius: 14px;
+  }
+}
+
 /* ========== 杂项 ========== */
 #imageUploadStatus, #settingsStatus {
   font-size: 0.85em;
