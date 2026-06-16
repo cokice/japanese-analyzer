@@ -30,18 +30,18 @@
 }
 
 .dark {
-  --bg: #16131f;
-  --bg-2: #1f1b2c;
+  --bg: #272238;
+  --bg-2: #302a42;
   --ink: #f1eefb;
   --ink-2: #c4bedb;
-  --ink-3: #8e87a8;
-  --line: #2a2438;
-  --line-2: #342d45;
+  --ink-3: #9f97b2;
+  --line: #3f3650;
+  --line-2: #4d425f;
   --primary: #8b6fff;
   --primary-2: #7a5cff;
-  --primary-soft: #2a2243;
+  --primary-soft: #3b305a;
   --sakura: #f08aa0;
-  --sakura-2: #3a1d27;
+  --sakura-2: #50303c;
 
   --background: var(--bg);
   --foreground: var(--ink);
@@ -82,6 +82,11 @@ body {
   border-radius: 16px;
   padding: 22px 26px;
   box-shadow: 0 1px 2px rgba(20, 10, 40, 0.03);
+}
+
+.dark .nd-card {
+  background: linear-gradient(180deg, #342e47 0%, var(--bg-2) 100%);
+  box-shadow: 0 18px 42px -34px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 @media (max-width: 640px) {
@@ -295,6 +300,13 @@ input, textarea {
 ::-webkit-input-placeholder {
   color: var(--ink-3) !important;
   opacity: 0.8 !important;
+}
+
+.dark ::placeholder {
+  opacity: 0.86 !important;
+}
+.dark ::-webkit-input-placeholder {
+  opacity: 0.86 !important;
 }
 
 @media (max-width: 640px) {
