@@ -16,6 +16,10 @@ import {
   resolveProviderConfig,
   withProviderControls
 } from '../app/api/_utils/providerConfig';
+import {
+  buildUmamiLoaderScript,
+  resolveUmamiConfig
+} from '../app/api/_utils/umami';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
@@ -31,6 +35,28 @@ assert.strictEqual(normalizeServerAIProvider('gemini'), 'gemini');
 assert.strictEqual(normalizeServerAIProvider('deepseek'), 'deepseek');
 assert.strictEqual(normalizeServerAIProvider('unknown'), 'deepseek');
 assert.strictEqual(getModelName('deepseek'), 'deepseek-v4-flash');
+
+assert.strictEqual(resolveUmamiConfig({}), null);
+assert.strictEqual(resolveUmamiConfig({
+  NEXT_PUBLIC_UMAMI_SRC: 'https://cloud.umami.is/script.js',
+  NEXT_PUBLIC_UMAMI_WEBSITE_ID: '',
+}), null);
+assert.deepStrictEqual(resolveUmamiConfig({
+  NEXT_PUBLIC_UMAMI_SRC: ' https://cloud.umami.is/script.js ',
+  NEXT_PUBLIC_UMAMI_WEBSITE_ID: ' site-id ',
+}), {
+  src: 'https://cloud.umami.is/script.js',
+  websiteId: 'site-id',
+});
+
+const umamiLoaderScript = buildUmamiLoaderScript({
+  src: 'https://umami.example/script.js',
+  websiteId: 'site"id',
+});
+assert.strictEqual(buildUmamiLoaderScript(null), 'void 0;');
+assert.ok(umamiLoaderScript.includes('document.createElement'));
+assert.ok(umamiLoaderScript.includes(JSON.stringify('https://umami.example/script.js')));
+assert.ok(umamiLoaderScript.includes(JSON.stringify('site"id')));
 
 assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
   provider: 'gemini',
