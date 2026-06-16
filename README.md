@@ -40,6 +40,7 @@
 - 双模型服务商：文本模型支持 Gemini 和 DeepSeek，默认使用 DeepSeek。
 - 本地浏览器设置：用户可以在设置弹窗中为 Gemini / DeepSeek 分别填入自己的 API Key。
 - 可选访问密码：部署后可用 `CODE` 做简单访问控制。
+- 可选 Umami 统计：配置环境变量后自动加载 Umami 跟踪脚本。
 - Docker 部署：支持 Docker Compose 和 Docker Hub 多架构镜像。
 
 ## 模型说明
@@ -75,6 +76,9 @@ GEMINI_API_KEY=your_gemini_api_key
 GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
 
 CODE=
+
+NEXT_PUBLIC_UMAMI_SRC=
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=
 ```
 
 启动开发环境：
@@ -94,11 +98,14 @@ npm run dev
 | `GEMINI_API_KEY` | 可选 | Gemini API Key。用于 Gemini 文本解析、图片识别和 Gemini TTS。 |
 | `GEMINI_API_URL` | 可选 | Gemini OpenAI 兼容接口地址；留空使用官方默认地址。 |
 | `CODE` | 可选 | 访问密码。设置后访问应用需要先输入密码。 |
+| `NEXT_PUBLIC_UMAMI_SRC` | 可选 | Umami 脚本地址，例如 `https://cloud.umami.is/script.js`。 |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 可选 | Umami Website ID。需要和 `NEXT_PUBLIC_UMAMI_SRC` 同时配置才会启用。 |
 
 说明：
 
 - `DEEPSEEK_API_KEY` 和 `GEMINI_API_KEY` 是服务器端默认密钥，不会暴露到前端。
 - 用户也可以在右上角设置中填写自己的 Key，设置仅保存在浏览器本地。
+- Umami 统计通过本地 loader 读取运行时环境变量；两个 `NEXT_PUBLIC_UMAMI_*` 都为空时不会加载 Umami。
 - 不要提交 `.env.local`，仓库已经默认忽略本地环境变量文件。
 
 ### 用 AI Agent 部署(Claude Code / Codex)
@@ -165,7 +172,8 @@ npm run dev
 2. 在 Vercel 项目的 `Settings -> Environment Variables` 中配置环境变量。
 3. 至少配置 `DEEPSEEK_API_KEY`，这样默认文本解析可以直接使用。
 4. 如需图片识别或 Gemini TTS，再配置 `GEMINI_API_KEY`。
-5. 重新部署项目。
+5. 如需 Umami 统计，同时配置 `NEXT_PUBLIC_UMAMI_SRC` 和 `NEXT_PUBLIC_UMAMI_WEBSITE_ID`。
+6. 重新部署项目。
 
 ## Docker 部署
 
@@ -197,6 +205,13 @@ http://your-vps-ip:3002
 ```
 
 如果只使用 DeepSeek 文本解析，可以不填 `GEMINI_API_KEY`；如果不需要访问密码，可以保持 `CODE=""`。不需要自定义接口地址时，`DEEPSEEK_API_URL` 和 `GEMINI_API_URL` 也可以不用填，应用会使用默认地址。
+
+如需启用 Umami，启动容器时额外加入：
+
+```bash
+  -e NEXT_PUBLIC_UMAMI_SRC="https://cloud.umami.is/script.js" \
+  -e NEXT_PUBLIC_UMAMI_WEBSITE_ID="your_umami_website_id" \
+```
 
 查看日志：
 
@@ -265,7 +280,7 @@ howenhowen/japanese-analyzer:sha-<commit>
 | `DOCKERHUB_USERNAME` | Docker Hub 用户名，例如 `howenhowen`。 |
 | `DOCKERHUB_TOKEN` | Docker Hub Personal Access Token，不要使用账号密码。 |
 
-运行时密钥不要打进镜像；VPS 仍然通过 `.env.production` 注入 `DEEPSEEK_API_KEY`、`GEMINI_API_KEY`、`CODE` 等变量。
+运行时密钥不要打进镜像；VPS 仍然通过 `.env.production` 注入 `DEEPSEEK_API_KEY`、`GEMINI_API_KEY`、`CODE`、`NEXT_PUBLIC_UMAMI_SRC`、`NEXT_PUBLIC_UMAMI_WEBSITE_ID` 等变量。
 
 ## 开发命令
 

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "flowtoken/dist/styles.css";
 import "streamdown/styles.css";
 import "@fontsource/noto-sans-jp/japanese-400.css";
@@ -80,6 +81,7 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
         </ThemeProvider>
+        <Script src="/api/umami/script" strategy="afterInteractive" />
       </body>
     </html>
   );
