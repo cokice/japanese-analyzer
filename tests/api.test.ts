@@ -20,6 +20,10 @@ import {
   buildUmamiLoaderScript,
   resolveUmamiConfig
 } from '../app/api/_utils/umami';
+import {
+  ANALYZE_USAGE_EVENT_NAME,
+  getAnalyzeUsageEvent
+} from '../app/utils/analytics';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
@@ -57,6 +61,22 @@ assert.strictEqual(buildUmamiLoaderScript(null), 'void 0;');
 assert.ok(umamiLoaderScript.includes('document.createElement'));
 assert.ok(umamiLoaderScript.includes(JSON.stringify('https://umami.example/script.js')));
 assert.ok(umamiLoaderScript.includes(JSON.stringify('site"id')));
+
+assert.deepStrictEqual(getAnalyzeUsageEvent('gemini'), {
+  name: ANALYZE_USAGE_EVENT_NAME,
+  data: {
+    provider: 'gemini',
+    model: 'gemini-3.5-flash',
+  },
+});
+
+assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek'), {
+  name: ANALYZE_USAGE_EVENT_NAME,
+  data: {
+    provider: 'deepseek',
+    model: 'deepseek-v4-flash',
+  },
+});
 
 assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
   provider: 'gemini',
