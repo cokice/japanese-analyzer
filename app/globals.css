@@ -56,6 +56,22 @@ body {
   min-height: 100vh;
 }
 
+.brand-logo {
+  display: block;
+}
+
+.brand-logo-dark {
+  display: none;
+}
+
+.dark .brand-logo-light {
+  display: none;
+}
+
+.dark .brand-logo-dark {
+  display: block;
+}
+
 .jp { font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", "Hiragino Sans", system-ui, sans-serif; }
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
 

@@ -35,6 +35,7 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/logo/logo.png" type="image/png" />
+        <link rel="icon" href="/logo/logo-dark.png" type="image/png" media="(prefers-color-scheme: dark)" />
         <link rel="apple-touch-icon" href="/logo/logo.png" />
         {/* 主题初始化脚本 - 防止闪烁 */}
         <script dangerouslySetInnerHTML={{ __html: `
