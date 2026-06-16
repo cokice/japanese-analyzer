@@ -13,6 +13,7 @@ import ThinkingIndicator from './components/ThinkingIndicator';
 import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
 import { Sakura } from './components/Icons';
+import { trackAnalyzeUsage } from './utils/analytics';
 import {
   analyzeSentence,
   TokenData,
@@ -295,8 +296,9 @@ export default function Home() {
   }, [analyzedTokens, currentSentence, fetchWordDetails, selectedIndex]);
 
   const handleAnalyze = async (text: string) => {
-    if (!text) return;
+    if (!text.trim()) return;
 
+    trackAnalyzeUsage(aiProvider);
     setIsAnalyzing(true);
     setAnalysisError('');
     setCurrentSentence(text);

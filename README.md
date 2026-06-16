@@ -103,6 +103,7 @@ npm run dev
 - `DEEPSEEK_API_KEY` 和 `GEMINI_API_KEY` 是服务器端默认密钥，不会暴露到前端。
 - 用户也可以在右上角设置中填写自己的 Key，设置仅保存在浏览器本地。
 - Umami 统计通过本地 loader 读取运行时环境变量；两个 `NEXT_PUBLIC_UMAMI_*` 都为空时不会加载 Umami。
+- 启用 Umami 后，用户提交解析时会记录 `analyze_sentence` 事件；事件数据仅包含 `provider` 和 `model`，用于查看是否使用解析、解析次数和使用模型，不包含输入文本、图片、翻译结果、错误内容或 API Key。
 - 不要提交 `.env.local`，仓库已经默认忽略本地环境变量文件。
 
 ## 部署到 Vercel
