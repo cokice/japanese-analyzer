@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
       model: providerConfig.model,
       messages: [{ role: "user", content: prompt }],
       stream: stream,
-      max_tokens: 4000,
     }, { structuredOutput: 'analysisTokens' });
 
     const proxied = await proxyOpenAICompatibleRequest({

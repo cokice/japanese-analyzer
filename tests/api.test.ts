@@ -7,6 +7,8 @@ import {
   getRequestProviderPayload,
   loadAISettingsFromStorage,
   normalizeAIProvider,
+  parseWordDetailResponseContent,
+  readOpenAIContentStream,
   type StorageLike
 } from '../app/services/api';
 import {
@@ -238,6 +240,124 @@ assert.deepStrictEqual(
   'json_schema'
 );
 
+function streamData(payload: unknown): string {
+  return `data: ${JSON.stringify(payload)}\n\n`;
+}
+
+async function collectOpenAIContentStream(
+  chunks: string[],
+  options: Parameters<typeof readOpenAIContentStream>[3] = {}
+) {
+  const encoder = new TextEncoder();
+  const response = new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      chunks.forEach((chunk) => controller.enqueue(encoder.encode(chunk)));
+      controller.close();
+    },
+  }));
+  const events: Array<{ chunk: string; isDone: boolean }> = [];
+  let error: Error | null = null;
+
+  await readOpenAIContentStream(
+    response,
+    (chunk, isDone) => events.push({ chunk, isDone }),
+    (streamError) => {
+      error = streamError;
+    },
+    { debounceMs: 0, ...options }
+  );
+
+  return { events, error };
+}
+
+const completeWordDetailJson = JSON.stringify({
+  originalWord: 'エンターテインメント',
+  chineseTranslation: '娱乐作品',
+  pos: '名詞',
+  furigana: 'えんたーていんめんと',
+  romaji: 'enta-teinmento',
+  dictionaryForm: 'エンターテインメント',
+  explanation: '例句：この映画は純粋なエンターテインメントとして楽しめる。（这部电影可以纯粹作为娱乐来享受。）',
+});
+
+const looseWordDetailJson = `{
+  "originalWord": "エンターテインメント",
+  "chineseTranslation": "娱乐",
+  "pos": "名詞",
+  "furigana": "えんたーていんめんと",
+  "romaji": "entaateinmento",
+  "dictionaryForm": "エンターテインメント",
+  "explanation": "这个词来源于英语"entertainment"，意为“娱乐”。\\n例句：この映画は楽しめる。"
+}`;
+const looseWordDetail = parseWordDetailResponseContent(looseWordDetailJson);
+assert.strictEqual(looseWordDetail.originalWord, 'エンターテインメント');
+assert.ok(looseWordDetail.explanation.includes('英语"entertainment"'));
+assert.ok(looseWordDetail.explanation.includes('\n例句'));
+
+async function runOpenAIContentStreamTests() {
+  const completeStream = await collectOpenAIContentStream(
+    [
+      streamData({ choices: [{ delta: { content: completeWordDetailJson.slice(0, 40) }, finish_reason: null }] }),
+      streamData({ choices: [{ delta: { content: completeWordDetailJson.slice(40) }, finish_reason: null }] }),
+      streamData({ choices: [{ delta: {}, finish_reason: 'stop' }] }),
+      'data: [DONE]\n\n',
+    ],
+    {
+      validateFinalContent: JSON.parse,
+      invalidContentMessage: '词语详解没有完整生成，请重新生成。',
+      completionLabel: '词语详解',
+    }
+  );
+  assert.strictEqual(completeStream.error, null);
+  assert.deepStrictEqual(completeStream.events.at(-1), {
+    chunk: completeWordDetailJson,
+    isDone: true,
+  });
+
+  const lengthStream = await collectOpenAIContentStream(
+    [
+      streamData({ choices: [{ delta: { content: '{"explanation":"半句' }, finish_reason: null }] }),
+      streamData({ choices: [{ delta: {}, finish_reason: 'length' }] }),
+    ],
+    { completionLabel: '词语详解' }
+  );
+  assert.ok(lengthStream.error);
+  assert.ok(lengthStream.error.message.includes('被上游模型截断'));
+  assert.ok(!lengthStream.events.some((event) => event.isDone));
+
+  const invalidJsonStream = await collectOpenAIContentStream(
+    [
+      streamData({ choices: [{ delta: { content: '{"explanation":"半句' }, finish_reason: null }] }),
+      'data: [DONE]\n\n',
+    ],
+    {
+      validateFinalContent: JSON.parse,
+      invalidContentMessage: '词语详解没有完整生成，请重新生成。',
+      completionLabel: '词语详解',
+    }
+  );
+  assert.ok(invalidJsonStream.error);
+  assert.strictEqual(invalidJsonStream.error.message, '词语详解没有完整生成，请重新生成。');
+  assert.ok(!invalidJsonStream.events.some((event) => event.isDone));
+
+  const looseJsonStream = await collectOpenAIContentStream(
+    [
+      streamData({ choices: [{ delta: { content: looseWordDetailJson }, finish_reason: null }] }),
+      'data: [DONE]\n\n',
+    ],
+    {
+      validateFinalContent: parseWordDetailResponseContent,
+      invalidContentMessage: '词语详解没有完整生成，请重新生成。',
+      completionLabel: '词语详解',
+    }
+  );
+  assert.strictEqual(looseJsonStream.error, null);
+  assert.deepStrictEqual(looseJsonStream.events.at(-1), {
+    chunk: looseWordDetailJson,
+    isDone: true,
+  });
+}
+
 const oldGeminiApiKey = process.env.GEMINI_API_KEY;
 const oldGeminiApiUrl = process.env.GEMINI_API_URL;
 const oldLegacyApiKey = process.env.API_KEY;
@@ -333,4 +453,11 @@ assert.strictEqual(defaultSettings.aiProvider, 'deepseek');
 assert.strictEqual(defaultSettings.geminiApiKey, '');
 assert.strictEqual(defaultSettings.deepseekApiKey, '');
 
-console.log('All tests passed');
+runOpenAIContentStreamTests()
+  .then(() => {
+    console.log('All tests passed');
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
