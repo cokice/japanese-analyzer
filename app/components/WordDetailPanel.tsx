@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { WordDetail } from '../services/api';
 import { getPosGroup, normalizePosBase, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
-import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
+import { trackTtsUsage } from '../utils/analytics';
+import { escapeHtmlForMarkdown, highlightMarkedTextForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 import { Icon, I } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { FlowAnimatedMarkdown } from '@/components/ui/flow-animated-markdown';
@@ -26,6 +27,7 @@ async function handleWordSpeak(word: string) {
   try {
     const url = await getJapaneseTtsAudioUrl(word, undefined, 'edge', { gender: 'female' });
     const audio = new Audio(url);
+    trackTtsUsage('edge');
     audio.play();
   } catch (error) {
     console.error('Edge TTS 朗读失败，回退到系统朗读:', error);
@@ -96,9 +98,9 @@ export default function WordDetailPanel({
         ? text.substring(0, 5000) + '...'
         : text;
 
-      const formattedText = escapeHtmlForMarkdown(displayText)
-        .replace(/【([^】]+)】/g, '**$1**')
-        .replace(/「([^」]+)」/g, '**$1**');
+      const formattedText = highlightMarkedTextForMarkdown(
+        escapeHtmlForMarkdown(displayText)
+      );
 
       return preserveLineBreaksForMarkdown(formattedText);
     };
@@ -224,11 +226,12 @@ export default function WordDetailPanel({
         }}
       >
         {wordDetail.furigana && wordDetail.furigana !== display && (
-          <div className="jp text-center text-[13px] tracking-[2px]" style={{ color: 'var(--ink-3)' }}>
+          <div lang="ja" className="jp text-center text-[13px] tracking-[2px]" style={{ color: 'var(--ink-3)' }}>
             {wordDetail.furigana}
           </div>
         )}
         <div
+          lang="ja"
           className="jp text-center text-[30px] font-semibold leading-tight tracking-[1px] sm:text-[36px]"
           style={{ color: 'var(--ink)' }}
         >
@@ -257,6 +260,7 @@ export default function WordDetailPanel({
           </span>
           {wordDetail.pos && (
             <span
+              lang="ja"
               className="rounded-md border px-2.5 py-[3px] text-[11.5px] font-medium"
               style={{ color: 'var(--ink-3)', background: 'var(--bg)', borderColor: 'var(--line)' }}
             >
@@ -268,7 +272,7 @@ export default function WordDetailPanel({
               className="jp rounded-md border px-2.5 py-[3px] text-[11.5px] font-medium"
               style={{ color: 'var(--ink-2)', background: 'var(--bg)', borderColor: 'var(--line)' }}
             >
-              辞书形 {wordDetail.dictionaryForm}
+              辞书形 <span lang="ja">{wordDetail.dictionaryForm}</span>
             </span>
           )}
         </div>

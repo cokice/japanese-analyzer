@@ -1,6 +1,6 @@
 'use client';
 
-import { containsKanji, getPosClass, POS_GROUP_COLORS, POS_GROUP_LABELS } from '../utils/helpers';
+import { containsKanji, getPosClass, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEND_GROUPS } from '../utils/helpers';
 import { TokenData } from '../services/api';
 import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
@@ -30,7 +30,6 @@ function Toggle({
   );
 }
 
-const LEGEND_GROUPS = ['n', 'v', 'adj', 'p', 'aux', 'o'] as const;
 const PUNCTUATION_ONLY_RE = /^[\s。、，,.!?？！:：;；「」『』（）()[\]【】〈〉《》…・･〜～\-—―]+$/;
 
 function isPunctuationToken(token: TokenData): boolean {
@@ -79,7 +78,7 @@ export default function AnalysisResult({
 
       <AutoAnimateHeight duration={300}>
         {/* 分词结果 */}
-        <div id="analyzedSentenceOutput">
+        <div id="analyzedSentenceOutput" lang="ja">
           {tokens.map((token, index) => {
             if (token.pos === '改行') {
               return <span key={index} style={{ flexBasis: '100%', height: 0 }} />;
@@ -135,7 +134,7 @@ export default function AnalysisResult({
 
         {/* 词性图例 */}
         <div className="pos-legend">
-          {LEGEND_GROUPS.map((g) => (
+          {POS_LEGEND_GROUPS.map((g) => (
             <span key={g} className="legend-item">
               <span className="legend-swatch" style={{ background: POS_GROUP_COLORS[g] }} />
               {POS_GROUP_LABELS[g]}

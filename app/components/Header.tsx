@@ -25,7 +25,16 @@ export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
           height={330}
           priority
           sizes="(min-width: 640px) 290px, 210px"
-          className="h-9 w-auto max-w-[210px] object-contain sm:h-11 sm:max-w-[290px]"
+          className="brand-logo brand-logo-light h-9 w-auto max-w-[210px] object-contain sm:h-11 sm:max-w-[290px]"
+        />
+        <Image
+          src="/logo/logo-text-dark.png"
+          alt="日本語文章解析"
+          width={1323}
+          height={330}
+          priority
+          sizes="(min-width: 640px) 290px, 210px"
+          className="brand-logo brand-logo-dark h-9 w-auto max-w-[210px] object-contain sm:h-11 sm:max-w-[290px]"
         />
       </div>
       <div className="flex-1" />

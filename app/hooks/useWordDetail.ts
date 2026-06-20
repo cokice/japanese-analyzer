@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { getWordDetails, streamWordDetails, WordDetail } from '../services/api';
 import type { AIProvider } from '../services/api';
 import { containsKanji } from '../utils/helpers';
+import { normalizeEscapedLineBreaks } from '../utils/markdown';
 
 interface UseWordDetailOptions {
   userApiKey?: string;
@@ -25,6 +26,13 @@ interface FetchWordDetailsOptions {
 }
 
 const MAX_WORD_DETAIL_CACHE = 80;
+
+function normalizeWordDetail(detail: WordDetail): WordDetail {
+  return {
+    ...detail,
+    explanation: normalizeEscapedLineBreaks(detail.explanation || ''),
+  };
+}
 
 function createPendingDetail(
   word: string,
@@ -154,10 +162,22 @@ export function useWordDetail({ userApiKey, aiProvider, useStream = true }: UseW
 
         if (valueEnd >= content.length) {
           // 字符串未结束，可能还在生成中
-          return content.substring(valueStart + 1, valueEnd).replace(/\\n/g, '\n').replace(/\\"/g, '"') + '...';
+          return normalizeEscapedLineBreaks(
+            content.substring(valueStart + 1, valueEnd).replace(/\\"/g, '"')
+          ) + '...';
         }
 
-        return content.substring(valueStart + 1, valueEnd).replace(/\\n/g, '\n').replace(/\\"/g, '"');
+        const rawJsonString = content.substring(valueStart, valueEnd + 1);
+        try {
+          const parsedValue = JSON.parse(rawJsonString);
+          return typeof parsedValue === 'string'
+            ? normalizeEscapedLineBreaks(parsedValue)
+            : '';
+        } catch {
+          return normalizeEscapedLineBreaks(
+            content.substring(valueStart + 1, valueEnd).replace(/\\"/g, '"')
+          );
+        }
       };
 
       result.originalWord = extractFieldEfficient('originalWord');
@@ -193,7 +213,7 @@ export function useWordDetail({ userApiKey, aiProvider, useStream = true }: UseW
 
       const finalDetails = JSON.parse(processedContent) as WordDetail;
       if (finalDetails && typeof finalDetails === 'object' && 'originalWord' in finalDetails) {
-        return finalDetails;
+        return normalizeWordDetail(finalDetails);
       }
     } catch (e) {
       console.warn('最终JSON解析失败，保持实时解析结果:', e);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { AIProvider } from '../services/api';
+import { getModelName, type AIProvider } from '../services/api';
 import { Icon } from './Icons';
 import { ProviderLogo, PROVIDER_LABELS } from './ProviderLogo';
 
@@ -51,6 +51,7 @@ export default function SettingsModal({
   };
 
   const currentApiKey = selectedProvider === 'gemini' ? geminiKey : deepseekKey;
+  const currentModelName = getModelName(selectedProvider);
 
   const setCurrentApiKey = (value: string) => {
     if (selectedProvider === 'gemini') {
@@ -145,6 +146,28 @@ export default function SettingsModal({
               <span>DeepSeek 当前不支持图片识别；选择后上传图片和粘贴图片识别会自动关闭。</span>
             </p>
           )}
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="modalModelSelect" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+            模型版本
+          </label>
+          <select
+            id="modalModelSelect"
+            className="nd-input cursor-not-allowed"
+            value={currentModelName}
+            disabled
+            aria-disabled="true"
+            style={{
+              color: 'var(--ink-3)',
+              background: 'color-mix(in oklab, var(--bg) 78%, var(--line))',
+            }}
+          >
+            <option value={currentModelName}>{currentModelName}</option>
+          </select>
+          <p className="m-0 mt-1.5 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
+            当前版本仅展示，后续会在这里开放模型切换。
+          </p>
         </div>
 
         <div className="mb-4">

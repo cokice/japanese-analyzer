@@ -2,20 +2,27 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
-import type { AIProvider } from '../services/api';
+import type { AIProvider, TTSProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
+import {
+  getImageRecognitionUsage,
+  getTtsUsage,
+  trackImageRecognitionUsage,
+  trackTtsUsage,
+  type AnalyzeUsageMetadata
+} from '../utils/analytics';
 import { Icon } from './Icons';
 import { TextShimmer } from '@/components/ui/text-shimmer';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
 
 interface InputSectionProps {
-  onAnalyze: (text: string) => void;
+  onAnalyze: (text: string, usage?: AnalyzeUsageMetadata) => void;
   userApiKey?: string;
   aiProvider: AIProvider;
   geminiApiKey?: string;
   useStream?: boolean;
-  ttsProvider: 'edge' | 'gemini';
-  onTtsProviderChange: (provider: 'edge' | 'gemini') => void;
+  ttsProvider: TTSProvider;
+  onTtsProviderChange: (provider: TTSProvider) => void;
   isAnalyzing?: boolean;
 }
 
@@ -76,6 +83,8 @@ export default function InputSection({
   const submitStartedRef = useRef(false);
   const wasAnalyzingRef = useRef(false);
   const submitResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const usageMetadataRef = useRef<AnalyzeUsageMetadata>({});
+  const spokenTextRef = useRef('');
 
   // 监听外部分析状态，同步内部loading状态
   useEffect(() => {
@@ -141,6 +150,53 @@ export default function InputSection({
     };
   }, [showTtsDropdown]);
 
+  const clearUsageMetadata = () => {
+    usageMetadataRef.current = {};
+    spokenTextRef.current = '';
+  };
+
+  const getCurrentUsageMetadata = (): AnalyzeUsageMetadata => {
+    const usage = usageMetadataRef.current;
+
+    return {
+      ...(usage.imageRecognition ? { imageRecognition: { ...usage.imageRecognition } } : {}),
+      ...(usage.tts && spokenTextRef.current === inputText ? { tts: { ...usage.tts } } : {}),
+    };
+  };
+
+  const handleInputTextChange = (value: string) => {
+    setInputText(value);
+
+    if (!value.trim()) {
+      clearUsageMetadata();
+      return;
+    }
+
+    if (spokenTextRef.current && spokenTextRef.current !== value) {
+      usageMetadataRef.current = usageMetadataRef.current.imageRecognition
+        ? { imageRecognition: usageMetadataRef.current.imageRecognition }
+        : {};
+      spokenTextRef.current = '';
+    }
+  };
+
+  const markImageRecognitionUsed = () => {
+    usageMetadataRef.current = {
+      ...usageMetadataRef.current,
+      imageRecognition: getImageRecognitionUsage(aiProvider),
+    };
+    trackImageRecognitionUsage(aiProvider);
+  };
+
+  const markTtsUsed = (provider: TTSProvider) => {
+    usageMetadataRef.current = {
+      ...usageMetadataRef.current,
+      tts: getTtsUsage(provider),
+    };
+    spokenTextRef.current = inputText;
+    trackTtsUsage(provider);
+  };
+
   const handleAnalyze = () => {
     if (!inputText.trim()) {
       alert('请输入日语句子！');
@@ -149,7 +205,7 @@ export default function InputSection({
 
     submitStartedRef.current = true;
     setSubmitState('loading');
-    onAnalyze(inputText);
+    onAnalyze(inputText, getCurrentUsageMetadata());
   };
 
   const handleSpeak = async () => {
@@ -165,12 +221,14 @@ export default function InputSection({
           pitch: 0
         });
         setTtsAudioUrl(url);
+        markTtsUsed('edge');
       } else if (ttsProvider === 'gemini') {
         // 使用 Gemini TTS，添加风格控制
         const stylePrompt = TTS_STYLES.find(s => s.value === selectedStyle)?.prompt || '';
         const textToSpeak = stylePrompt + inputText;
         const url = await getJapaneseTtsAudioUrl(textToSpeak, geminiApiKey, 'gemini', { voice: selectedVoice, pitch: 0 });
         setTtsAudioUrl(url);
+        markTtsUsed('gemini');
       }
     } catch (e) {
       console.error('TTS error:', e);
@@ -182,7 +240,7 @@ export default function InputSection({
     }
   };
 
-  const handleTtsProviderSelect = (provider: 'edge' | 'gemini') => {
+  const handleTtsProviderSelect = (provider: TTSProvider) => {
     onTtsProviderChange(provider);
   };
 
@@ -248,6 +306,7 @@ export default function InputSection({
             setInputText(chunk);
 
             if (isDone) {
+              markImageRecognitionUsed();
               setIsImageUploading(false);
               setUploadStatus('文字提取成功！请确认后点击"解析"。');
               setUploadStatusClass('mt-2 text-sm');
@@ -267,6 +326,7 @@ export default function InputSection({
         // 使用传统API进行图片文字提取
         const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, aiProvider);
         setInputText(extractedText);
+        markImageRecognitionUsed();
         setUploadStatus('文字提取成功！请确认后点击"解析"。');
         setUploadStatusClass('mt-2 text-sm');
         setIsImageUploading(false);
@@ -382,11 +442,12 @@ export default function InputSection({
         <div className="relative">
           <textarea
             id="japaneseInput"
+            lang="ja"
             className={`jp w-full resize-none border-none bg-transparent outline-none ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
             rows={5}
             placeholder="输入日语句子"
             value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
+            onChange={(e) => handleInputTextChange(e.target.value)}
             onPaste={handlePaste}
             style={inputTextStyle}
             autoCapitalize="none"
@@ -395,7 +456,7 @@ export default function InputSection({
             spellCheck="false"
           ></textarea>
           {showInputShimmer && (
-            <div className="input-text-shimmer-layer-frame" aria-hidden="true">
+            <div className="input-text-shimmer-layer-frame" aria-hidden="true" lang="ja">
               <TextShimmer
                 as="div"
                 className="input-text-shimmer-layer jp"
@@ -572,7 +633,11 @@ export default function InputSection({
             <button
               className="mr-3 grid cursor-pointer place-items-center border-none bg-transparent"
               style={{ color: 'var(--ink-3)' }}
-              onClick={() => setInputText('')}
+              onClick={() => {
+                setInputText('');
+                setTtsAudioUrl(null);
+                clearUsageMetadata();
+              }}
               title="清空内容"
             >
               {Icon.x}

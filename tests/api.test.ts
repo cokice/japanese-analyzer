@@ -3,6 +3,7 @@ import {
   DEFAULT_AI_PROVIDER,
   getApiEndpoint,
   getModelName,
+  getTtsModelName,
   getRequestProviderPayload,
   loadAISettingsFromStorage,
   normalizeAIProvider,
@@ -12,6 +13,7 @@ import {
   DEFAULT_AI_PROVIDER as SERVER_DEFAULT_AI_PROVIDER,
   GEMINI_OPENAI_API_URL,
   ProviderConfigError,
+  getStructuredResponseFormat,
   normalizeAIProvider as normalizeServerAIProvider,
   resolveProviderConfig,
   withProviderControls
@@ -22,8 +24,24 @@ import {
 } from '../app/api/_utils/umami';
 import {
   ANALYZE_USAGE_EVENT_NAME,
-  getAnalyzeUsageEvent
+  IMAGE_RECOGNITION_USAGE_EVENT_NAME,
+  TTS_USAGE_EVENT_NAME,
+  WORD_DETAIL_USAGE_EVENT_NAME,
+  getAnalyzeUsageEvent,
+  getImageRecognitionUsage,
+  getImageRecognitionUsageEvent,
+  getTtsUsage,
+  getTtsUsageEvent,
+  getWordDetailUsageEvent
 } from '../app/utils/analytics';
+import {
+  getPosGroup,
+  POS_LEGEND_GROUPS
+} from '../app/utils/helpers';
+import {
+  highlightMarkedTextForMarkdown,
+  normalizeEscapedLineBreaks
+} from '../app/utils/markdown';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
@@ -32,6 +50,8 @@ assert.strictEqual(getApiEndpoint('chat'), '/api/chat');
 assert.strictEqual(DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(getModelName(), 'deepseek-v4-flash');
+assert.strictEqual(getTtsModelName('edge'), 'edge-tts');
+assert.strictEqual(getTtsModelName('gemini'), 'gemini-3.1-flash-tts-preview');
 assert.strictEqual(normalizeAIProvider('gemini'), 'gemini');
 assert.strictEqual(normalizeAIProvider('deepseek'), 'deepseek');
 assert.strictEqual(normalizeAIProvider('unknown'), 'deepseek');
@@ -67,6 +87,12 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('gemini'), {
   data: {
     provider: 'gemini',
     model: 'gemini-3.5-flash',
+    image_recognition: 'false',
+    image_provider: 'none',
+    image_model: 'none',
+    tts: 'false',
+    tts_provider: 'none',
+    tts_model: 'none',
   },
 });
 
@@ -75,8 +101,86 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek'), {
   data: {
     provider: 'deepseek',
     model: 'deepseek-v4-flash',
+    image_recognition: 'false',
+    image_provider: 'none',
+    image_model: 'none',
+    tts: 'false',
+    tts_provider: 'none',
+    tts_model: 'none',
   },
 });
+assert.deepStrictEqual(getAnalyzeUsageEvent('gemini', {
+  imageRecognition: getImageRecognitionUsage('gemini'),
+  tts: getTtsUsage('gemini'),
+}), {
+  name: ANALYZE_USAGE_EVENT_NAME,
+  data: {
+    provider: 'gemini',
+    model: 'gemini-3.5-flash',
+    image_recognition: 'true',
+    image_provider: 'gemini',
+    image_model: 'gemini-3.5-flash',
+    tts: 'true',
+    tts_provider: 'gemini',
+    tts_model: 'gemini-3.1-flash-tts-preview',
+  },
+});
+assert.deepStrictEqual(getImageRecognitionUsageEvent('gemini'), {
+  name: IMAGE_RECOGNITION_USAGE_EVENT_NAME,
+  data: {
+    provider: 'gemini',
+    model: 'gemini-3.5-flash',
+  },
+});
+assert.deepStrictEqual(getTtsUsageEvent('edge'), {
+  name: TTS_USAGE_EVENT_NAME,
+  data: {
+    provider: 'edge',
+    model: 'edge-tts',
+  },
+});
+assert.deepStrictEqual(getWordDetailUsageEvent('deepseek'), {
+  name: WORD_DETAIL_USAGE_EVENT_NAME,
+  data: {
+    provider: 'deepseek',
+    model: 'deepseek-v4-flash',
+  },
+});
+
+assert.deepStrictEqual([...POS_LEGEND_GROUPS], [
+  'n',
+  'v',
+  'adj',
+  'adjv',
+  'adv',
+  'adn',
+  'conj',
+  'int',
+  'p',
+  'aux',
+]);
+assert.strictEqual(getPosGroup('名詞'), 'n');
+assert.strictEqual(getPosGroup('代名詞'), 'n');
+assert.strictEqual(getPosGroup('動詞'), 'v');
+assert.strictEqual(getPosGroup('形容詞'), 'adj');
+assert.strictEqual(getPosGroup('形容動詞'), 'adjv');
+assert.strictEqual(getPosGroup('形状詞'), 'adjv');
+assert.strictEqual(getPosGroup('副詞'), 'adv');
+assert.strictEqual(getPosGroup('連体詞'), 'adn');
+assert.strictEqual(getPosGroup('接続詞'), 'conj');
+assert.strictEqual(getPosGroup('感動詞'), 'int');
+assert.strictEqual(getPosGroup('助詞'), 'p');
+assert.strictEqual(getPosGroup('助動詞'), 'aux');
+
+const adjacentHighlightMarkdown = highlightMarkedTextForMarkdown('【静かな】是【形容動詞】【静か】的【連体形】。');
+assert.ok(!adjacentHighlightMarkdown.includes('****'));
+assert.ok(adjacentHighlightMarkdown.includes('**形容動詞**\u200b**静か**'));
+assert.strictEqual(
+  highlightMarkedTextForMarkdown('**【形容動詞】**'),
+  '**形容動詞**'
+);
+assert.strictEqual(normalizeEscapedLineBreaks('第一行\\n\\n第二行'), '第一行\n\n第二行');
+assert.strictEqual(normalizeEscapedLineBreaks('第一行\\\\n第二行'), '第一行\n第二行');
 
 assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
   provider: 'gemini',
@@ -102,6 +206,37 @@ assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-v4-fl
   model: 'deepseek-v4-flash',
   thinking: { type: 'disabled' },
 });
+
+assert.deepStrictEqual(getStructuredResponseFormat('deepseek', 'analysisTokens'), {
+  type: 'json_object',
+});
+
+const geminiAnalysisResponseFormat = getStructuredResponseFormat('gemini', 'analysisTokens');
+assert.strictEqual(geminiAnalysisResponseFormat.type, 'json_schema');
+assert.ok(
+  JSON.stringify(geminiAnalysisResponseFormat).includes('"tokens"')
+);
+
+assert.deepStrictEqual(withProviderControls(
+  'deepseek',
+  { model: 'deepseek-v4-flash' },
+  { structuredOutput: 'wordDetail' }
+), {
+  model: 'deepseek-v4-flash',
+  response_format: { type: 'json_object' },
+  thinking: { type: 'disabled' },
+});
+
+const geminiStructuredPayload = withProviderControls(
+  'gemini',
+  { model: 'gemini-3.5-flash' },
+  { structuredOutput: 'analysisTokens' }
+);
+assert.strictEqual(geminiStructuredPayload.reasoning_effort, 'minimal');
+assert.deepStrictEqual(
+  (geminiStructuredPayload.response_format as Record<string, unknown>).type,
+  'json_schema'
+);
 
 const oldGeminiApiKey = process.env.GEMINI_API_KEY;
 const oldGeminiApiUrl = process.env.GEMINI_API_URL;
