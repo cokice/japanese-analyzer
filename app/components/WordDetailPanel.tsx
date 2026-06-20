@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { WordDetail } from '../services/api';
 import { getPosGroup, normalizePosBase, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
-import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
+import { escapeHtmlForMarkdown, highlightMarkedTextForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 import { Icon, I } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { FlowAnimatedMarkdown } from '@/components/ui/flow-animated-markdown';
@@ -96,9 +96,9 @@ export default function WordDetailPanel({
         ? text.substring(0, 5000) + '...'
         : text;
 
-      const formattedText = escapeHtmlForMarkdown(displayText)
-        .replace(/【([^】]+)】/g, '**$1**')
-        .replace(/「([^」]+)」/g, '**$1**');
+      const formattedText = highlightMarkedTextForMarkdown(
+        escapeHtmlForMarkdown(displayText)
+      );
 
       return preserveLineBreaksForMarkdown(formattedText);
     };

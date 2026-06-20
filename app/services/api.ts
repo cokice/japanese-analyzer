@@ -1,4 +1,5 @@
 // API与分析相关的服务函数
+import { normalizeEscapedLineBreaks } from '../utils/markdown';
 
 export interface TokenData {
   word: string;
@@ -187,7 +188,7 @@ function parseWordDetailResponseContent(content: string): WordDetail {
     furigana: typeof parsed.furigana === 'string' ? parsed.furigana : '',
     romaji: typeof parsed.romaji === 'string' ? parsed.romaji : '',
     dictionaryForm: typeof parsed.dictionaryForm === 'string' ? parsed.dictionaryForm : '',
-    explanation: typeof parsed.explanation === 'string' ? parsed.explanation : '',
+    explanation: typeof parsed.explanation === 'string' ? normalizeEscapedLineBreaks(parsed.explanation) : '',
   };
 }
 

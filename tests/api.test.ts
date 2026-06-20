@@ -29,6 +29,10 @@ import {
   getPosGroup,
   POS_LEGEND_GROUPS
 } from '../app/utils/helpers';
+import {
+  highlightMarkedTextForMarkdown,
+  normalizeEscapedLineBreaks
+} from '../app/utils/markdown';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
@@ -107,6 +111,16 @@ assert.strictEqual(getPosGroup('接続詞'), 'conj');
 assert.strictEqual(getPosGroup('感動詞'), 'int');
 assert.strictEqual(getPosGroup('助詞'), 'p');
 assert.strictEqual(getPosGroup('助動詞'), 'aux');
+
+const adjacentHighlightMarkdown = highlightMarkedTextForMarkdown('【静かな】是【形容動詞】【静か】的【連体形】。');
+assert.ok(!adjacentHighlightMarkdown.includes('****'));
+assert.ok(adjacentHighlightMarkdown.includes('**形容動詞**\u200b**静か**'));
+assert.strictEqual(
+  highlightMarkedTextForMarkdown('**【形容動詞】**'),
+  '**形容動詞**'
+);
+assert.strictEqual(normalizeEscapedLineBreaks('第一行\\n\\n第二行'), '第一行\n\n第二行');
+assert.strictEqual(normalizeEscapedLineBreaks('第一行\\\\n第二行'), '第一行\n第二行');
 
 assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
   provider: 'gemini',
