@@ -29,13 +29,47 @@ export async function POST(req: NextRequest) {
     contextWordInfo += `)`;
 
     // 构建详情查询请求
-    const detailPrompt = `在日语句子 "${sentence}" 的上下文中，${contextWordInfo} 的具体含义是什么？请提供以下信息，并以严格的JSON对象格式返回，不要包含任何markdown或其他非JSON字符：\n\n请特别注意：\n1. 在 "explanation" 字段中，对所有重要的语法术语、动词原形、词形变化等使用【】符号进行高亮标记。\n2. 在 "explanation" 字段的字符串值中，必须使用 \\n (反斜杠和n) 来表示换行。\n3. 在 "explanation" 字段中，提供详尽的语法解释，包括：\n   a. 如果是助词，解释其在本句中的【具体功能和用法】。\n   b. 如果有词形变化，详细说明其【变化规则】（例如：五段动词的て形变化）。\n   c. 解释该词汇在句子结构中扮演的【角色】。\n   d. 提供1-2个简单的【例句】来展示该词形或语法的典型用法。\n4. 如果是动词，准确识别其时态、语态和礼貌程度。\n5. 对于助动词与动词组合，明确说明原形及活用过程。\n6. 对于形容词，注意区分い形容词和な形容词，并识别其活用形式。\n7. 准确提供辞书形。\n\n{\n  "originalWord": "${word}",\n  "chineseTranslation": "中文翻译",\n  "pos": "${pos}",\n  "furigana": "${furigana || ''}",\n  "romaji": "${romaji || ''}",\n  "dictionaryForm": "辞书形（如果适用）",\n  "explanation": "中文解释（请包含详细语法、词形变化规则、助词用法及例句，并使用【】高亮关键术语和 \\n 换行）"\n}`;
+    const detailPrompt = `在日语句子 "${sentence}" 的上下文中，${contextWordInfo} 的具体含义是什么？请只返回严格有效的 JSON/json 对象，不要包含 markdown 或其他非 JSON 字符。
+
+JSON 对象必须包含这些字符串字段：
+- "originalWord"
+- "chineseTranslation"
+- "pos"
+- "furigana"
+- "romaji"
+- "dictionaryForm"
+- "explanation"
+
+请特别注意：
+1. 在 "explanation" 字段中，对所有重要的语法术语、动词原形、词形变化等使用【】符号进行高亮标记。
+2. 在 "explanation" 字段的字符串值中，必须使用 \\n (反斜杠和n) 来表示换行。
+3. 在 "explanation" 字段中，提供详尽的语法解释，包括：
+   a. 如果是助词，解释其在本句中的【具体功能和用法】。
+   b. 如果有词形变化，详细说明其【变化规则】（例如：五段动词的て形变化）。
+   c. 解释该词汇在句子结构中扮演的【角色】。
+   d. 提供1-2个简单的【例句】来展示该词形或语法的典型用法。
+4. 如果是动词，准确识别其时态、语态和礼貌程度。
+5. 对于助动词与动词组合，明确说明原形及活用过程。
+6. 对于形容词，注意区分い形容词和な形容词，并识别其活用形式。
+7. 准确提供辞书形；如果某字段不适用，请返回空字符串。
+
+JSON 示例：
+{
+  "originalWord": "${word}",
+  "chineseTranslation": "中文翻译",
+  "pos": "${pos}",
+  "furigana": "${furigana || ''}",
+  "romaji": "${romaji || ''}",
+  "dictionaryForm": "辞书形（如果适用）",
+  "explanation": "中文解释（请包含详细语法、词形变化规则、助词用法及例句，并使用【】高亮关键术语和 \\n 换行）"
+}`;
 
     const payload = withProviderControls(providerConfig.provider, {
       model: providerConfig.model,
       messages: [{ role: "user", content: detailPrompt }],
-      stream: useStream
-    });
+      stream: useStream,
+      max_tokens: 6000,
+    }, { structuredOutput: 'wordDetail' });
 
     const proxied = await proxyOpenAICompatibleRequest({
       url: providerConfig.apiUrl,

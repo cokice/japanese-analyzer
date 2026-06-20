@@ -7,8 +7,9 @@ export function containsKanji(text: string): boolean {
   return kanjiRegex.test(text);
 }
 
-// 新设计：词性分组（6 类颜色）
-export type PosGroup = 'n' | 'v' | 'adj' | 'p' | 'aux' | 'o';
+// 学校文法词性分组（十类颜色，記号/改行/未知走其他）
+export type PosGroup = 'n' | 'v' | 'adj' | 'adjv' | 'adv' | 'adn' | 'conj' | 'int' | 'p' | 'aux' | 'o';
+export const POS_LEGEND_GROUPS = ['n', 'v', 'adj', 'adjv', 'adv', 'adn', 'conj', 'int', 'p', 'aux'] as const;
 
 export function normalizePosBase(pos?: string | null): string {
   const value = (pos || '')
@@ -18,11 +19,17 @@ export function normalizePosBase(pos?: string | null): string {
 
   if (!value) return 'その他';
 
+  if (/改行|linebreak|newline/.test(value)) return '改行';
   if (/記号|符号|標点|标点|句読点|punctuation|symbol/.test(value)) return '記号';
   if (/助動詞|助动词|auxiliary/.test(value)) return '助動詞';
   if (/助詞|助词|particle/.test(value)) return '助詞';
+  if (/感動詞|感动词|interjection/.test(value)) return '感動詞';
+  if (/接続詞|接续词|conjunction/.test(value)) return '接続詞';
+  if (/連体詞|连体词|adnominal/.test(value)) return '連体詞';
+  if (/副詞|副词|adverb/.test(value)) return '副詞';
+  if (/形容動詞|形容动词|形状詞|na-adjective|adjectivalnoun/.test(value)) return '形容動詞';
+  if (/形容詞|形容词|adjective|\badj\b/.test(value)) return '形容詞';
   if (/動詞|动词|verb/.test(value)) return '動詞';
-  if (/形容詞|形容词|形状詞|形容動詞|形容动词|adjective|\badj\b/.test(value)) return '形容詞';
   if (/代名詞|代名词|代词|名詞|名词|noun/.test(value)) return '名詞';
 
   const [basePos] = (pos || '').trim().split(/[-,，、/／・\s(（]/);
@@ -42,8 +49,18 @@ export function getPosGroup(pos: string): PosGroup {
     case '動詞':
       return 'v';
     case '形容詞':
-    case '形状詞':
       return 'adj';
+    case '形容動詞':
+    case '形状詞':
+      return 'adjv';
+    case '副詞':
+      return 'adv';
+    case '連体詞':
+      return 'adn';
+    case '接続詞':
+      return 'conj';
+    case '感動詞':
+      return 'int';
     case '助詞':
       return 'p';
     case '助動詞':
@@ -58,6 +75,11 @@ export const POS_GROUP_COLORS: Record<PosGroup, string> = {
   n: 'var(--pos-n)',
   v: 'var(--pos-v)',
   adj: 'var(--pos-adj)',
+  adjv: 'var(--pos-adjv)',
+  adv: 'var(--pos-adv)',
+  adn: 'var(--pos-adn)',
+  conj: 'var(--pos-conj)',
+  int: 'var(--pos-int)',
   p: 'var(--pos-p)',
   aux: 'var(--pos-aux)',
   o: 'var(--pos-o)',
@@ -67,6 +89,11 @@ export const POS_GROUP_LABELS: Record<PosGroup, string> = {
   n: '名词',
   v: '动词',
   adj: '形容词',
+  adjv: '形容动词',
+  adv: '副词',
+  adn: '连体词',
+  conj: '接续词',
+  int: '感动词',
   p: '助词',
   aux: '助动词',
   o: '其他',
@@ -76,8 +103,9 @@ export const POS_GROUP_LABELS: Record<PosGroup, string> = {
 export const posChineseMap: Record<string, string> = {
   "名詞": "名词", "動詞": "动词", "形容詞": "形容词", "副詞": "副词",
   "助詞": "助词", "助動詞": "助动词", "接続詞": "接续词", "感動詞": "感动词",
-  "連体詞": "连体词", "代名詞": "代名词", "形状詞": "形容动词", "記号": "符号",
+  "連体詞": "连体词", "代名詞": "代名词", "形容動詞": "形容动词", "形状詞": "形容动词", "記号": "符号",
   "接頭辞": "接头辞", "接尾辞": "接尾辞", "フィラー": "填充词", "その他": "其他",
+  "改行": "换行",
   "default": "未知词性"
 };
 

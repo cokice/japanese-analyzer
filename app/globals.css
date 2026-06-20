@@ -17,12 +17,17 @@
   --sakura: #f8b8c6;
   --sakura-2: #fde4ea;
   /* 词性颜色 */
-  --pos-n: #3b82f6;   /* 名词 blue */
-  --pos-v: #10b981;   /* 动词 green */
-  --pos-adj: #f59e0b; /* 形容词 orange */
-  --pos-p: #ef4444;   /* 助词 red */
-  --pos-aux: #a855f7; /* 助动词 purple */
-  --pos-o: #6b7280;   /* 其他 gray */
+  --pos-n: #2563eb;      /* 名词 blue */
+  --pos-v: #059669;      /* 动词 green */
+  --pos-adj: #d97706;    /* 形容词 amber */
+  --pos-adjv: #e11d48;   /* 形容动词 rose */
+  --pos-adv: #0d9488;    /* 副词 teal */
+  --pos-adn: #7c3aed;    /* 连体词 violet */
+  --pos-conj: #dc2626;   /* 接续词 red */
+  --pos-int: #65a30d;    /* 感动词 lime */
+  --pos-p: #ea580c;      /* 助词 orange */
+  --pos-aux: #c026d3;    /* 助动词 fuchsia */
+  --pos-o: #6b7280;      /* 其他 gray */
 
   /* 兼容旧变量 */
   --background: var(--bg);
@@ -407,13 +412,23 @@ input, textarea {
 
 .pos-underline.pos-名詞, .pos-underline.pos-代名詞 { background: var(--pos-n); }
 .pos-underline.pos-動詞 { background: var(--pos-v); }
-.pos-underline.pos-形容詞, .pos-underline.pos-形状詞 { background: var(--pos-adj); }
+.pos-underline.pos-形容詞 { background: var(--pos-adj); }
+.pos-underline.pos-形容動詞, .pos-underline.pos-形状詞 { background: var(--pos-adjv); }
+.pos-underline.pos-副詞 { background: var(--pos-adv); }
+.pos-underline.pos-連体詞 { background: var(--pos-adn); }
+.pos-underline.pos-接続詞 { background: var(--pos-conj); }
+.pos-underline.pos-感動詞 { background: var(--pos-int); }
 .pos-underline.pos-助詞 { background: var(--pos-p); }
 .pos-underline.pos-助動詞 { background: var(--pos-aux); }
 .pos-underline.pos-記号 { background: transparent; }
 .pos-underline.pos-group-n { background: var(--pos-n); }
 .pos-underline.pos-group-v { background: var(--pos-v); }
 .pos-underline.pos-group-adj { background: var(--pos-adj); }
+.pos-underline.pos-group-adjv { background: var(--pos-adjv); }
+.pos-underline.pos-group-adv { background: var(--pos-adv); }
+.pos-underline.pos-group-adn { background: var(--pos-adn); }
+.pos-underline.pos-group-conj { background: var(--pos-conj); }
+.pos-underline.pos-group-int { background: var(--pos-int); }
 .pos-underline.pos-group-p { background: var(--pos-p); }
 .pos-underline.pos-group-aux { background: var(--pos-aux); }
 .pos-underline.pos-group-o { background: var(--pos-o); }

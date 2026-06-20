@@ -12,6 +12,7 @@ import {
   DEFAULT_AI_PROVIDER as SERVER_DEFAULT_AI_PROVIDER,
   GEMINI_OPENAI_API_URL,
   ProviderConfigError,
+  getStructuredResponseFormat,
   normalizeAIProvider as normalizeServerAIProvider,
   resolveProviderConfig,
   withProviderControls
@@ -24,6 +25,10 @@ import {
   ANALYZE_USAGE_EVENT_NAME,
   getAnalyzeUsageEvent
 } from '../app/utils/analytics';
+import {
+  getPosGroup,
+  POS_LEGEND_GROUPS
+} from '../app/utils/helpers';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
@@ -78,6 +83,31 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek'), {
   },
 });
 
+assert.deepStrictEqual([...POS_LEGEND_GROUPS], [
+  'n',
+  'v',
+  'adj',
+  'adjv',
+  'adv',
+  'adn',
+  'conj',
+  'int',
+  'p',
+  'aux',
+]);
+assert.strictEqual(getPosGroup('名詞'), 'n');
+assert.strictEqual(getPosGroup('代名詞'), 'n');
+assert.strictEqual(getPosGroup('動詞'), 'v');
+assert.strictEqual(getPosGroup('形容詞'), 'adj');
+assert.strictEqual(getPosGroup('形容動詞'), 'adjv');
+assert.strictEqual(getPosGroup('形状詞'), 'adjv');
+assert.strictEqual(getPosGroup('副詞'), 'adv');
+assert.strictEqual(getPosGroup('連体詞'), 'adn');
+assert.strictEqual(getPosGroup('接続詞'), 'conj');
+assert.strictEqual(getPosGroup('感動詞'), 'int');
+assert.strictEqual(getPosGroup('助詞'), 'p');
+assert.strictEqual(getPosGroup('助動詞'), 'aux');
+
 assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
   provider: 'gemini',
   model: 'gemini-3.5-flash',
@@ -102,6 +132,37 @@ assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-v4-fl
   model: 'deepseek-v4-flash',
   thinking: { type: 'disabled' },
 });
+
+assert.deepStrictEqual(getStructuredResponseFormat('deepseek', 'analysisTokens'), {
+  type: 'json_object',
+});
+
+const geminiAnalysisResponseFormat = getStructuredResponseFormat('gemini', 'analysisTokens');
+assert.strictEqual(geminiAnalysisResponseFormat.type, 'json_schema');
+assert.ok(
+  JSON.stringify(geminiAnalysisResponseFormat).includes('"tokens"')
+);
+
+assert.deepStrictEqual(withProviderControls(
+  'deepseek',
+  { model: 'deepseek-v4-flash' },
+  { structuredOutput: 'wordDetail' }
+), {
+  model: 'deepseek-v4-flash',
+  response_format: { type: 'json_object' },
+  thinking: { type: 'disabled' },
+});
+
+const geminiStructuredPayload = withProviderControls(
+  'gemini',
+  { model: 'gemini-3.5-flash' },
+  { structuredOutput: 'analysisTokens' }
+);
+assert.strictEqual(geminiStructuredPayload.reasoning_effort, 'minimal');
+assert.deepStrictEqual(
+  (geminiStructuredPayload.response_format as Record<string, unknown>).type,
+  'json_schema'
+);
 
 const oldGeminiApiKey = process.env.GEMINI_API_KEY;
 const oldGeminiApiUrl = process.env.GEMINI_API_URL;

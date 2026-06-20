@@ -95,21 +95,100 @@ function getHeaders(userApiKey?: string): HeadersInit {
 }
 
 function buildAnalyzePrompt(sentence: string): string {
-  return `请对以下日语句子进行详细的词法分析，并以JSON数组格式返回结果。每个对象应包含以下字段："word", "pos", "furigana", "romaji"。
+  return `请对以下日语句子进行词法分析，采用【日本学校文法（学校文法／教育文法）】体系，只返回严格有效的 JSON 对象，不要包含任何 markdown 或其他非 JSON 字符。
 
-请特别注意以下分析要求：
-1. 将助动词与对应动词正确结合。如"食べた"应作为一个单词，而不是分开为"食べ"和"た"。
-2. 正确识别动词的时态变化，如"いた"是"いる"的过去时，应作为一个完整单词处理。
-3. 合理处理助词，应当与前后词汇适当分离。
-4. 避免过度分词，特别是对于构成一个语法或语义单位的组合。
-5. 对于复合词，如"持って行く"，根据语义和使用习惯确定是作为一个词还是分开处理。
-6. 标点符号不要标记为普通词，不要给标点生成假名或罗马音。为了保留原文显示，若需要输出标点，只能使用 {"word": "标点原文", "pos": "記号", "furigana": "", "romaji": ""}，不能分配名词、助词、其他等词性。包括但不限于：。 、 ， . , ？ ? ！ ! ： : ； ; 「 」 『 』 （ ） ( ) 等。
-7. 重要：如果待解析的句子中包含换行符，请在对应的位置输出一个JSON对象：{"word": "\n", "pos": "改行", "furigana": "", "romaji": ""}.
-8. "pos" 字段必须使用日文标准词性标签，不要使用中文词性。优先从这些值中选择：名詞、動詞、形容詞、形状詞、助詞、助動詞、代名詞、副詞、接続詞、連体詞、感動詞、接頭辞、接尾辞、フィラー、その他、記号、改行。
+JSON 对象必须包含 "tokens" 数组；数组里每个对象必须包含字符串字段："word", "pos", "furigana", "romaji"。
 
-确保输出是严格的JSON格式，不包含任何markdown或其他非JSON字符。
+【切分原则——按学校文法切分到単語级别】
+1. 助動詞与动词分开。如「食べた」拆为「食べ」(動詞)＋「た」(助動詞)；「笑えない」拆为「笑え」(動詞)＋「ない」(助動詞)。
+2. 「て形＋补助动词」必须拆开，标注为：动词＋助詞「て／で」＋补助动词。补助动词为封闭集合，包括：いる・ある・いく・ゆく・くる・しまう・おく・みる・もらう・くれる・あげる・いただく 等。例如「並んでいる」拆为「並ん」(動詞)＋「で」(助詞)＋「いる」(動詞)。
+3. 形容動詞作为一个单词处理，不拆分。如「苦手だ」「静かだ」「綺麗だ」整体标为「形容動詞」，不要拆成名詞＋助動詞。
+4. 助詞与前后词汇分离。
+5. 区分两种「ない」：接在动词后表否定的标为「助動詞」；表示"不存在／没有"的标为「形容詞」。
+
+【读音（furigana）——结合语境判断】
+6. 对同形異音語（同一汉字写法存在多个读音且意义不同的词），必须结合整句语境与该词的实际语义选择正确读音，不可一律采用最高频读音。furigana 一律使用平假名。
+
+【词性标签——学校文法十大品詞】
+7. "pos" 必须使用日文标签，从以下封闭集合中选择：名詞、代名詞、動詞、形容詞、形容動詞、副詞、連体詞、接続詞、感動詞、助詞、助動詞、記号、改行。（补助动词归入「動詞」）
+
+【标点与换行】
+8. 标点符号只能输出为 {"word": "标点原文", "pos": "記号", "furigana": "", "romaji": ""}，不分配其他词性。包括但不限于：。 、 ， . , ？ ? ！ ! ： : ； ; 「 」 『 』 （ ） ( ) 等。
+9. 若句中包含换行符，在对应位置输出 {"word": "\\n", "pos": "改行", "furigana": "", "romaji": ""}。
+
+返回格式示例：
+{
+  "tokens": [
+    { "word": "落ち", "pos": "動詞", "furigana": "おち", "romaji": "ochi" },
+    { "word": "て", "pos": "助詞", "furigana": "", "romaji": "te" },
+    { "word": "ゆく", "pos": "動詞", "furigana": "", "romaji": "yuku" },
+    { "word": "。", "pos": "記号", "furigana": "", "romaji": "" }
+  ]
+}
 
 待解析句子： "${sentence}"`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function extractJsonText(content: string): string {
+  const jsonMatch = content.match(/```(?:json)?\n([\s\S]*?)\n```/);
+  if (jsonMatch && jsonMatch[1]) {
+    return jsonMatch[1].trim();
+  }
+
+  return content.trim();
+}
+
+function normalizeTokenDataArray(parsed: unknown): TokenData[] {
+  const rawTokens = Array.isArray(parsed)
+    ? parsed
+    : isRecord(parsed) && Array.isArray(parsed.tokens)
+      ? parsed.tokens
+      : null;
+
+  if (!rawTokens) {
+    throw new Error('解析结果缺少 tokens 数组');
+  }
+
+  const tokens = rawTokens
+    .filter((item): item is Record<string, unknown> => isRecord(item))
+    .filter((item) => typeof item.word === 'string' && typeof item.pos === 'string')
+    .map((item) => ({
+      word: item.word as string,
+      pos: item.pos as string,
+      furigana: typeof item.furigana === 'string' ? item.furigana : '',
+      romaji: typeof item.romaji === 'string' ? item.romaji : '',
+    }));
+
+  if (tokens.length === 0) {
+    throw new Error('解析结果没有有效词项');
+  }
+
+  return tokens;
+}
+
+function parseAnalyzeResponseContent(content: string): TokenData[] {
+  return normalizeTokenDataArray(JSON.parse(extractJsonText(content)));
+}
+
+function parseWordDetailResponseContent(content: string): WordDetail {
+  const parsed = JSON.parse(extractJsonText(content));
+  if (!isRecord(parsed) || typeof parsed.originalWord !== 'string') {
+    throw new Error('释义结果缺少 originalWord 字段');
+  }
+
+  return {
+    originalWord: parsed.originalWord,
+    chineseTranslation: typeof parsed.chineseTranslation === 'string' ? parsed.chineseTranslation : '',
+    pos: typeof parsed.pos === 'string' ? parsed.pos : '',
+    furigana: typeof parsed.furigana === 'string' ? parsed.furigana : '',
+    romaji: typeof parsed.romaji === 'string' ? parsed.romaji : '',
+    dictionaryForm: typeof parsed.dictionaryForm === 'string' ? parsed.dictionaryForm : '',
+    explanation: typeof parsed.explanation === 'string' ? parsed.explanation : '',
+  };
 }
 
 function getDeltaContentFromStreamData(data: string, parseWarning: string): string {
@@ -244,13 +323,9 @@ export async function analyzeSentence(
     const result = await response.json();
 
     if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
-      let responseContent = result.choices[0].message.content;
+      const responseContent = result.choices[0].message.content;
       try {
-        const jsonMatch = responseContent.match(/```json\n([\s\S]*?)\n```/);
-        if (jsonMatch && jsonMatch[1]) {
-          responseContent = jsonMatch[1];
-        }
-        return JSON.parse(responseContent) as TokenData[];
+        return parseAnalyzeResponseContent(responseContent);
       } catch (e) {
         console.error("Failed to parse JSON from analysis response:", e, responseContent);
         throw new Error('解析结果JSON格式错误');
@@ -384,13 +459,9 @@ export async function getWordDetails(
     const result = await response.json();
     
     if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
-      let responseContent = result.choices[0].message.content;
+      const responseContent = result.choices[0].message.content;
       try {
-        const jsonMatch = responseContent.match(/```json\n([\s\S]*?)\n```/);
-        if (jsonMatch && jsonMatch[1]) {
-          responseContent = jsonMatch[1];
-        }
-        return JSON.parse(responseContent) as WordDetail;
+        return parseWordDetailResponseContent(responseContent);
       } catch (e) {
         console.error("Failed to parse JSON from word detail response:", e, responseContent);
         throw new Error('释义结果JSON格式错误');

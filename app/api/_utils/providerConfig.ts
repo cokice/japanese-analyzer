@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 
 export type AIProvider = 'gemini' | 'deepseek';
+export type StructuredOutputKind = 'analysisTokens' | 'wordDetail';
 
 export const DEFAULT_AI_PROVIDER: AIProvider = 'deepseek';
 const GEMINI_MODEL_NAME = 'gemini-3.5-flash';
@@ -73,19 +74,101 @@ export function resolveProviderConfig(
   };
 }
 
+const analysisTokensSchema = {
+  type: 'object',
+  properties: {
+    tokens: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          word: { type: 'string' },
+          pos: { type: 'string' },
+          furigana: { type: 'string' },
+          romaji: { type: 'string' },
+        },
+        required: ['word', 'pos', 'furigana', 'romaji'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['tokens'],
+  additionalProperties: false,
+} as const;
+
+const wordDetailSchema = {
+  type: 'object',
+  properties: {
+    originalWord: { type: 'string' },
+    chineseTranslation: { type: 'string' },
+    pos: { type: 'string' },
+    furigana: { type: 'string' },
+    romaji: { type: 'string' },
+    dictionaryForm: { type: 'string' },
+    explanation: { type: 'string' },
+  },
+  required: [
+    'originalWord',
+    'chineseTranslation',
+    'pos',
+    'furigana',
+    'romaji',
+    'dictionaryForm',
+    'explanation',
+  ],
+  additionalProperties: false,
+} as const;
+
+const structuredOutputSchemas = {
+  analysisTokens: {
+    name: 'japanese_sentence_analysis',
+    schema: analysisTokensSchema,
+  },
+  wordDetail: {
+    name: 'japanese_word_detail',
+    schema: wordDetailSchema,
+  },
+} as const;
+
+export function getStructuredResponseFormat(
+  provider: AIProvider,
+  kind: StructuredOutputKind
+): Record<string, unknown> {
+  if (provider === 'deepseek') {
+    return { type: 'json_object' };
+  }
+
+  const structuredOutput = structuredOutputSchemas[kind];
+  return {
+    type: 'json_schema',
+    json_schema: {
+      name: structuredOutput.name,
+      strict: true,
+      schema: structuredOutput.schema,
+    },
+  };
+}
+
 export function withProviderControls(
   provider: AIProvider,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  options: { structuredOutput?: StructuredOutputKind } = {}
 ): Record<string, unknown> {
+  const responseFormat = options.structuredOutput
+    ? { response_format: getStructuredResponseFormat(provider, options.structuredOutput) }
+    : {};
+
   if (provider === 'deepseek') {
     return {
       ...payload,
+      ...responseFormat,
       thinking: { type: 'disabled' },
     };
   }
 
   return {
     ...payload,
+    ...responseFormat,
     reasoning_effort: 'minimal',
   };
 }
