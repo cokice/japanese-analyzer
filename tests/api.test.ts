@@ -3,6 +3,7 @@ import {
   DEFAULT_AI_PROVIDER,
   getApiEndpoint,
   getModelName,
+  getTtsModelName,
   getRequestProviderPayload,
   loadAISettingsFromStorage,
   normalizeAIProvider,
@@ -23,7 +24,15 @@ import {
 } from '../app/api/_utils/umami';
 import {
   ANALYZE_USAGE_EVENT_NAME,
-  getAnalyzeUsageEvent
+  IMAGE_RECOGNITION_USAGE_EVENT_NAME,
+  TTS_USAGE_EVENT_NAME,
+  WORD_DETAIL_USAGE_EVENT_NAME,
+  getAnalyzeUsageEvent,
+  getImageRecognitionUsage,
+  getImageRecognitionUsageEvent,
+  getTtsUsage,
+  getTtsUsageEvent,
+  getWordDetailUsageEvent
 } from '../app/utils/analytics';
 import {
   getPosGroup,
@@ -41,6 +50,8 @@ assert.strictEqual(getApiEndpoint('chat'), '/api/chat');
 assert.strictEqual(DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(getModelName(), 'deepseek-v4-flash');
+assert.strictEqual(getTtsModelName('edge'), 'edge-tts');
+assert.strictEqual(getTtsModelName('gemini'), 'gemini-3.1-flash-tts-preview');
 assert.strictEqual(normalizeAIProvider('gemini'), 'gemini');
 assert.strictEqual(normalizeAIProvider('deepseek'), 'deepseek');
 assert.strictEqual(normalizeAIProvider('unknown'), 'deepseek');
@@ -76,11 +87,60 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('gemini'), {
   data: {
     provider: 'gemini',
     model: 'gemini-3.5-flash',
+    image_recognition: 'false',
+    image_provider: 'none',
+    image_model: 'none',
+    tts: 'false',
+    tts_provider: 'none',
+    tts_model: 'none',
   },
 });
 
 assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek'), {
   name: ANALYZE_USAGE_EVENT_NAME,
+  data: {
+    provider: 'deepseek',
+    model: 'deepseek-v4-flash',
+    image_recognition: 'false',
+    image_provider: 'none',
+    image_model: 'none',
+    tts: 'false',
+    tts_provider: 'none',
+    tts_model: 'none',
+  },
+});
+assert.deepStrictEqual(getAnalyzeUsageEvent('gemini', {
+  imageRecognition: getImageRecognitionUsage('gemini'),
+  tts: getTtsUsage('gemini'),
+}), {
+  name: ANALYZE_USAGE_EVENT_NAME,
+  data: {
+    provider: 'gemini',
+    model: 'gemini-3.5-flash',
+    image_recognition: 'true',
+    image_provider: 'gemini',
+    image_model: 'gemini-3.5-flash',
+    tts: 'true',
+    tts_provider: 'gemini',
+    tts_model: 'gemini-3.1-flash-tts-preview',
+  },
+});
+assert.deepStrictEqual(getImageRecognitionUsageEvent('gemini'), {
+  name: IMAGE_RECOGNITION_USAGE_EVENT_NAME,
+  data: {
+    provider: 'gemini',
+    model: 'gemini-3.5-flash',
+  },
+});
+assert.deepStrictEqual(getTtsUsageEvent('edge'), {
+  name: TTS_USAGE_EVENT_NAME,
+  data: {
+    provider: 'edge',
+    model: 'edge-tts',
+  },
+});
+assert.deepStrictEqual(getWordDetailUsageEvent('deepseek'), {
+  name: WORD_DETAIL_USAGE_EVENT_NAME,
   data: {
     provider: 'deepseek',
     model: 'deepseek-v4-flash',

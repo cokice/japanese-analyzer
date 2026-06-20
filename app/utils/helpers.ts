@@ -1,5 +1,5 @@
 // 工具函数
-import { synthesizeSpeech } from '../services/api';
+import { synthesizeSpeech, type TTSProvider } from '../services/api';
 
 // 检查字符串是否包含汉字
 export function containsKanji(text: string): boolean {
@@ -128,7 +128,7 @@ export function speakJapanese(text: string): void {
 export async function getJapaneseTtsAudioUrl(
   text: string, 
   apiKey?: string, 
-  provider: 'edge' | 'gemini' = 'edge',
+  provider: TTSProvider = 'edge',
   options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number } = {}
 ): Promise<string> {
   const { audio, mimeType } = await synthesizeSpeech(text, provider, options, apiKey);

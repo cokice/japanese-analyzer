@@ -24,6 +24,7 @@ export interface ChatMessage {
 }
 
 export type AIProvider = 'gemini' | 'deepseek';
+export type TTSProvider = 'edge' | 'gemini';
 
 export interface StorageLike {
   getItem: (key: string) => string | null;
@@ -41,6 +42,8 @@ export const DEFAULT_API_URL = "/api";
 export const DEFAULT_AI_PROVIDER: AIProvider = 'deepseek';
 const GEMINI_MODEL_NAME = "gemini-3.5-flash";
 const DEEPSEEK_MODEL_NAME = "deepseek-v4-flash";
+const GEMINI_TTS_MODEL_NAME = 'gemini-3.1-flash-tts-preview';
+const EDGE_TTS_MODEL_NAME = 'edge-tts';
 const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
 const EDGE_TTS_VOICES = {
   male: 'ja-JP-KeitaNeural',
@@ -53,6 +56,10 @@ export function normalizeAIProvider(value?: string | null): AIProvider {
 
 export function getModelName(provider: AIProvider = DEFAULT_AI_PROVIDER): string {
   return provider === 'deepseek' ? DEEPSEEK_MODEL_NAME : GEMINI_MODEL_NAME;
+}
+
+export function getTtsModelName(provider: TTSProvider = 'edge'): string {
+  return provider === 'gemini' ? GEMINI_TTS_MODEL_NAME : EDGE_TTS_MODEL_NAME;
 }
 
 export function getRequestProviderPayload(provider: AIProvider = DEFAULT_AI_PROVIDER) {
@@ -671,7 +678,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 // 合成语音
 export async function synthesizeSpeech(
   text: string,
-  provider: 'edge' | 'gemini' = 'edge',
+  provider: TTSProvider = 'edge',
   options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number } = {},
   userApiKey?: string
 ): Promise<{ audio: string; mimeType: string }> {

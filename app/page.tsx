@@ -13,12 +13,13 @@ import ThinkingIndicator from './components/ThinkingIndicator';
 import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
 import { Sakura } from './components/Icons';
-import { trackAnalyzeUsage } from './utils/analytics';
+import { trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import {
   analyzeSentence,
   TokenData,
   DEFAULT_AI_PROVIDER,
   AIProvider,
+  TTSProvider,
   loadAISettingsFromStorage,
   streamAnalyzeSentence
 } from './services/api';
@@ -39,7 +40,7 @@ export default function Home() {
   const [aiProvider, setAiProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [deepseekApiKey, setDeepseekApiKey] = useState('');
-  const [ttsProvider, setTtsProvider] = useState<'edge' | 'gemini'>('edge');
+  const [ttsProvider, setTtsProvider] = useState<TTSProvider>('edge');
 
   // 密码验证相关状态
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -103,7 +104,7 @@ export default function Home() {
   useEffect(() => {
     const storedAISettings = loadAISettingsFromStorage(localStorage);
     const storedUseStream = localStorage.getItem('useStream');
-    const storedTtsProvider = (localStorage.getItem('ttsProvider') || 'edge') as 'edge' | 'gemini';
+    const storedTtsProvider = (localStorage.getItem('ttsProvider') || 'edge') as TTSProvider;
 
     setAiProvider(storedAISettings.aiProvider);
     setGeminiApiKey(storedAISettings.geminiApiKey);
@@ -140,7 +141,7 @@ export default function Home() {
     setUseStream(settings.useStream);
   };
 
-  const handleTtsProviderChange = (provider: 'edge' | 'gemini') => {
+  const handleTtsProviderChange = (provider: TTSProvider) => {
     setTtsProvider(provider);
     localStorage.setItem('ttsProvider', provider);
   };
@@ -276,8 +277,9 @@ export default function Home() {
       return;
     }
     setSelectedIndex(index);
+    trackWordDetailUsage(aiProvider);
     fetchWordDetails(token.word, token.pos, currentSentence, token.furigana, token.romaji);
-  }, [selectedIndex, currentSentence, fetchWordDetails, handleCloseWordDetail]);
+  }, [aiProvider, selectedIndex, currentSentence, fetchWordDetails, handleCloseWordDetail]);
 
   const handleRefreshWordDetail = useCallback(() => {
     if (selectedIndex === null) return;
@@ -295,10 +297,10 @@ export default function Home() {
     );
   }, [analyzedTokens, currentSentence, fetchWordDetails, selectedIndex]);
 
-  const handleAnalyze = async (text: string) => {
+  const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
     if (!text.trim()) return;
 
-    trackAnalyzeUsage(aiProvider);
+    trackAnalyzeUsage(aiProvider, usage);
     setIsAnalyzing(true);
     setAnalysisError('');
     setCurrentSentence(text);

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { WordDetail } from '../services/api';
 import { getPosGroup, normalizePosBase, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
+import { trackTtsUsage } from '../utils/analytics';
 import { escapeHtmlForMarkdown, highlightMarkedTextForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 import { Icon, I } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
@@ -26,6 +27,7 @@ async function handleWordSpeak(word: string) {
   try {
     const url = await getJapaneseTtsAudioUrl(word, undefined, 'edge', { gender: 'female' });
     const audio = new Audio(url);
+    trackTtsUsage('edge');
     audio.play();
   } catch (error) {
     console.error('Edge TTS 朗读失败，回退到系统朗读:', error);
