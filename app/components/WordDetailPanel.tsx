@@ -4,10 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { WordDetail } from '../services/api';
 import { getPosGroup, normalizePosBase, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
 import { trackTtsUsage } from '../utils/analytics';
-import { escapeHtmlForMarkdown, highlightMarkedTextForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 import { Icon, I } from './Icons';
-import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
-import { FlowAnimatedMarkdown } from '@/components/ui/flow-animated-markdown';
 
 interface WordDetailPanelProps {
   wordDetail: WordDetail | null;
@@ -66,6 +63,42 @@ export function WordDetailPlaceholder() {
   );
 }
 
+function renderHighlightedText(text: string) {
+  const nodes: React.ReactNode[] = [];
+  const highlightPattern = /(\*\*[^*]+\*\*|【[^】]+】|「[^」]+」)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = highlightPattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    const value = match[0];
+    const content = value.startsWith('**')
+      ? value.slice(2, -2)
+      : value.slice(1, -1);
+
+    nodes.push(<strong key={`${match.index}-${value}`}>{content}</strong>);
+    lastIndex = match.index + value.length;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+function renderStaticExplanation(text: string): React.ReactNode {
+  return text.split('\n').map((line, lineIndex, lines) => (
+    <span key={lineIndex}>
+      {renderHighlightedText(line)}
+      {lineIndex < lines.length - 1 && <br />}
+    </span>
+  ));
+}
+
 export default function WordDetailPanel({
   wordDetail,
   isLoading,
@@ -88,9 +121,9 @@ export default function WordDetailPanel({
     }
   }, [wordDetail?.explanation]);
 
-  // 格式化解释文本，支持换行和高亮
-  const formatExplanation = useMemo(() => {
-    return (text: string): string => {
+  // 格式化解释文本，支持换行和高亮。这里不用逐词动画，避免长解释看起来被截断。
+  const explanationContent = useMemo(() => {
+    return (text: string): React.ReactNode => {
       if (!text) return '';
 
       const isLongText = text.length > 5000;
@@ -98,11 +131,7 @@ export default function WordDetailPanel({
         ? text.substring(0, 5000) + '...'
         : text;
 
-      const formattedText = highlightMarkedTextForMarkdown(
-        escapeHtmlForMarkdown(displayText)
-      );
-
-      return preserveLineBreaksForMarkdown(formattedText);
+      return renderStaticExplanation(displayText);
     };
   }, [isExplanationExpanded]);
 
@@ -279,44 +308,36 @@ export default function WordDetailPanel({
       </div>
 
       {/* 正文 */}
-      <div className="max-h-[460px] overflow-y-auto px-5 pb-5 pt-1">
-        <AutoAnimateHeight duration={300}>
-          <DetailSection label="释义">
-            <div
-              className={`text-sm leading-relaxed ${wordDetail.chineseTranslation === '加载中...' ? 'animate-pulse' : ''}`}
-              style={{ color: 'var(--ink)' }}
-            >
-              <span
-                className="mono mr-2.5 text-[11px] font-semibold"
-                style={{ color: accent }}
-              >01</span>
-              {wordDetail.chineseTranslation}
-            </div>
-          </DetailSection>
+      <div className="px-5 pb-5 pt-1">
+        <DetailSection label="释义">
+          <div
+            className={`text-sm leading-relaxed ${wordDetail.chineseTranslation === '加载中...' ? 'animate-pulse' : ''}`}
+            style={{ color: 'var(--ink)' }}
+          >
+            <span
+              className="mono mr-2.5 text-[11px] font-semibold"
+              style={{ color: accent }}
+            >01</span>
+            {wordDetail.chineseTranslation}
+          </div>
+        </DetailSection>
 
-          {wordDetail.explanation && (
-            <DetailSection label="解释">
-              <div className="flow-markdown word-detail-explanation text-[13px] leading-relaxed">
-                <FlowAnimatedMarkdown
-                  content={formatExplanation(wordDetail.explanation)}
-                  animation="fadeIn"
-                  sep="word"
-                  animationDuration="0.35s"
-                  animationTimingFunction="ease-out"
-                />
-              </div>
-              {showExpandButton && (
-                <button
-                  onClick={() => setIsExplanationExpanded(!isExplanationExpanded)}
-                  className="mt-3 cursor-pointer border-none bg-transparent text-sm font-medium"
-                  style={{ color: 'var(--primary)' }}
-                >
-                  {isExplanationExpanded ? '收起 ▲' : '展开全文 ▼'}
-                </button>
-              )}
-            </DetailSection>
-          )}
-        </AutoAnimateHeight>
+        {wordDetail.explanation && (
+          <DetailSection label="解释">
+            <div className="flow-markdown word-detail-explanation text-[13px] leading-relaxed">
+              {explanationContent(wordDetail.explanation)}
+            </div>
+            {showExpandButton && (
+              <button
+                onClick={() => setIsExplanationExpanded(!isExplanationExpanded)}
+                className="mt-3 cursor-pointer border-none bg-transparent text-sm font-medium"
+                style={{ color: 'var(--primary)' }}
+              >
+                {isExplanationExpanded ? '收起 ▲' : '展开全文 ▼'}
+              </button>
+            )}
+          </DetailSection>
+        )}
       </div>
     </section>
   );

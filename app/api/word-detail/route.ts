@@ -43,15 +43,16 @@ JSON 对象必须包含这些字符串字段：
 请特别注意：
 1. 在 "explanation" 字段中，对所有重要的语法术语、动词原形、词形变化等使用【】符号进行高亮标记。
 2. "explanation" 是 JSON 字符串；需要换行时请使用 JSON 标准换行转义，让解析后的字符串包含真实换行。不要双重转义，不要输出会被用户看到的字面量“反斜杠+n”文本。
-3. 在 "explanation" 字段中，提供详尽的语法解释，包括：
+3. 所有字符串字段的内容中不要使用 ASCII 双引号 U+0022；需要引用英语原词、日语词形或中文释义时，请使用中文引号、单引号或【】。
+4. 在 "explanation" 字段中，提供详尽的语法解释，包括：
    a. 如果是助词，解释其在本句中的【具体功能和用法】。
    b. 如果有词形变化，详细说明其【变化规则】（例如：五段动词的て形变化）。
    c. 解释该词汇在句子结构中扮演的【角色】。
    d. 提供1-2个简单的【例句】来展示该词形或语法的典型用法。
-4. 如果是动词，准确识别其时态、语态和礼貌程度。
-5. 对于助动词与动词组合，明确说明原形及活用过程。
-6. 对于形容词，注意区分い形容词和な形容词，并识别其活用形式。
-7. 准确提供辞书形；如果某字段不适用，请返回空字符串。
+5. 如果是动词，准确识别其时态、语态和礼貌程度。
+6. 对于助动词与动词组合，明确说明原形及活用过程。
+7. 对于形容词，注意区分い形容词和な形容词，并识别其活用形式。
+8. 准确提供辞书形；如果某字段不适用，请返回空字符串。
 
 JSON 示例：
 {
@@ -68,7 +69,6 @@ JSON 示例：
       model: providerConfig.model,
       messages: [{ role: "user", content: detailPrompt }],
       stream: useStream,
-      max_tokens: 6000,
     }, { structuredOutput: 'wordDetail' });
 
     const proxied = await proxyOpenAICompatibleRequest({
@@ -91,8 +91,9 @@ JSON 示例：
     if (useStream && response.body) {
       return new NextResponse(response.body, {
         headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Transfer-Encoding': 'chunked',
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
         },
       });
     }

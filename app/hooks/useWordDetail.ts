@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getWordDetails, streamWordDetails, WordDetail } from '../services/api';
+import { getWordDetails, parseWordDetailResponseContent, streamWordDetails, WordDetail } from '../services/api';
 import type { AIProvider } from '../services/api';
 import { containsKanji } from '../utils/helpers';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
@@ -197,24 +197,7 @@ export function useWordDetail({ userApiKey, aiProvider, useStream = true }: UseW
 
   const parseFinalWordDetail = useCallback((chunk: string): WordDetail | null => {
     try {
-      let processedContent = chunk;
-
-      const jsonMatch = chunk.match(/```json\n([\s\S]*?)(\n```|$)/);
-      if (jsonMatch && jsonMatch[1]) {
-        processedContent = jsonMatch[1].trim();
-      } else {
-        const objectStart = processedContent.indexOf('{');
-        const objectEnd = processedContent.lastIndexOf('}');
-
-        if (objectStart !== -1 && objectEnd !== -1 && objectEnd > objectStart) {
-          processedContent = processedContent.substring(objectStart, objectEnd + 1);
-        }
-      }
-
-      const finalDetails = JSON.parse(processedContent) as WordDetail;
-      if (finalDetails && typeof finalDetails === 'object' && 'originalWord' in finalDetails) {
-        return normalizeWordDetail(finalDetails);
-      }
+      return normalizeWordDetail(parseWordDetailResponseContent(chunk));
     } catch (e) {
       console.warn('最终JSON解析失败，保持实时解析结果:', e);
     }

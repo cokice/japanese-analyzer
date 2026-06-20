@@ -182,41 +182,221 @@ function parseAnalyzeResponseContent(content: string): TokenData[] {
   return normalizeTokenDataArray(JSON.parse(extractJsonText(content)));
 }
 
-function parseWordDetailResponseContent(content: string): WordDetail {
-  const parsed = JSON.parse(extractJsonText(content));
+const wordDetailFields = [
+  'originalWord',
+  'chineseTranslation',
+  'pos',
+  'furigana',
+  'romaji',
+  'dictionaryForm',
+  'explanation',
+] as const;
+
+type WordDetailField = typeof wordDetailFields[number];
+
+function decodeLooseJsonStringValue(value: string): string {
+  let decoded = '';
+
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (char !== '\\') {
+      decoded += char;
+      continue;
+    }
+
+    const next = value[++i];
+    if (next === undefined) {
+      decoded += char;
+      break;
+    }
+
+    if (next === 'n') decoded += '\n';
+    else if (next === 'r') decoded += '\r';
+    else if (next === 't') decoded += '\t';
+    else if (next === 'b') decoded += '\b';
+    else if (next === 'f') decoded += '\f';
+    else if (next === '"' || next === '\\' || next === '/') decoded += next;
+    else if (next === 'u') {
+      const hex = value.slice(i + 1, i + 5);
+      if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+        decoded += String.fromCharCode(parseInt(hex, 16));
+        i += 4;
+      } else {
+        decoded += `\\${next}`;
+      }
+    } else {
+      decoded += next;
+    }
+  }
+
+  return decoded;
+}
+
+function parseLooseWordDetailObject(content: string): Record<WordDetailField, string> {
+  const jsonText = extractJsonText(content);
+  const objectStart = jsonText.indexOf('{');
+  const objectEnd = jsonText.lastIndexOf('}');
+  if (objectStart === -1 || objectEnd <= objectStart) {
+    throw new Error('释义结果不是有效 JSON 对象');
+  }
+
+  const values: Partial<Record<WordDetailField, string>> = {};
+
+  wordDetailFields.forEach((field, index) => {
+    const fieldPattern = new RegExp(`"${field}"\\s*:\\s*"`, 'm');
+    const searchFrom = index === 0
+      ? objectStart + 1
+      : Math.max(
+        objectStart + 1,
+        ...wordDetailFields
+          .slice(0, index)
+          .map((previousField) => jsonText.indexOf(`"${previousField}"`))
+      );
+    const fieldMatch = fieldPattern.exec(jsonText.slice(searchFrom));
+    if (!fieldMatch || fieldMatch.index === undefined) {
+      throw new Error(`释义结果缺少 ${field} 字段`);
+    }
+
+    const valueStart = searchFrom + fieldMatch.index + fieldMatch[0].length;
+    let valueEnd = -1;
+
+    if (index < wordDetailFields.length - 1) {
+      const nextFieldPattern = new RegExp(`"\\s*,\\s*"${wordDetailFields[index + 1]}"\\s*:`, 'm');
+      const nextFieldMatch = nextFieldPattern.exec(jsonText.slice(valueStart));
+      if (nextFieldMatch && nextFieldMatch.index !== undefined) {
+        valueEnd = valueStart + nextFieldMatch.index;
+      }
+    } else {
+      valueEnd = jsonText.lastIndexOf('"', objectEnd);
+    }
+
+    if (valueEnd < valueStart) {
+      throw new Error(`释义结果 ${field} 字段不完整`);
+    }
+
+    values[field] = decodeLooseJsonStringValue(jsonText.slice(valueStart, valueEnd));
+  });
+
+  const missingField = wordDetailFields.find((field) => typeof values[field] !== 'string');
+  if (missingField) {
+    throw new Error(`释义结果缺少 ${missingField} 字段`);
+  }
+
+  return values as Record<WordDetailField, string>;
+}
+
+export function parseWordDetailResponseContent(content: string): WordDetail {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(extractJsonText(content));
+  } catch {
+    const detail = parseLooseWordDetailObject(content);
+    return {
+      originalWord: detail.originalWord,
+      chineseTranslation: detail.chineseTranslation,
+      pos: detail.pos,
+      furigana: detail.furigana,
+      romaji: detail.romaji,
+      dictionaryForm: detail.dictionaryForm,
+      explanation: normalizeEscapedLineBreaks(detail.explanation),
+    };
+  }
+
   if (!isRecord(parsed) || typeof parsed.originalWord !== 'string') {
     throw new Error('释义结果缺少 originalWord 字段');
   }
 
+  const missingField = wordDetailFields.find((field) => typeof parsed[field] !== 'string');
+  if (missingField) {
+    throw new Error(`释义结果缺少 ${missingField} 字段`);
+  }
+  const detail = parsed as Record<WordDetailField, string>;
+
   return {
-    originalWord: parsed.originalWord,
-    chineseTranslation: typeof parsed.chineseTranslation === 'string' ? parsed.chineseTranslation : '',
-    pos: typeof parsed.pos === 'string' ? parsed.pos : '',
-    furigana: typeof parsed.furigana === 'string' ? parsed.furigana : '',
-    romaji: typeof parsed.romaji === 'string' ? parsed.romaji : '',
-    dictionaryForm: typeof parsed.dictionaryForm === 'string' ? parsed.dictionaryForm : '',
-    explanation: typeof parsed.explanation === 'string' ? normalizeEscapedLineBreaks(parsed.explanation) : '',
+    originalWord: detail.originalWord,
+    chineseTranslation: detail.chineseTranslation,
+    pos: detail.pos,
+    furigana: detail.furigana,
+    romaji: detail.romaji,
+    dictionaryForm: detail.dictionaryForm,
+    explanation: normalizeEscapedLineBreaks(detail.explanation),
   };
 }
 
-function getDeltaContentFromStreamData(data: string, parseWarning: string): string {
+function getMessageFromUnknownStreamError(value: unknown): string | undefined {
+  if (!isRecord(value)) return undefined;
+
+  if ('error' in value) {
+    const error = value.error;
+    if (typeof error === 'string') return error;
+    if (isRecord(error) && typeof error.message === 'string') return error.message;
+  }
+
+  if (typeof value.message === 'string') return value.message;
+  return undefined;
+}
+
+function getFinishReasonErrorMessage(finishReason: string, label: string): string {
+  if (finishReason === 'length') {
+    return `${label}被上游模型截断（finish_reason: length），请重新生成。`;
+  }
+
+  if (finishReason === 'content_filter') {
+    return `${label}被上游内容安全策略中止（finish_reason: content_filter）。`;
+  }
+
+  return `${label}未正常结束（finish_reason: ${finishReason}）。`;
+}
+
+function getStreamEventFromData(
+  data: string,
+  parseWarning: string
+): { content: string; finishReason: string | null; errorMessage?: string } {
   try {
-    const parsed = JSON.parse(data);
-    const content = parsed.choices?.[0]?.delta?.content;
-    return typeof content === 'string' ? content : '';
+    const parsed = JSON.parse(data) as unknown;
+    const errorMessage = getMessageFromUnknownStreamError(parsed);
+    if (errorMessage) {
+      return { content: '', finishReason: null, errorMessage };
+    }
+
+    if (!isRecord(parsed) || !Array.isArray(parsed.choices)) {
+      return { content: '', finishReason: null };
+    }
+
+    const firstChoice = parsed.choices[0];
+    if (!isRecord(firstChoice)) {
+      return { content: '', finishReason: null };
+    }
+
+    const delta = isRecord(firstChoice.delta) ? firstChoice.delta : null;
+    const message = isRecord(firstChoice.message) ? firstChoice.message : null;
+    const content = typeof delta?.content === 'string'
+      ? delta.content
+      : typeof message?.content === 'string'
+        ? message.content
+        : '';
+    const finishReason = typeof firstChoice.finish_reason === 'string'
+      ? firstChoice.finish_reason
+      : null;
+
+    return { content, finishReason };
   } catch (error) {
     console.warn(parseWarning, error, data);
-    return '';
+    return { content: '', finishReason: null };
   }
 }
 
-async function readOpenAIContentStream(
+export async function readOpenAIContentStream(
   response: Response,
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   options: {
     debounceMs?: number;
     parseWarning?: string;
+    validateFinalContent?: (content: string) => unknown;
+    invalidContentMessage?: string;
+    completionLabel?: string;
   } = {}
 ): Promise<void> {
   const reader = response.body?.getReader();
@@ -228,15 +408,22 @@ async function readOpenAIContentStream(
   const decoder = new TextDecoder();
   const debounceMs = options.debounceMs ?? 16;
   const parseWarning = options.parseWarning ?? 'Failed to parse streaming JSON chunk:';
+  const completionLabel = options.completionLabel ?? '流式响应';
   let buffer = '';
   let rawContent = '';
+  let terminalError: Error | null = null;
+  let hasTerminalSignal = false;
   let updateTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  const emit = (content: string, isComplete: boolean) => {
+  const clearPendingUpdate = () => {
     if (updateTimeout) {
       clearTimeout(updateTimeout);
       updateTimeout = null;
     }
+  };
+
+  const emit = (content: string, isComplete: boolean) => {
+    clearPendingUpdate();
 
     if (isComplete) {
       onChunk(content, true);
@@ -253,16 +440,58 @@ async function readOpenAIContentStream(
     }, debounceMs);
   };
 
-  const handleData = (data: string): boolean => {
-    if (data === '[DONE]') {
-      emit(rawContent, true);
-      return true;
+  const fail = (error: Error): boolean => {
+    clearPendingUpdate();
+    if (rawContent) {
+      onChunk(rawContent, false);
+    }
+    onError(error);
+    return true;
+  };
+
+  const complete = (): boolean => {
+    clearPendingUpdate();
+
+    if (terminalError) {
+      return fail(terminalError);
     }
 
-    const content = getDeltaContentFromStreamData(data, parseWarning);
+    if (options.validateFinalContent) {
+      try {
+        options.validateFinalContent(rawContent);
+      } catch {
+        return fail(new Error(
+          options.invalidContentMessage || `${completionLabel}没有完整生成，请重新生成。`
+        ));
+      }
+    }
+
+    emit(rawContent, true);
+    return true;
+  };
+
+  const handleData = (data: string): boolean => {
+    if (data === '[DONE]') {
+      hasTerminalSignal = true;
+      return complete();
+    }
+
+    const { content, finishReason, errorMessage } = getStreamEventFromData(data, parseWarning);
+    if (errorMessage) {
+      return fail(new Error(errorMessage));
+    }
+
     if (content) {
       rawContent += content;
       emit(rawContent, false);
+    }
+
+    if (finishReason) {
+      hasTerminalSignal = true;
+      if (finishReason.toLowerCase() !== 'stop') {
+        terminalError = new Error(getFinishReasonErrorMessage(finishReason, completionLabel));
+        return fail(terminalError);
+      }
     }
 
     return false;
@@ -288,6 +517,7 @@ async function readOpenAIContentStream(
     }
   }
 
+  buffer += decoder.decode();
   if (buffer.trim() !== '') {
     const trimmedBuffer = buffer.trim();
     if (trimmedBuffer.startsWith('data:')) {
@@ -296,7 +526,12 @@ async function readOpenAIContentStream(
     }
   }
 
-  emit(rawContent, true);
+  if (!hasTerminalSignal && options.validateFinalContent) {
+    fail(new Error(`${completionLabel}连接已结束，但没有收到完整结束信号，请重新生成。`));
+    return;
+  }
+
+  complete();
 }
 
 // 分析日语句子
@@ -385,6 +620,9 @@ export async function streamAnalyzeSentence(
     await readOpenAIContentStream(response, onChunk, onError, {
       debounceMs: 0,
       parseWarning: 'Failed to parse streaming JSON chunk:',
+      validateFinalContent: parseAnalyzeResponseContent,
+      invalidContentMessage: '句子解析结果没有完整生成，请重新解析。',
+      completionLabel: '句子解析',
     });
   } catch (error) {
     console.error('Error in stream analyzing sentence:', error);
@@ -525,6 +763,9 @@ export async function streamWordDetails(
     await readOpenAIContentStream(response, onChunk, onError, {
       debounceMs: 30,
       parseWarning: '解析流式数据时出错:',
+      validateFinalContent: parseWordDetailResponseContent,
+      invalidContentMessage: '词语详解没有完整生成，请重新生成。',
+      completionLabel: '词语详解',
     });
     
   } catch (error) {

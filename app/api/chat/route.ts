@@ -50,7 +50,6 @@ export async function POST(req: NextRequest) {
       model: providerConfig.model,
       messages: fullMessages,
       stream: useStream,
-      max_tokens: 2000
     });
 
     const proxied = await proxyOpenAICompatibleRequest({
