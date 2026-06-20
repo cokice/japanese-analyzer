@@ -382,6 +382,7 @@ export default function InputSection({
         <div className="relative">
           <textarea
             id="japaneseInput"
+            lang="ja"
             className={`jp w-full resize-none border-none bg-transparent outline-none ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
             rows={5}
             placeholder="输入日语句子"
@@ -395,7 +396,7 @@ export default function InputSection({
             spellCheck="false"
           ></textarea>
           {showInputShimmer && (
-            <div className="input-text-shimmer-layer-frame" aria-hidden="true">
+            <div className="input-text-shimmer-layer-frame" aria-hidden="true" lang="ja">
               <TextShimmer
                 as="div"
                 className="input-text-shimmer-layer jp"

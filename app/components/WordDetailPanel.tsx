@@ -224,11 +224,12 @@ export default function WordDetailPanel({
         }}
       >
         {wordDetail.furigana && wordDetail.furigana !== display && (
-          <div className="jp text-center text-[13px] tracking-[2px]" style={{ color: 'var(--ink-3)' }}>
+          <div lang="ja" className="jp text-center text-[13px] tracking-[2px]" style={{ color: 'var(--ink-3)' }}>
             {wordDetail.furigana}
           </div>
         )}
         <div
+          lang="ja"
           className="jp text-center text-[30px] font-semibold leading-tight tracking-[1px] sm:text-[36px]"
           style={{ color: 'var(--ink)' }}
         >
@@ -257,6 +258,7 @@ export default function WordDetailPanel({
           </span>
           {wordDetail.pos && (
             <span
+              lang="ja"
               className="rounded-md border px-2.5 py-[3px] text-[11.5px] font-medium"
               style={{ color: 'var(--ink-3)', background: 'var(--bg)', borderColor: 'var(--line)' }}
             >
@@ -268,7 +270,7 @@ export default function WordDetailPanel({
               className="jp rounded-md border px-2.5 py-[3px] text-[11.5px] font-medium"
               style={{ color: 'var(--ink-2)', background: 'var(--bg)', borderColor: 'var(--line)' }}
             >
-              辞书形 {wordDetail.dictionaryForm}
+              辞书形 <span lang="ja">{wordDetail.dictionaryForm}</span>
             </span>
           )}
         </div>
