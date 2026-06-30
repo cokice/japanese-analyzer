@@ -25,6 +25,8 @@ export interface ChatMessage {
 
 export type AIProvider = 'gemini' | 'deepseek';
 export type TTSProvider = 'edge' | 'gemini';
+export type DeepSeekModelName = 'deepseek-v4-flash' | 'deepseek-v4-pro';
+export type AIModelName = 'gemini-3.5-flash' | DeepSeekModelName;
 
 export interface StorageLike {
   getItem: (key: string) => string | null;
@@ -33,6 +35,7 @@ export interface StorageLike {
 
 export interface StoredAISettings {
   aiProvider: AIProvider;
+  aiModel: AIModelName;
   geminiApiKey: string;
   deepseekApiKey: string;
 }
@@ -41,7 +44,8 @@ export interface StoredAISettings {
 export const DEFAULT_API_URL = "/api";
 export const DEFAULT_AI_PROVIDER: AIProvider = 'deepseek';
 const GEMINI_MODEL_NAME = "gemini-3.5-flash";
-const DEEPSEEK_MODEL_NAME = "deepseek-v4-flash";
+const DEEPSEEK_MODEL_NAME: DeepSeekModelName = "deepseek-v4-flash";
+export const DEEPSEEK_MODEL_OPTIONS: DeepSeekModelName[] = ["deepseek-v4-flash", "deepseek-v4-pro"];
 const GEMINI_TTS_MODEL_NAME = 'gemini-3.1-flash-tts-preview';
 const EDGE_TTS_MODEL_NAME = 'edge-tts';
 const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
@@ -54,18 +58,37 @@ export function normalizeAIProvider(value?: string | null): AIProvider {
   return value === 'gemini' || value === 'deepseek' ? value : DEFAULT_AI_PROVIDER;
 }
 
-export function getModelName(provider: AIProvider = DEFAULT_AI_PROVIDER): string {
-  return provider === 'deepseek' ? DEEPSEEK_MODEL_NAME : GEMINI_MODEL_NAME;
+export function normalizeAIModel(
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  value?: string | null
+): AIModelName {
+  if (provider === 'deepseek') {
+    return DEEPSEEK_MODEL_OPTIONS.includes(value as DeepSeekModelName)
+      ? value as DeepSeekModelName
+      : DEEPSEEK_MODEL_NAME;
+  }
+
+  return GEMINI_MODEL_NAME;
+}
+
+export function getModelName(
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
+): AIModelName {
+  return normalizeAIModel(provider, model);
 }
 
 export function getTtsModelName(provider: TTSProvider = 'edge'): string {
   return provider === 'gemini' ? GEMINI_TTS_MODEL_NAME : EDGE_TTS_MODEL_NAME;
 }
 
-export function getRequestProviderPayload(provider: AIProvider = DEFAULT_AI_PROVIDER) {
+export function getRequestProviderPayload(
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
+) {
   return {
     provider,
-    model: getModelName(provider),
+    model: getModelName(provider, model),
   };
 }
 
@@ -78,8 +101,11 @@ export function loadAISettingsFromStorage(storage: StorageLike): StoredAISetting
     storage.setItem('geminiApiKey', legacyApiKey);
   }
 
+  const aiProvider = normalizeAIProvider(storage.getItem('aiProvider'));
+
   return {
-    aiProvider: normalizeAIProvider(storage.getItem('aiProvider')),
+    aiProvider,
+    aiModel: normalizeAIModel(aiProvider, storage.getItem('aiModel')),
     geminiApiKey: geminiApiKey || '',
     deepseekApiKey: storage.getItem('deepseekApiKey') || '',
   };
@@ -538,7 +564,8 @@ export async function readOpenAIContentStream(
 export async function analyzeSentence(
   sentence: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
 ): Promise<TokenData[]> {
   if (!sentence) {
     throw new Error('缺少句子');
@@ -553,7 +580,7 @@ export async function analyzeSentence(
       headers,
       body: JSON.stringify({ 
         prompt: buildAnalyzePrompt(sentence),
-        ...getRequestProviderPayload(provider)
+        ...getRequestProviderPayload(provider, model)
       })
     });
 
@@ -589,7 +616,8 @@ export async function streamAnalyzeSentence(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
 ): Promise<void> {
   if (!sentence) {
     onError(new Error('缺少句子'));
@@ -605,7 +633,7 @@ export async function streamAnalyzeSentence(
       headers,
       body: JSON.stringify({ 
         prompt: buildAnalyzePrompt(sentence),
-        ...getRequestProviderPayload(provider),
+        ...getRequestProviderPayload(provider, model),
         stream: true
       })
     });
@@ -636,7 +664,8 @@ export async function streamTranslateText(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/translate');
@@ -647,7 +676,7 @@ export async function streamTranslateText(
       headers,
       body: JSON.stringify({ 
         text: japaneseText,
-        ...getRequestProviderPayload(provider),
+        ...getRequestProviderPayload(provider, model),
         stream: true
       })
     });
@@ -677,7 +706,8 @@ export async function getWordDetails(
   furigana?: string, 
   romaji?: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
 ): Promise<WordDetail> {
   try {
     const apiUrl = getApiEndpoint('/word-detail');
@@ -692,7 +722,7 @@ export async function getWordDetails(
         sentence, 
         furigana, 
         romaji,
-        ...getRequestProviderPayload(provider)
+        ...getRequestProviderPayload(provider, model)
       })
     });
 
@@ -733,7 +763,8 @@ export async function streamWordDetails(
   furigana?: string,
   romaji?: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/word-detail');
@@ -748,7 +779,7 @@ export async function streamWordDetails(
         sentence, 
         furigana, 
         romaji,
-        ...getRequestProviderPayload(provider),
+        ...getRequestProviderPayload(provider, model),
         useStream: true
       })
     });
@@ -778,7 +809,8 @@ export async function streamWordDetails(
 export async function translateText(
   japaneseText: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
 ): Promise<string> {
   try {
     const apiUrl = getApiEndpoint('/translate');
@@ -789,7 +821,7 @@ export async function translateText(
       headers,
       body: JSON.stringify({ 
         text: japaneseText,
-        ...getRequestProviderPayload(provider)
+        ...getRequestProviderPayload(provider, model)
       })
     });
 
@@ -986,7 +1018,8 @@ export async function streamChat(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/chat');
@@ -997,7 +1030,7 @@ export async function streamChat(
       headers,
       body: JSON.stringify({ 
         messages,
-        ...getRequestProviderPayload(provider),
+        ...getRequestProviderPayload(provider, model),
         useStream: true
       })
     });
@@ -1026,7 +1059,8 @@ export async function streamChat(
 export async function sendChat(
   messages: ChatMessage[],
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
 ): Promise<string> {
   try {
     const apiUrl = getApiEndpoint('/chat');
@@ -1037,7 +1071,7 @@ export async function sendChat(
       headers,
       body: JSON.stringify({ 
         messages,
-        ...getRequestProviderPayload(provider),
+        ...getRequestProviderPayload(provider, model),
         useStream: false
       })
     });

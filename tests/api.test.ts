@@ -1,11 +1,13 @@
 import assert from 'assert';
 import {
   DEFAULT_AI_PROVIDER,
+  DEEPSEEK_MODEL_OPTIONS,
   getApiEndpoint,
   getModelName,
   getTtsModelName,
   getRequestProviderPayload,
   loadAISettingsFromStorage,
+  normalizeAIModel,
   normalizeAIProvider,
   parseWordDetailResponseContent,
   readOpenAIContentStream,
@@ -54,13 +56,19 @@ assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(getModelName(), 'deepseek-v4-flash');
 assert.strictEqual(getTtsModelName('edge'), 'edge-tts');
 assert.strictEqual(getTtsModelName('gemini'), 'gemini-3.1-flash-tts-preview');
+assert.deepStrictEqual(DEEPSEEK_MODEL_OPTIONS, ['deepseek-v4-flash', 'deepseek-v4-pro']);
 assert.strictEqual(normalizeAIProvider('gemini'), 'gemini');
 assert.strictEqual(normalizeAIProvider('deepseek'), 'deepseek');
 assert.strictEqual(normalizeAIProvider('unknown'), 'deepseek');
+assert.strictEqual(normalizeAIModel('deepseek', 'deepseek-v4-pro'), 'deepseek-v4-pro');
+assert.strictEqual(normalizeAIModel('deepseek', 'unknown'), 'deepseek-v4-flash');
+assert.strictEqual(normalizeAIModel('gemini', 'deepseek-v4-pro'), 'gemini-3.5-flash');
 assert.strictEqual(normalizeServerAIProvider('gemini'), 'gemini');
 assert.strictEqual(normalizeServerAIProvider('deepseek'), 'deepseek');
 assert.strictEqual(normalizeServerAIProvider('unknown'), 'deepseek');
 assert.strictEqual(getModelName('deepseek'), 'deepseek-v4-flash');
+assert.strictEqual(getModelName('deepseek', 'deepseek-v4-pro'), 'deepseek-v4-pro');
+assert.strictEqual(getModelName('gemini', 'deepseek-v4-pro'), 'gemini-3.5-flash');
 
 assert.strictEqual(resolveUmamiConfig({}), null);
 assert.strictEqual(resolveUmamiConfig({
@@ -111,6 +119,19 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek'), {
     tts_model: 'none',
   },
 });
+assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek', {}, 'deepseek-v4-pro'), {
+  name: ANALYZE_USAGE_EVENT_NAME,
+  data: {
+    provider: 'deepseek',
+    model: 'deepseek-v4-pro',
+    image_recognition: 'false',
+    image_provider: 'none',
+    image_model: 'none',
+    tts: 'false',
+    tts_provider: 'none',
+    tts_model: 'none',
+  },
+});
 assert.deepStrictEqual(getAnalyzeUsageEvent('gemini', {
   imageRecognition: getImageRecognitionUsage('gemini'),
   tts: getTtsUsage('gemini'),
@@ -146,6 +167,13 @@ assert.deepStrictEqual(getWordDetailUsageEvent('deepseek'), {
   data: {
     provider: 'deepseek',
     model: 'deepseek-v4-flash',
+  },
+});
+assert.deepStrictEqual(getWordDetailUsageEvent('deepseek', 'deepseek-v4-pro'), {
+  name: WORD_DETAIL_USAGE_EVENT_NAME,
+  data: {
+    provider: 'deepseek',
+    model: 'deepseek-v4-pro',
   },
 });
 
@@ -194,6 +222,11 @@ assert.deepStrictEqual(getRequestProviderPayload('deepseek'), {
   model: 'deepseek-v4-flash',
 });
 
+assert.deepStrictEqual(getRequestProviderPayload('deepseek', 'deepseek-v4-pro'), {
+  provider: 'deepseek',
+  model: 'deepseek-v4-pro',
+});
+
 assert.deepStrictEqual(getRequestProviderPayload(), {
   provider: 'deepseek',
   model: 'deepseek-v4-flash',
@@ -206,6 +239,11 @@ assert.deepStrictEqual(withProviderControls('gemini', { model: 'gemini-3.5-flash
 
 assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-v4-flash' }), {
   model: 'deepseek-v4-flash',
+  thinking: { type: 'disabled' },
+});
+
+assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-v4-pro' }), {
+  model: 'deepseek-v4-pro',
   thinking: { type: 'disabled' },
 });
 
@@ -434,11 +472,13 @@ const migratedStorage = new MemoryStorage({
   userApiKey: 'legacy-gemini-key',
   userApiUrl: 'https://legacy.example/v1/chat/completions',
   aiProvider: 'deepseek',
+  aiModel: 'deepseek-v4-pro',
   deepseekApiKey: 'deepseek-key',
 });
 const migratedSettings = loadAISettingsFromStorage(migratedStorage);
 assert.deepStrictEqual(migratedSettings, {
   aiProvider: 'deepseek',
+  aiModel: 'deepseek-v4-pro',
   geminiApiKey: 'legacy-gemini-key',
   deepseekApiKey: 'deepseek-key',
 });
@@ -450,6 +490,7 @@ const defaultStorage = new MemoryStorage({
 });
 const defaultSettings = loadAISettingsFromStorage(defaultStorage);
 assert.strictEqual(defaultSettings.aiProvider, 'deepseek');
+assert.strictEqual(defaultSettings.aiModel, 'deepseek-v4-flash');
 assert.strictEqual(defaultSettings.geminiApiKey, '');
 assert.strictEqual(defaultSettings.deepseekApiKey, '');
 

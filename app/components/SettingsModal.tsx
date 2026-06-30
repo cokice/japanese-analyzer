@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getModelName, type AIProvider } from '../services/api';
+import { DEEPSEEK_MODEL_OPTIONS, getModelName, type AIModelName, type AIProvider } from '../services/api';
 import { Icon } from './Icons';
 import { ProviderLogo, PROVIDER_LABELS } from './ProviderLogo';
 
 interface SettingsPayload {
   aiProvider: AIProvider;
+  aiModel: AIModelName;
   geminiApiKey: string;
   deepseekApiKey: string;
   useStream: boolean;
@@ -14,6 +15,7 @@ interface SettingsPayload {
 
 interface SettingsModalProps {
   aiProvider: AIProvider;
+  aiModel: AIModelName;
   geminiApiKey: string;
   deepseekApiKey: string;
   useStream: boolean;
@@ -24,6 +26,7 @@ interface SettingsModalProps {
 
 export default function SettingsModal({
   aiProvider,
+  aiModel,
   geminiApiKey,
   deepseekApiKey,
   useStream,
@@ -32,6 +35,7 @@ export default function SettingsModal({
   onModalClose
 }: SettingsModalProps) {
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(aiProvider);
+  const [selectedModel, setSelectedModel] = useState<AIModelName>(getModelName(aiProvider, aiModel));
   const [geminiKey, setGeminiKey] = useState(geminiApiKey);
   const [deepseekKey, setDeepseekKey] = useState(deepseekApiKey);
   const [streamEnabled, setStreamEnabled] = useState(useStream);
@@ -39,10 +43,11 @@ export default function SettingsModal({
 
   useEffect(() => {
     setSelectedProvider(aiProvider);
+    setSelectedModel(getModelName(aiProvider, aiModel));
     setGeminiKey(geminiApiKey);
     setDeepseekKey(deepseekApiKey);
     setStreamEnabled(useStream);
-  }, [aiProvider, geminiApiKey, deepseekApiKey, useStream]);
+  }, [aiProvider, aiModel, geminiApiKey, deepseekApiKey, useStream]);
 
   const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
@@ -51,7 +56,7 @@ export default function SettingsModal({
   };
 
   const currentApiKey = selectedProvider === 'gemini' ? geminiKey : deepseekKey;
-  const currentModelName = getModelName(selectedProvider);
+  const currentModelName = getModelName(selectedProvider, selectedModel);
 
   const setCurrentApiKey = (value: string) => {
     if (selectedProvider === 'gemini') {
@@ -64,6 +69,7 @@ export default function SettingsModal({
   const handleSaveSettings = () => {
     onSaveSettings({
       aiProvider: selectedProvider,
+      aiModel: currentModelName,
       geminiApiKey: geminiKey.trim(),
       deepseekApiKey: deepseekKey.trim(),
       useStream: streamEnabled,
@@ -154,20 +160,26 @@ export default function SettingsModal({
           </label>
           <select
             id="modalModelSelect"
-            className="nd-input cursor-not-allowed"
+            className={`nd-input ${selectedProvider === 'deepseek' ? '' : 'cursor-not-allowed'}`}
             value={currentModelName}
-            disabled
-            aria-disabled="true"
+            disabled={selectedProvider !== 'deepseek'}
+            aria-disabled={selectedProvider !== 'deepseek'}
+            onChange={(e) => setSelectedModel(getModelName(selectedProvider, e.target.value))}
             style={{
-              color: 'var(--ink-3)',
-              background: 'color-mix(in oklab, var(--bg) 78%, var(--line))',
+              color: selectedProvider === 'deepseek' ? 'var(--ink)' : 'var(--ink-3)',
+              background: selectedProvider === 'deepseek'
+                ? 'var(--bg-2)'
+                : 'color-mix(in oklab, var(--bg) 78%, var(--line))',
             }}
           >
-            <option value={currentModelName}>{currentModelName}</option>
+            {selectedProvider === 'deepseek' ? (
+              DEEPSEEK_MODEL_OPTIONS.map((model) => (
+                <option key={model} value={model}>{model}</option>
+              ))
+            ) : (
+              <option value={currentModelName}>{currentModelName}</option>
+            )}
           </select>
-          <p className="m-0 mt-1.5 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
-            当前版本仅展示，后续会在这里开放模型切换。
-          </p>
         </div>
 
         <div className="mb-4">

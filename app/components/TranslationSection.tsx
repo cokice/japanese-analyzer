@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { translateText, streamTranslateText } from '../services/api';
-import type { AIProvider } from '../services/api';
+import type { AIModelName, AIProvider } from '../services/api';
 import ThinkingIndicator from './ThinkingIndicator';
 import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
@@ -13,6 +13,7 @@ interface TranslationSectionProps {
   japaneseText: string;
   userApiKey?: string;
   aiProvider: AIProvider;
+  aiModel: AIModelName;
   useStream?: boolean;
   trigger?: number;
 }
@@ -21,6 +22,7 @@ export default function TranslationSection({
   japaneseText,
   userApiKey,
   aiProvider,
+  aiModel,
   useStream = true, // 默认为true，保持向后兼容
   trigger
 }: TranslationSectionProps) {
@@ -62,11 +64,12 @@ export default function TranslationSection({
             setIsLoading(false);
           },
           userApiKey,
-          aiProvider
+          aiProvider,
+          aiModel
         );
       } else {
         // 使用传统API进行翻译
-        const translatedText = await translateText(japaneseText, userApiKey, aiProvider);
+        const translatedText = await translateText(japaneseText, userApiKey, aiProvider, aiModel);
         setTranslation(translatedText);
         setIsLoading(false);
       }
@@ -122,7 +125,7 @@ export default function TranslationSection({
           onClick={handleTranslate}
           disabled={isLoading}
         >
-          {Icon.copy}
+          {Icon.globe}
           <span>{isLoading ? 'Thinking…' : '翻译整句'}</span>
         </button>
       </div>
