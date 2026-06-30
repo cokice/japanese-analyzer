@@ -12,14 +12,15 @@ import AIChat from './components/AIChat';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
-import { Sakura } from './components/Icons';
 import { trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import {
   analyzeSentence,
+  AIModelName,
   TokenData,
   DEFAULT_AI_PROVIDER,
   AIProvider,
   TTSProvider,
+  getModelName,
   loadAISettingsFromStorage,
   streamAnalyzeSentence
 } from './services/api';
@@ -38,6 +39,7 @@ export default function Home() {
   // API设置相关状态
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [aiProvider, setAiProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
+  const [aiModel, setAiModel] = useState<AIModelName>(getModelName(DEFAULT_AI_PROVIDER));
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [deepseekApiKey, setDeepseekApiKey] = useState('');
   const [ttsProvider, setTtsProvider] = useState<TTSProvider>('edge');
@@ -60,7 +62,7 @@ export default function Home() {
     streamError: wordDetailStreamError,
     fetchWordDetails,
     clearWordDetail,
-  } = useWordDetail({ userApiKey, aiProvider, useStream });
+  } = useWordDetail({ userApiKey, aiProvider, aiModel, useStream });
 
   // 侧栏在 lg(1024px) 以上显示，以下使用模态
   useEffect(() => {
@@ -107,6 +109,7 @@ export default function Home() {
     const storedTtsProvider = (localStorage.getItem('ttsProvider') || 'edge') as TTSProvider;
 
     setAiProvider(storedAISettings.aiProvider);
+    setAiModel(storedAISettings.aiModel);
     setGeminiApiKey(storedAISettings.geminiApiKey);
     setDeepseekApiKey(storedAISettings.deepseekApiKey);
     setTtsProvider(storedTtsProvider);
@@ -120,11 +123,13 @@ export default function Home() {
   // 保存用户API设置
   const handleSaveSettings = (settings: {
     aiProvider: AIProvider;
+    aiModel: AIModelName;
     geminiApiKey: string;
     deepseekApiKey: string;
     useStream: boolean;
   }) => {
     localStorage.setItem('aiProvider', settings.aiProvider);
+    localStorage.setItem('aiModel', settings.aiModel);
     localStorage.setItem('geminiApiKey', settings.geminiApiKey);
     localStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
     localStorage.setItem('useStream', settings.useStream.toString());
@@ -136,6 +141,7 @@ export default function Home() {
     localStorage.setItem('userApiKey', settings.geminiApiKey);
 
     setAiProvider(settings.aiProvider);
+    setAiModel(settings.aiModel);
     setGeminiApiKey(settings.geminiApiKey);
     setDeepseekApiKey(settings.deepseekApiKey);
     setUseStream(settings.useStream);
@@ -277,9 +283,9 @@ export default function Home() {
       return;
     }
     setSelectedIndex(index);
-    trackWordDetailUsage(aiProvider);
+    trackWordDetailUsage(aiProvider, aiModel);
     fetchWordDetails(token.word, token.pos, currentSentence, token.furigana, token.romaji);
-  }, [aiProvider, selectedIndex, currentSentence, fetchWordDetails, handleCloseWordDetail]);
+  }, [aiProvider, aiModel, selectedIndex, currentSentence, fetchWordDetails, handleCloseWordDetail]);
 
   const handleRefreshWordDetail = useCallback(() => {
     if (selectedIndex === null) return;
@@ -300,7 +306,7 @@ export default function Home() {
   const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
     if (!text.trim()) return;
 
-    trackAnalyzeUsage(aiProvider, usage);
+    trackAnalyzeUsage(aiProvider, usage, aiModel);
     setIsAnalyzing(true);
     setAnalysisError('');
     setCurrentSentence(text);
@@ -331,11 +337,12 @@ export default function Home() {
             setIsAnalyzing(false);
           },
           userApiKey,
-          aiProvider
+          aiProvider,
+          aiModel
         );
       } else {
         // 使用传统API进行分析
-        const tokens = await analyzeSentence(text, userApiKey, aiProvider);
+        const tokens = await analyzeSentence(text, userApiKey, aiProvider, aiModel);
         setAnalyzedTokens(tokens);
         setIsAnalyzing(false);
       }
@@ -368,7 +375,6 @@ export default function Home() {
       <>
         <div className="flex min-h-screen flex-col items-center justify-center p-4 transition-colors duration-200">
           <div className="mb-8 text-center">
-            <div className="mb-4 flex justify-center"><Sakura size={48} /></div>
             <h1 className="mb-3 text-3xl font-semibold tracking-wide" style={{ color: 'var(--ink)' }}>
               日本語文章解析
             </h1>
@@ -453,6 +459,7 @@ export default function Home() {
                 japaneseText={currentSentence}
                 userApiKey={userApiKey}
                 aiProvider={aiProvider}
+                aiModel={aiModel}
                 useStream={useStream}
                 trigger={translationTrigger}
               />
@@ -472,6 +479,7 @@ export default function Home() {
         {/* 设置模态框 */}
         <SettingsModal
           aiProvider={aiProvider}
+          aiModel={aiModel}
           geminiApiKey={geminiApiKey}
           deepseekApiKey={deepseekApiKey}
           useStream={useStream}
@@ -517,6 +525,7 @@ export default function Home() {
       <AIChat
         userApiKey={userApiKey}
         aiProvider={aiProvider}
+        aiModel={aiModel}
         currentSentence={currentSentence}
       />
     </>

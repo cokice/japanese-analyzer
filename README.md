@@ -47,7 +47,7 @@
 
 | 能力 | 默认模型 / 服务 | 说明 |
 | --- | --- | --- |
-| 文本解析 | `deepseek-v4-flash` | 默认文本服务商是 DeepSeek。 |
+| 文本解析 | `deepseek-v4-flash` / `deepseek-v4-pro` | 默认文本服务商是 DeepSeek，可在设置中切换 Flash / Pro；DeepSeek 请求默认关闭思考模式。 |
 | Gemini 文本解析 | `gemini-3.5-flash` | 可在设置中切换到 Gemini。 |
 | 图片识别 | Gemini | DeepSeek 当前不支持图片识别，选择 DeepSeek 时图片上传和粘贴识别会关闭。 |
 | 朗读 | Edge TTS / Gemini TTS | 默认使用 Edge TTS；Gemini TTS 需要 Gemini API Key。 |

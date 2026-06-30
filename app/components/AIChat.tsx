@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AssistantModalPrimitive, TextMessagePartProvider } from '@assistant-ui/react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { streamChat, ChatMessage as APIMessage } from '../services/api';
-import type { AIProvider } from '../services/api';
+import type { AIModelName, AIProvider } from '../services/api';
 import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { MarkdownText } from '@/components/ui/markdown-text';
@@ -18,10 +18,11 @@ interface ChatMessage {
 interface AIChatProps {
   userApiKey?: string;
   aiProvider: AIProvider;
+  aiModel: AIModelName;
   currentSentence?: string;
 }
 
-export default function AIChat({ userApiKey, aiProvider, currentSentence }: AIChatProps) {
+export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentence }: AIChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -155,7 +156,8 @@ export default function AIChat({ userApiKey, aiProvider, currentSentence }: AICh
           setIsLoading(false);
         },
         userApiKey,
-        aiProvider
+        aiProvider,
+        aiModel
       );
     } catch (error) {
       console.error('Chat error:', error);

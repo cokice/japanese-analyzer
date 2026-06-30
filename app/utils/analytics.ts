@@ -1,4 +1,4 @@
-import { AIProvider, TTSProvider, getModelName, getTtsModelName } from '../services/api';
+import { AIModelName, AIProvider, TTSProvider, getModelName, getTtsModelName } from '../services/api';
 
 type UmamiTrack = (eventName: string, eventData?: Record<string, string>) => void;
 
@@ -35,10 +35,10 @@ interface AnalyticsEvent {
   data: Record<string, string>;
 }
 
-export function getImageRecognitionUsage(provider: AIProvider): ImageRecognitionUsage {
+export function getImageRecognitionUsage(provider: AIProvider, model?: AIModelName): ImageRecognitionUsage {
   return {
     provider,
-    model: getModelName(provider),
+    model: getModelName(provider, model),
   };
 }
 
@@ -51,13 +51,14 @@ export function getTtsUsage(provider: TTSProvider): TtsUsage {
 
 export function getAnalyzeUsageEvent(
   provider: AIProvider,
-  usage: AnalyzeUsageMetadata = {}
+  usage: AnalyzeUsageMetadata = {},
+  model?: AIModelName
 ): AnalyticsEvent {
   return {
     name: ANALYZE_USAGE_EVENT_NAME,
     data: {
       provider,
-      model: getModelName(provider),
+      model: getModelName(provider, model),
       image_recognition: usage.imageRecognition ? 'true' : 'false',
       image_provider: usage.imageRecognition?.provider || 'none',
       image_model: usage.imageRecognition?.model || 'none',
@@ -68,8 +69,8 @@ export function getAnalyzeUsageEvent(
   };
 }
 
-export function getImageRecognitionUsageEvent(provider: AIProvider): AnalyticsEvent {
-  const usage = getImageRecognitionUsage(provider);
+export function getImageRecognitionUsageEvent(provider: AIProvider, model?: AIModelName): AnalyticsEvent {
+  const usage = getImageRecognitionUsage(provider, model);
 
   return {
     name: IMAGE_RECOGNITION_USAGE_EVENT_NAME,
@@ -92,12 +93,12 @@ export function getTtsUsageEvent(provider: TTSProvider): AnalyticsEvent {
   };
 }
 
-export function getWordDetailUsageEvent(provider: AIProvider): AnalyticsEvent {
+export function getWordDetailUsageEvent(provider: AIProvider, model?: AIModelName): AnalyticsEvent {
   return {
     name: WORD_DETAIL_USAGE_EVENT_NAME,
     data: {
       provider,
-      model: getModelName(provider),
+      model: getModelName(provider, model),
     },
   };
 }
@@ -127,18 +128,22 @@ function trackUmamiEvent(event: AnalyticsEvent, debugLabel: string): void {
   }
 }
 
-export function trackAnalyzeUsage(provider: AIProvider, usage?: AnalyzeUsageMetadata): void {
-  trackUmamiEvent(getAnalyzeUsageEvent(provider, usage), 'analyze usage');
+export function trackAnalyzeUsage(
+  provider: AIProvider,
+  usage?: AnalyzeUsageMetadata,
+  model?: AIModelName
+): void {
+  trackUmamiEvent(getAnalyzeUsageEvent(provider, usage, model), 'analyze usage');
 }
 
-export function trackImageRecognitionUsage(provider: AIProvider): void {
-  trackUmamiEvent(getImageRecognitionUsageEvent(provider), 'image recognition usage');
+export function trackImageRecognitionUsage(provider: AIProvider, model?: AIModelName): void {
+  trackUmamiEvent(getImageRecognitionUsageEvent(provider, model), 'image recognition usage');
 }
 
 export function trackTtsUsage(provider: TTSProvider): void {
   trackUmamiEvent(getTtsUsageEvent(provider), 'tts usage');
 }
 
-export function trackWordDetailUsage(provider: AIProvider): void {
-  trackUmamiEvent(getWordDetailUsageEvent(provider), 'word detail usage');
+export function trackWordDetailUsage(provider: AIProvider, model?: AIModelName): void {
+  trackUmamiEvent(getWordDetailUsageEvent(provider, model), 'word detail usage');
 }

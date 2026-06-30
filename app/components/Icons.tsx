@@ -32,6 +32,8 @@ export const Icon = {
   xSm: <I w={16}><path d="M6 6l12 12M18 6L6 18" /></I>,
   search: <I><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></I>,
   book: <I><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 1 2-2h12" /></I>,
+  translate: <I><path d="M4 5h7" /><path d="M8 3v2" /><path d="M5 9c1.6 3.3 4.4 5.7 8 7" /><path d="M12 9c-.8 1.8-2.2 3.4-4.2 4.9" /><path d="M14 21l1.1-3M21 21l-1.1-3M15.7 16h3.6M16.9 12h1.2L22 21" /></I>,
+  globe: <I><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a14 14 0 0 1 0 18" /><path d="M12 3a14 14 0 0 0 0 18" /></I>,
   moon: <I><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z" /></I>,
   sun: <I><circle cx="12" cy="12" r="4" /><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" /></I>,
   desktop: <I><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></I>,
@@ -53,26 +55,3 @@ export const Icon = {
   cameraLg: <I w={22}><path d="M4 8h3l1.5-2h7L17 8h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></I>,
   speakerLg: <I w={22}><path d="M11 5 6 9H3v6h3l5 4z" /><path d="M16 8.5a4 4 0 0 1 0 7M19 5.5a8 8 0 0 1 0 13" /></I>,
 };
-
-/* 樱花 logo */
-export const Sakura = ({ size = 28 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
-    <g transform="translate(20 20)">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <ellipse
-          key={i}
-          cx="0"
-          cy="-10"
-          rx="5"
-          ry="8"
-          transform={`rotate(${i * 72})`}
-          fill="var(--sakura)"
-          opacity="0.95"
-          stroke="var(--sakura)"
-          strokeWidth="0.6"
-        />
-      ))}
-      <circle r="3.2" fill="#fff3b0" stroke="#f5c451" strokeWidth="0.6" />
-    </g>
-  </svg>
-);

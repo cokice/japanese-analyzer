@@ -14,8 +14,6 @@
   --primary: #6d4cdb;
   --primary-2: #5a39c8;
   --primary-soft: #efeaff;
-  --sakura: #f8b8c6;
-  --sakura-2: #fde4ea;
   /* 词性颜色 */
   --pos-n: #2563eb;      /* 名词 blue */
   --pos-v: #059669;      /* 动词 green */
@@ -45,8 +43,6 @@
   --primary: #8b6fff;
   --primary-2: #7a5cff;
   --primary-soft: #3b305a;
-  --sakura: #f08aa0;
-  --sakura-2: #50303c;
 
   --background: var(--bg);
   --foreground: var(--ink);

@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getWordDetails, parseWordDetailResponseContent, streamWordDetails, WordDetail } from '../services/api';
-import type { AIProvider } from '../services/api';
+import type { AIModelName, AIProvider } from '../services/api';
 import { containsKanji } from '../utils/helpers';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
 
 interface UseWordDetailOptions {
   userApiKey?: string;
   aiProvider: AIProvider;
+  aiModel: AIModelName;
   useStream?: boolean;
 }
 
@@ -53,7 +54,7 @@ function createPendingDetail(
 }
 
 // 词汇详情获取（含流式实时解析），从 AnalysisResult 提取
-export function useWordDetail({ userApiKey, aiProvider, useStream = true }: UseWordDetailOptions) {
+export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = true }: UseWordDetailOptions) {
   const [wordDetail, setWordDetail] = useState<WordDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreamLoading, setIsStreamLoading] = useState(false);
@@ -104,7 +105,7 @@ export function useWordDetail({ userApiKey, aiProvider, useStream = true }: UseW
     cacheRef.current.clear();
     currentKeyRef.current = null;
     resetVisibleState();
-  }, [userApiKey, aiProvider, useStream, resetVisibleState]);
+  }, [userApiKey, aiProvider, aiModel, useStream, resetVisibleState]);
 
   const getCacheKey = useCallback((
     word: string,
@@ -114,13 +115,14 @@ export function useWordDetail({ userApiKey, aiProvider, useStream = true }: UseW
     romaji?: string
   ) => JSON.stringify({
     provider: aiProvider,
+    model: aiModel,
     mode: useStream ? 'stream' : 'standard',
     sentence,
     word,
     pos,
     furigana: furigana || '',
     romaji: romaji || '',
-  }), [aiProvider, useStream]);
+  }), [aiProvider, aiModel, useStream]);
 
   // 实时解析流式内容的部分字段
   const parseStreamContentRealtime = useCallback((content: string) => {
@@ -294,11 +296,12 @@ export function useWordDetail({ userApiKey, aiProvider, useStream = true }: UseW
         furigana,
         romaji,
         userApiKey,
-        aiProvider
+        aiProvider,
+        aiModel
       );
     } else {
       try {
-        const details = await getWordDetails(word, pos, sentence, furigana, romaji, userApiKey, aiProvider);
+        const details = await getWordDetails(word, pos, sentence, furigana, romaji, userApiKey, aiProvider, aiModel);
         const activeEntry = cacheRef.current.get(cacheKey);
         if (!activeEntry || activeEntry.requestId !== requestId) return;
 
@@ -329,6 +332,7 @@ export function useWordDetail({ userApiKey, aiProvider, useStream = true }: UseW
     }
   }, [
     aiProvider,
+    aiModel,
     applyEntryToState,
     getCacheKey,
     parseFinalWordDetail,
