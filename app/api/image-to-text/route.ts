@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
-
-// 配置API路由支持大尺寸请求
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
+import { requireApiSession } from '../_utils/sessionAuth';
 
 export async function POST(req: NextRequest) {
   try {
+    const authError = requireApiSession(req);
+    if (authError) return authError;
+
     // 获取请求内容
     const requestBody = await req.text();
     let parsedBody;
@@ -30,6 +25,14 @@ export async function POST(req: NextRequest) {
     
     const { imageData, prompt, model, apiUrl, stream = false, provider } = parsedBody;
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
+
+    // 验证imageData大小
+    if (typeof imageData === 'string' && imageData.length > 1024 * 1024 * 8) { // 8MB限制
+      return NextResponse.json(
+        { error: { message: '图片数据太大，请压缩后重试' } },
+        { status: 413 }
+      );
+    }
 
     if (providerConfig.provider === 'deepseek') {
       return NextResponse.json(
@@ -74,14 +77,6 @@ export async function POST(req: NextRequest) {
         }
       ]
     });
-
-    // 验证imageData大小
-    if (imageData.length > 1024 * 1024 * 8) { // 8MB限制
-      return NextResponse.json(
-        { error: { message: '图片数据太大，请压缩后重试' } },
-        { status: 413 }
-      );
-    }
 
     const proxied = await proxyOpenAICompatibleRequest({
       url: providerConfig.apiUrl,

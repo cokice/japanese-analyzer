@@ -1,11 +1,16 @@
 import { NextRequest } from 'next/server';
+import {
+  DEFAULT_AI_PROVIDER,
+  getModelName,
+  normalizeAIModel,
+  normalizeAIProvider,
+  type AIProvider,
+} from '../../lib/aiModels';
 
-export type AIProvider = 'gemini' | 'deepseek';
 export type StructuredOutputKind = 'analysisTokens' | 'wordDetail';
+export { DEFAULT_AI_PROVIDER, normalizeAIProvider };
+export type { AIProvider };
 
-export const DEFAULT_AI_PROVIDER: AIProvider = 'deepseek';
-const GEMINI_MODEL_NAME = 'gemini-3.5-flash';
-const DEEPSEEK_MODEL_NAME = 'deepseek-v4-flash';
 export const GEMINI_OPENAI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const DEEPSEEK_OPENAI_API_URL = 'https://api.deepseek.com/chat/completions';
 
@@ -17,14 +22,6 @@ export class ProviderConfigError extends Error {
     this.name = 'ProviderConfigError';
     this.status = status;
   }
-}
-
-export function normalizeAIProvider(value: unknown): AIProvider {
-  return value === 'gemini' || value === 'deepseek' ? value : DEFAULT_AI_PROVIDER;
-}
-
-function getDefaultModelName(provider: AIProvider): string {
-  return provider === 'deepseek' ? DEEPSEEK_MODEL_NAME : GEMINI_MODEL_NAME;
 }
 
 function getBearerToken(req: NextRequest): string {
@@ -70,7 +67,7 @@ export function resolveProviderConfig(
     provider,
     apiKey: getBearerToken(req) || getDefaultApiKey(provider),
     apiUrl: getDefaultApiUrl(provider),
-    model: customModel || getDefaultModelName(provider),
+    model: customModel ? normalizeAIModel(provider, customModel) : getModelName(provider),
   };
 }
 

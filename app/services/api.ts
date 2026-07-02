@@ -1,5 +1,28 @@
 // API与分析相关的服务函数
+import {
+  DEFAULT_AI_PROVIDER,
+  getModelName,
+  normalizeAIModel,
+  normalizeAIProvider,
+  type AIModelName,
+  type AIProvider,
+} from '../lib/aiModels';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
+
+export {
+  DEFAULT_AI_PROVIDER,
+  DEEPSEEK_MODEL_OPTIONS,
+  GEMINI_MODEL_OPTIONS,
+  getModelName,
+  normalizeAIModel,
+  normalizeAIProvider,
+} from '../lib/aiModels';
+export type {
+  AIModelName,
+  AIProvider,
+  DeepSeekModelName,
+  GeminiModelName,
+} from '../lib/aiModels';
 
 export interface TokenData {
   word: string;
@@ -23,10 +46,7 @@ export interface ChatMessage {
   content: string;
 }
 
-export type AIProvider = 'gemini' | 'deepseek';
 export type TTSProvider = 'edge' | 'gemini';
-export type DeepSeekModelName = 'deepseek-v4-flash' | 'deepseek-v4-pro';
-export type AIModelName = 'gemini-3.5-flash' | DeepSeekModelName;
 
 export interface StorageLike {
   getItem: (key: string) => string | null;
@@ -42,10 +62,6 @@ export interface StoredAISettings {
 
 // 默认API地址 - 使用本地API路由
 export const DEFAULT_API_URL = "/api";
-export const DEFAULT_AI_PROVIDER: AIProvider = 'deepseek';
-const GEMINI_MODEL_NAME = "gemini-3.5-flash";
-const DEEPSEEK_MODEL_NAME: DeepSeekModelName = "deepseek-v4-flash";
-export const DEEPSEEK_MODEL_OPTIONS: DeepSeekModelName[] = ["deepseek-v4-flash", "deepseek-v4-pro"];
 const GEMINI_TTS_MODEL_NAME = 'gemini-3.1-flash-tts-preview';
 const EDGE_TTS_MODEL_NAME = 'edge-tts';
 const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
@@ -53,30 +69,6 @@ const EDGE_TTS_VOICES = {
   male: 'ja-JP-KeitaNeural',
   female: 'ja-JP-NanamiNeural',
 };
-
-export function normalizeAIProvider(value?: string | null): AIProvider {
-  return value === 'gemini' || value === 'deepseek' ? value : DEFAULT_AI_PROVIDER;
-}
-
-export function normalizeAIModel(
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  value?: string | null
-): AIModelName {
-  if (provider === 'deepseek') {
-    return DEEPSEEK_MODEL_OPTIONS.includes(value as DeepSeekModelName)
-      ? value as DeepSeekModelName
-      : DEEPSEEK_MODEL_NAME;
-  }
-
-  return GEMINI_MODEL_NAME;
-}
-
-export function getModelName(
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null
-): AIModelName {
-  return normalizeAIModel(provider, model);
-}
 
 export function getTtsModelName(provider: TTSProvider = 'edge'): string {
   return provider === 'gemini' ? GEMINI_TTS_MODEL_NAME : EDGE_TTS_MODEL_NAME;
@@ -204,7 +196,7 @@ function normalizeTokenDataArray(parsed: unknown): TokenData[] {
   return tokens;
 }
 
-function parseAnalyzeResponseContent(content: string): TokenData[] {
+export function parseAnalyzeResponseContent(content: string): TokenData[] {
   return normalizeTokenDataArray(JSON.parse(extractJsonText(content)));
 }
 

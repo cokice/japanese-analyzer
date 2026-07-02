@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
+import { requireApiSession } from '../_utils/sessionAuth';
 
 export async function POST(req: NextRequest) {
   try {
+    const authError = requireApiSession(req);
+    if (authError) return authError;
+
     // 解析请求体
     const requestData = await req.json();
 
