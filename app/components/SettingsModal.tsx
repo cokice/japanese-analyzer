@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DEEPSEEK_MODEL_OPTIONS, getModelName, type AIModelName, type AIProvider } from '../services/api';
+import { DEEPSEEK_MODEL_OPTIONS, GEMINI_MODEL_OPTIONS, getModelName, type AIModelName, type AIProvider } from '../services/api';
 import { Icon } from './Icons';
 import { ProviderLogo, PROVIDER_LABELS } from './ProviderLogo';
 
@@ -57,6 +57,7 @@ export default function SettingsModal({
 
   const currentApiKey = selectedProvider === 'gemini' ? geminiKey : deepseekKey;
   const currentModelName = getModelName(selectedProvider, selectedModel);
+  const currentModelOptions = selectedProvider === 'deepseek' ? DEEPSEEK_MODEL_OPTIONS : GEMINI_MODEL_OPTIONS;
 
   const setCurrentApiKey = (value: string) => {
     if (selectedProvider === 'gemini') {
@@ -160,25 +161,17 @@ export default function SettingsModal({
           </label>
           <select
             id="modalModelSelect"
-            className={`nd-input ${selectedProvider === 'deepseek' ? '' : 'cursor-not-allowed'}`}
+            className="nd-input"
             value={currentModelName}
-            disabled={selectedProvider !== 'deepseek'}
-            aria-disabled={selectedProvider !== 'deepseek'}
             onChange={(e) => setSelectedModel(getModelName(selectedProvider, e.target.value))}
             style={{
-              color: selectedProvider === 'deepseek' ? 'var(--ink)' : 'var(--ink-3)',
-              background: selectedProvider === 'deepseek'
-                ? 'var(--bg-2)'
-                : 'color-mix(in oklab, var(--bg) 78%, var(--line))',
+              color: 'var(--ink)',
+              background: 'var(--bg-2)',
             }}
           >
-            {selectedProvider === 'deepseek' ? (
-              DEEPSEEK_MODEL_OPTIONS.map((model) => (
-                <option key={model} value={model}>{model}</option>
-              ))
-            ) : (
-              <option value={currentModelName}>{currentModelName}</option>
-            )}
+            {currentModelOptions.map((model) => (
+              <option key={model} value={model}>{model}</option>
+            ))}
           </select>
         </div>
 

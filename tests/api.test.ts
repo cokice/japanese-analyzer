@@ -2,6 +2,7 @@ import assert from 'assert';
 import {
   DEFAULT_AI_PROVIDER,
   DEEPSEEK_MODEL_OPTIONS,
+  GEMINI_MODEL_OPTIONS,
   getApiEndpoint,
   getModelName,
   getTtsModelName,
@@ -26,6 +27,12 @@ import {
   buildUmamiLoaderScript,
   resolveUmamiConfig
 } from '../app/api/_utils/umami';
+import {
+  AUTH_COOKIE_MAX_AGE_SECONDS,
+  createAuthToken,
+  isAuthRequired,
+  isValidAuthToken
+} from '../app/api/_utils/sessionAuth';
 import {
   ANALYZE_USAGE_EVENT_NAME,
   IMAGE_RECOGNITION_USAGE_EVENT_NAME,
@@ -56,19 +63,39 @@ assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(getModelName(), 'deepseek-v4-flash');
 assert.strictEqual(getTtsModelName('edge'), 'edge-tts');
 assert.strictEqual(getTtsModelName('gemini'), 'gemini-3.1-flash-tts-preview');
+assert.deepStrictEqual(GEMINI_MODEL_OPTIONS, ['gemini-3.5-flash', 'gemini-3.1-flash-lite']);
 assert.deepStrictEqual(DEEPSEEK_MODEL_OPTIONS, ['deepseek-v4-flash', 'deepseek-v4-pro']);
 assert.strictEqual(normalizeAIProvider('gemini'), 'gemini');
 assert.strictEqual(normalizeAIProvider('deepseek'), 'deepseek');
 assert.strictEqual(normalizeAIProvider('unknown'), 'deepseek');
 assert.strictEqual(normalizeAIModel('deepseek', 'deepseek-v4-pro'), 'deepseek-v4-pro');
 assert.strictEqual(normalizeAIModel('deepseek', 'unknown'), 'deepseek-v4-flash');
+assert.strictEqual(normalizeAIModel('gemini', 'gemini-3.1-flash-lite'), 'gemini-3.1-flash-lite');
 assert.strictEqual(normalizeAIModel('gemini', 'deepseek-v4-pro'), 'gemini-3.5-flash');
 assert.strictEqual(normalizeServerAIProvider('gemini'), 'gemini');
 assert.strictEqual(normalizeServerAIProvider('deepseek'), 'deepseek');
 assert.strictEqual(normalizeServerAIProvider('unknown'), 'deepseek');
 assert.strictEqual(getModelName('deepseek'), 'deepseek-v4-flash');
 assert.strictEqual(getModelName('deepseek', 'deepseek-v4-pro'), 'deepseek-v4-pro');
+assert.strictEqual(getModelName('gemini', 'gemini-3.1-flash-lite'), 'gemini-3.1-flash-lite');
 assert.strictEqual(getModelName('gemini', 'deepseek-v4-pro'), 'gemini-3.5-flash');
+
+const oldCode = process.env.CODE;
+try {
+  delete process.env.CODE;
+  assert.strictEqual(isAuthRequired(), false);
+  assert.strictEqual(isValidAuthToken(null), true);
+
+  process.env.CODE = 'test-password';
+  const authToken = createAuthToken(1_000);
+  assert.strictEqual(isAuthRequired(), true);
+  assert.ok(isValidAuthToken(authToken, 1_000));
+  assert.ok(!isValidAuthToken(`${authToken}tampered`, 1_000));
+  assert.ok(!isValidAuthToken(authToken, 1_000 + (AUTH_COOKIE_MAX_AGE_SECONDS + 1) * 1000));
+} finally {
+  if (oldCode === undefined) delete process.env.CODE;
+  else process.env.CODE = oldCode;
+}
 
 assert.strictEqual(resolveUmamiConfig({}), null);
 assert.strictEqual(resolveUmamiConfig({
@@ -97,6 +124,19 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('gemini'), {
   data: {
     provider: 'gemini',
     model: 'gemini-3.5-flash',
+    image_recognition: 'false',
+    image_provider: 'none',
+    image_model: 'none',
+    tts: 'false',
+    tts_provider: 'none',
+    tts_model: 'none',
+  },
+});
+assert.deepStrictEqual(getAnalyzeUsageEvent('gemini', {}, 'gemini-3.1-flash-lite'), {
+  name: ANALYZE_USAGE_EVENT_NAME,
+  data: {
+    provider: 'gemini',
+    model: 'gemini-3.1-flash-lite',
     image_recognition: 'false',
     image_provider: 'none',
     image_model: 'none',
@@ -217,6 +257,11 @@ assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
   model: 'gemini-3.5-flash',
 });
 
+assert.deepStrictEqual(getRequestProviderPayload('gemini', 'gemini-3.1-flash-lite'), {
+  provider: 'gemini',
+  model: 'gemini-3.1-flash-lite',
+});
+
 assert.deepStrictEqual(getRequestProviderPayload('deepseek'), {
   provider: 'deepseek',
   model: 'deepseek-v4-flash',
@@ -234,6 +279,11 @@ assert.deepStrictEqual(getRequestProviderPayload(), {
 
 assert.deepStrictEqual(withProviderControls('gemini', { model: 'gemini-3.5-flash' }), {
   model: 'gemini-3.5-flash',
+  reasoning_effort: 'minimal',
+});
+
+assert.deepStrictEqual(withProviderControls('gemini', { model: 'gemini-3.1-flash-lite' }), {
+  model: 'gemini-3.1-flash-lite',
   reasoning_effort: 'minimal',
 });
 
@@ -285,7 +335,7 @@ function streamData(payload: unknown): string {
 async function collectOpenAIContentStream(
   chunks: string[],
   options: Parameters<typeof readOpenAIContentStream>[3] = {}
-) {
+): Promise<{ events: Array<{ chunk: string; isDone: boolean }>; error: Error | null }> {
   const encoder = new TextEncoder();
   const response = new Response(new ReadableStream<Uint8Array>({
     start(controller) {
@@ -428,6 +478,19 @@ try {
   );
   assert.strictEqual(defaultGeminiConfig.apiKey, '');
   assert.strictEqual(defaultGeminiConfig.apiUrl, GEMINI_OPENAI_API_URL);
+  assert.strictEqual(defaultGeminiConfig.model, 'gemini-3.5-flash');
+
+  const liteGeminiConfig = resolveProviderConfig(
+    createProviderConfigRequest(),
+    { provider: 'gemini', model: 'gemini-3.1-flash-lite' }
+  );
+  assert.strictEqual(liteGeminiConfig.model, 'gemini-3.1-flash-lite');
+
+  const invalidGeminiConfig = resolveProviderConfig(
+    createProviderConfigRequest(),
+    { provider: 'gemini', model: 'deepseek-v4-pro' }
+  );
+  assert.strictEqual(invalidGeminiConfig.model, 'gemini-3.5-flash');
 
   process.env.GEMINI_API_KEY = 'gemini-key';
   process.env.GEMINI_API_URL = 'https://gemini.example/chat/completions';
@@ -493,6 +556,12 @@ assert.strictEqual(defaultSettings.aiProvider, 'deepseek');
 assert.strictEqual(defaultSettings.aiModel, 'deepseek-v4-flash');
 assert.strictEqual(defaultSettings.geminiApiKey, '');
 assert.strictEqual(defaultSettings.deepseekApiKey, '');
+
+const geminiLiteStorage = new MemoryStorage({
+  aiProvider: 'gemini',
+  aiModel: 'gemini-3.1-flash-lite',
+});
+assert.strictEqual(loadAISettingsFromStorage(geminiLiteStorage).aiModel, 'gemini-3.1-flash-lite');
 
 runOpenAIContentStreamTests()
   .then(() => {

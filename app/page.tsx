@@ -22,6 +22,7 @@ import {
   TTSProvider,
   getModelName,
   loadAISettingsFromStorage,
+  parseAnalyzeResponseContent,
   streamAnalyzeSentence
 } from './services/api';
 
@@ -81,16 +82,13 @@ export default function Home() {
         const data = await response.json();
         setRequiresAuth(data.requiresAuth);
 
-        // 如果不需要验证，直接设置为已认证
-        if (!data.requiresAuth) {
+        if (!data.requiresAuth || data.authenticated) {
           setIsAuthenticated(true);
-        } else {
-          // 检查是否已经有有效的认证状态
-          const authStatus = localStorage.getItem('isAuthenticated');
-          if (authStatus === 'true') {
-            setIsAuthenticated(true);
-          }
+          return;
         }
+
+        localStorage.removeItem('isAuthenticated');
+        setIsAuthenticated(false);
       } catch (error) {
         console.error('检查认证状态失败:', error);
         // 出错时默认不需要认证
@@ -168,7 +166,7 @@ export default function Home() {
 
       if (data.success) {
         setIsAuthenticated(true);
-        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.removeItem('isAuthenticated');
       } else {
         setAuthError(data.message || '验证失败');
       }
@@ -324,10 +322,11 @@ export default function Home() {
             setStreamContent(chunk);
             if (isDone) {
               setIsAnalyzing(false);
-              // 最终解析完整的内容
-              const tokens = parseStreamContent(chunk);
-              if (tokens.length > 0) {
-                setAnalyzedTokens(tokens);
+              try {
+                setAnalyzedTokens(parseAnalyzeResponseContent(chunk));
+              } catch (error) {
+                console.error('Final stream analysis parse error:', error);
+                setAnalysisError('解析结果JSON格式错误');
               }
             }
           },

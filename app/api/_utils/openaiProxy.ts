@@ -1,3 +1,5 @@
+import { createUpstreamSignal, isUpstreamTimeoutError } from './requestTimeout';
+
 type ParsedUpstreamError = {
   message: string;
   raw?: unknown;
@@ -56,16 +58,28 @@ export async function proxyOpenAICompatibleRequest(options: {
     'Authorization': `Bearer ${options.apiKey}`,
   };
 
-  const doFetch = async (payload: Record<string, unknown>) =>
-    fetch(options.url, {
+  let response: Response;
+  try {
+    response = await fetch(options.url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify(options.payload),
+      signal: createUpstreamSignal(),
     });
+  } catch (error) {
+    if (isUpstreamTimeoutError(error)) {
+      return {
+        ok: false,
+        status: 504,
+        error: { message: '上游接口请求超时，请稍后重试。' },
+      };
+    }
 
-  const first = await doFetch(options.payload);
-  if (first.ok) return { ok: true, response: first };
+    throw error;
+  }
 
-  const firstErr = await parseUpstreamError(first);
-  return { ok: false, status: first.status, error: firstErr };
+  if (response.ok) return { ok: true, response };
+
+  const upstreamError = await parseUpstreamError(response);
+  return { ok: false, status: response.status, error: upstreamError };
 }
