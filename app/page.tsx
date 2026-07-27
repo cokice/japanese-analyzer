@@ -338,11 +338,12 @@ export default function Home() {
             setIsAnalyzing(false);
           },
           userApiKey,
-          aiProvider
+          aiProvider,
+          aiModel
         );
       } else {
         // 使用传统API进行分析
-        const tokens = await analyzeSentence(text, userApiKey, aiProvider);
+        const tokens = await analyzeSentence(text, userApiKey, aiProvider, aiModel);
         setAnalyzedTokens(tokens);
         setIsAnalyzing(false);
       }
@@ -487,6 +488,7 @@ export default function Home() {
                     japaneseText={currentSentence}
                     userApiKey={userApiKey}
                     aiProvider={aiProvider}
+                    aiModel={aiModel}
                     useStream={useStream}
                     trigger={translationTrigger}
                   />
@@ -518,6 +520,7 @@ export default function Home() {
         {/* 设置模态框 */}
         <SettingsModal
           aiProvider={aiProvider}
+          aiModel={aiModel}
           geminiApiKey={geminiApiKey}
           deepseekApiKey={deepseekApiKey}
           useStream={useStream}
@@ -563,6 +566,7 @@ export default function Home() {
       <AIChat
         userApiKey={userApiKey}
         aiProvider={aiProvider}
+        aiModel={aiModel}
         currentSentence={currentSentence}
       />
     </>
