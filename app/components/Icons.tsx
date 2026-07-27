@@ -55,3 +55,26 @@ export const Icon = {
   cameraLg: <I w={22}><path d="M4 8h3l1.5-2h7L17 8h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></I>,
   speakerLg: <I w={22}><path d="M11 5 6 9H3v6h3l5 4z" /><path d="M16 8.5a4 4 0 0 1 0 7M19 5.5a8 8 0 0 1 0 13" /></I>,
 };
+
+/* 樱花 logo */
+export const Sakura = ({ size = 28 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
+    <g transform="translate(20 20)">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <ellipse
+          key={i}
+          cx="0"
+          cy="-10"
+          rx="5"
+          ry="8"
+          transform={`rotate(${i * 72})`}
+          fill="var(--sakura)"
+          opacity="0.95"
+          stroke="var(--sakura)"
+          strokeWidth="0.6"
+        />
+      ))}
+      <circle r="3.2" fill="#fff3b0" stroke="#f5c451" strokeWidth="0.6" />
+    </g>
+  </svg>
+);
