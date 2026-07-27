@@ -48,6 +48,31 @@ export interface ChatMessage {
 
 export type TTSProvider = 'edge' | 'gemini';
 
+export interface EpubSection {
+  text: string;
+  words: string[];
+  translation: string;
+  /** 该段中的中文引用（<quote> 标签内容），可选 */
+  chineseQuotes?: string[];
+}
+
+export interface EpubMeta {
+  generatedAt: string;
+  sectionCount: number;
+  totalChars: number;
+}
+
+/** 一篇文章的完整数据 */
+export interface ArticleGroup {
+  title: string;
+  sections: EpubSection[];
+  meta: EpubMeta;
+}
+
+export interface EpubGenerateResult {
+  articles: ArticleGroup[];
+}
+
 export interface StorageLike {
   getItem: (key: string) => string | null;
   setItem: (key: string, value: string) => void;
@@ -64,11 +89,6 @@ export interface StoredAISettings {
 export const DEFAULT_API_URL = "/api";
 const GEMINI_TTS_MODEL_NAME = 'gemini-3.1-flash-tts-preview';
 const EDGE_TTS_MODEL_NAME = 'edge-tts';
-const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
-const EDGE_TTS_VOICES = {
-  male: 'ja-JP-KeitaNeural',
-  female: 'ja-JP-NanamiNeural',
-};
 
 export function getTtsModelName(provider: TTSProvider = 'edge'): string {
   return provider === 'gemini' ? GEMINI_TTS_MODEL_NAME : EDGE_TTS_MODEL_NAME;
@@ -928,17 +948,6 @@ export async function streamExtractTextFromImage(
   }
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  let binary = '';
-
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-
-  return btoa(binary);
-}
 
 // 合成语音
 export async function synthesizeSpeech(
@@ -949,45 +958,15 @@ export async function synthesizeSpeech(
 ): Promise<{ audio: string; mimeType: string }> {
   const { gender = 'female', voice = 'Kore', rate = 0, pitch = 0 } = options;
 
-  if (provider === 'edge') {
-    const response = await fetch(EDGE_TTS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text,
-        voice: EDGE_TTS_VOICES[gender],
-        rate,
-        pitch,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const message = typeof errorData.error === 'string'
-        ? errorData.error
-        : errorData.error?.message || `Edge TTS 请求失败（HTTP ${response.status}）`;
-      throw new Error(message);
-    }
-
-    const audioBuffer = await response.arrayBuffer();
-    if (!audioBuffer.byteLength) {
-      throw new Error('Edge TTS 返回空音频');
-    }
-
-    return {
-      audio: arrayBufferToBase64(audioBuffer),
-      mimeType: response.headers.get('content-type') || 'audio/mpeg',
-    };
-  }
-
+  // 统一走本地 /api/tts 代理，避免客户端直接调用外部服务
   const apiUrl = getApiEndpoint('/tts');
   const headers = getHeaders(userApiKey);
 
   const response = await fetch(apiUrl, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ 
-      text, 
+    body: JSON.stringify({
+      text,
       provider,
       gender,
       voice,
@@ -1048,6 +1027,94 @@ export async function streamChat(
 /**
  * @public Retained for non-streaming chat callers.
  */
+// Epub 内容生成
+export async function generateEpubContent(
+  sentence: string,
+  userApiKey?: string,
+  provider: AIProvider = DEFAULT_AI_PROVIDER
+): Promise<EpubGenerateResult> {
+  if (!sentence) {
+    throw new Error('缺少句子');
+  }
+
+  try {
+    const apiUrl = getApiEndpoint('/epub');
+    const headers = getHeaders(userApiKey);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        sentence,
+        ...getRequestProviderPayload(provider),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('API Error (Epub):', errorData);
+      throw new Error(`Epub 生成失败：${errorData.error?.message || response.statusText || '未知错误'}`);
+    }
+
+    const result = await response.json();
+
+    if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
+      let responseContent = result.choices[0].message.content;
+      try {
+        const jsonMatch = responseContent.match(/```json\n([\s\S]*?)\n```/);
+        if (jsonMatch && jsonMatch[1]) {
+          responseContent = jsonMatch[1];
+        }
+        let parsed: { articles?: Array<{ title: string; sections: EpubSection[] }> } | null = null;
+        try {
+          parsed = JSON.parse(responseContent);
+        } catch {
+          // JSON 截断修复...
+          let repaired = responseContent.trimEnd();
+          const lastComplete = repaired.lastIndexOf('"}');
+          if (lastComplete > 0) {
+            repaired = repaired.slice(0, lastComplete + 2) + '\n]';
+            if (!repaired.trimEnd().endsWith(']}')) {
+              repaired = repaired.trimEnd();
+              if (!repaired.endsWith(']')) repaired += '\n]';
+              if (!repaired.endsWith('}')) repaired += '\n}';
+            }
+          }
+          try { parsed = JSON.parse(repaired); } catch {
+            const lastObj = repaired.lastIndexOf('},');
+            if (lastObj > 0) {
+              parsed = JSON.parse(repaired.slice(0, lastObj + 1) + '\n]\n}');
+            }
+          }
+        }
+        if (parsed?.articles && Array.isArray(parsed.articles) && parsed.articles.length > 0) {
+          return {
+            articles: parsed.articles.map((a) => ({
+              title: a.title || '',
+              sections: a.sections || [],
+              meta: {
+                generatedAt: new Date().toISOString().slice(0, 10),
+                sectionCount: a.sections?.length || 0,
+                totalChars: (a.sections || []).reduce((sum, s) => sum + s.text.length, 0),
+              },
+            })),
+          };
+        }
+        throw new Error('返回数据缺少 articles 字段或 JSON 无法修复');
+      } catch (e) {
+        console.error('Failed to parse JSON from epub response:', e, responseContent);
+        throw new Error('Epub 生成结果 JSON 格式错误');
+      }
+    } else {
+      console.error('Unexpected API response structure (Epub):', result);
+      throw new Error('Epub 生成结果格式错误');
+    }
+  } catch (error) {
+    console.error('Error generating epub content:', error);
+    throw error;
+  }
+}
+
 export async function sendChat(
   messages: ChatMessage[],
   userApiKey?: string,

@@ -4,9 +4,6 @@
   "devCommand": "next dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "env": {
-    "API_URL": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-  },
   "git": {
     "deploymentEnabled": {
       "main": true

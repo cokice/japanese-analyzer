@@ -42,11 +42,22 @@ deepseekapi.md
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
+# IDE
+/.idea/
+
+# Claude
 /.claude/
 
 # local design reference
 /japannewdesign/
 
-# IDE
-/.idea/
+# large data files
+all_articles.json
+*.epub
+
+# Python cache
+__pycache__/
+*.stackdump
+
+# runtime log
+run.log

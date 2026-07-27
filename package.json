@@ -20,6 +20,7 @@
     "autoprefixer": "^10.4.21",
     "clsx": "^2.1.1",
     "flowtoken": "^1.0.40",
+    "jszip": "^3.10.1",
     "motion": "^12.40.0",
     "next": "15.5.9",
     "postcss": "^8.5.6",

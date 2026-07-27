@@ -98,6 +98,7 @@ npm run dev
 | `GEMINI_API_KEY` | 可选 | Gemini API Key。用于 Gemini 文本解析、图片识别和 Gemini TTS。 |
 | `GEMINI_API_URL` | 可选 | Gemini OpenAI 兼容接口地址；留空使用官方默认地址。 |
 | `CODE` | 可选 | 访问密码。设置后访问应用需要先输入密码。 |
+| `EDGE_TTS_URL` | 可选 | Edge TTS 代理地址；留空使用默认公共服务。 |
 | `NEXT_PUBLIC_UMAMI_SRC` | 可选 | Umami 脚本地址，例如 `https://cloud.umami.is/script.js`。 |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 可选 | Umami Website ID。需要和 `NEXT_PUBLIC_UMAMI_SRC` 同时配置才会启用。 |
 

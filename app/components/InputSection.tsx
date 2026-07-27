@@ -24,6 +24,7 @@ interface InputSectionProps {
   ttsProvider: TTSProvider;
   onTtsProviderChange: (provider: TTSProvider) => void;
   isAnalyzing?: boolean;
+  onEpubClick?: (text: string) => void;
 }
 
 // TTS配置选项
@@ -64,7 +65,8 @@ export default function InputSection({
   useStream = true, // 默认启用流式输出
   ttsProvider,
   onTtsProviderChange,
-  isAnalyzing = false
+  isAnalyzing = false,
+  onEpubClick,
 }: InputSectionProps) {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -349,6 +351,30 @@ export default function InputSection({
     event.target.value = '';
   };
 
+  // TXT 文件上传处理
+  const handleTxtUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (text) {
+        const lines = text.split(/\n/);
+        const firstLine = lines[0]?.trim() || '';
+        const totalChars = text.length;
+        const preview = firstLine.length > 30
+          ? firstLine.slice(0, 30) + '…'
+          : firstLine;
+        setInputText(text);
+        setUploadStatus(`已加载：${preview}（共 ${totalChars} 字符）`);
+        setUploadStatusClass('mt-2 text-sm');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    event.target.value = '';
+  };
+
   // 处理粘贴事件
   const handlePaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = event.clipboardData?.items;
@@ -472,6 +498,20 @@ export default function InputSection({
         <div className="mt-3.5 flex items-center">
           {/* 左侧工具按钮区域 */}
           <div className="flex items-center gap-2.5" style={{ color: 'var(--ink-3)' }}>
+            {/* 上传 TXT 按钮 */}
+            <button
+              className="nd-icon-btn"
+              onClick={() => document.getElementById('txtUploadInput')?.click()}
+              title="上传 TXT 文本文件"
+            >
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+            </button>
+
             {/* 上传图片按钮 */}
             <button
               id="uploadImageButton"
@@ -628,6 +668,16 @@ export default function InputSection({
 
           <div className="flex-1" />
 
+          {/* 字数统计 */}
+          {inputText.trim() !== '' && (
+            <span
+              className="mr-3 text-xs select-none"
+              style={{ color: 'var(--ink-3)', whiteSpace: 'nowrap' }}
+            >
+              {inputText.length} 字
+            </span>
+          )}
+
           {/* 清空按钮 */}
           {inputText.trim() !== '' && (
             <button
@@ -644,6 +694,26 @@ export default function InputSection({
             </button>
           )}
 
+          {/* Epub 导出按钮 —— 始终显示，与提交按钮同风格 */}
+          <button
+            className="nd-primary-btn mr-3"
+            onClick={() => onEpubClick?.(inputText)}
+            type="button"
+            title="一键分解并导出 Epub"
+            style={{
+              background: '#10b981',
+              boxShadow: '0 4px 14px -4px rgba(16, 185, 129, 0.55)',
+            }}
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              <path d="M12 7v7" />
+              <path d="M9 11l3 3 3-3" />
+            </svg>
+            增强阅读模式
+          </button>
+
           {/* 解析按钮 */}
           <StateMorphButton
             id="analyzeButton"
@@ -654,6 +724,13 @@ export default function InputSection({
         </div>
 
         {/* 隐藏的文件输入 */}
+        <input
+          type="file"
+          id="txtUploadInput"
+          accept=".txt,text/plain"
+          className="hidden"
+          onChange={handleTxtUpload}
+        />
         <input
           type="file"
           id="imageUploadInput"

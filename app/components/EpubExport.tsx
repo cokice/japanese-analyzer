@@ -1,0 +1,273 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { AIProvider, EpubSection, EpubGenerateResult, generateEpubContent } from '../services/api';
+import { Icon } from './Icons';
+import { generateEpubBlob, downloadEpub } from '../utils/epub';
+import ThinkingIndicator from './ThinkingIndicator';
+import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
+
+interface EpubExportProps {
+  currentSentence: string;
+  userApiKey?: string;
+  aiProvider: AIProvider;
+  active: boolean;
+  generateTrigger: number;
+}
+
+/**
+ * 构建单篇文章的回顾区行列表。
+ */
+function buildReviewLines(sections: EpubSection[], articleIndex: number): React.ReactNode[] {
+  return sections.map((sec, si) => (
+    <p key={si} className="epub-review-line">
+      <a href={`#s-${articleIndex}-${si}`}>{sec.text}</a>
+    </p>
+  ));
+}
+
+/** Epub 图标 */
+function EpubIcon() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      <path d="M12 7v7" />
+      <path d="M9 11l3 3 3-3" />
+    </svg>
+  );
+}
+
+export default function EpubExport({
+  currentSentence,
+  userApiKey,
+  aiProvider,
+  active,
+  generateTrigger,
+}: EpubExportProps) {
+  const [epubResult, setEpubResult] = useState<EpubGenerateResult | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // 仅点击绿色按钮时触发生成，切换 tab 不触发
+  useEffect(() => {
+    if (!active || !currentSentence || generateTrigger === 0) return;
+
+    let cancelled = false;
+
+    const generate = async () => {
+      setIsGenerating(true);
+      setGenerateError('');
+      setEpubResult(null);
+
+      try {
+        const result = await generateEpubContent(currentSentence, userApiKey, aiProvider);
+        if (!cancelled) {
+          setEpubResult(result);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setGenerateError(err instanceof Error ? err.message : 'Epub 生成失败');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsGenerating(false);
+        }
+      }
+    };
+
+    generate();
+    return () => { cancelled = true; };
+  }, [generateTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRetry = useCallback(() => {
+    setGenerateError('');
+    setEpubResult(null);
+    setIsGenerating(true);
+
+    generateEpubContent(currentSentence, userApiKey, aiProvider)
+      .then((result) => {
+        setEpubResult(result);
+        setIsGenerating(false);
+      })
+      .catch((err) => {
+        setGenerateError(err instanceof Error ? err.message : 'Epub 生成失败');
+        setIsGenerating(false);
+      });
+  }, [currentSentence, userApiKey, aiProvider]);
+
+  // 取前10个有效字符作为文件名前缀（去掉标点符号和特殊字符）
+  const filenamePrefix = currentSentence
+    .replace(/[\s。、，．！？：；「」『』（）()…・\-　]/g, '')
+    .slice(0, 10);
+
+  const handleDownload = useCallback(async () => {
+    if (!epubResult || epubResult.articles.length === 0) return;
+
+    setIsDownloading(true);
+    try {
+      const blob = await generateEpubBlob({ articles: epubResult.articles });
+      const today = new Date().toISOString().slice(0, 10);
+      const prefix = filenamePrefix || '日语解析笔记';
+      downloadEpub(blob, `${prefix}-${today}.epub`);
+    } catch (err) {
+      console.error('Epub 生成失败:', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [epubResult, filenamePrefix]);
+
+  if (!active) return null;
+
+  return (
+    <section className="epub-preview-panel">
+      {/* 标题行 */}
+      <div className="epub-preview-title">
+        <span className="grid place-items-center" style={{ color: '#10b981' }}>
+          <EpubIcon />
+        </span>
+        <h2>Epub 输出预览</h2>
+        <div className="flex-1" />
+        {/* 下载按钮 */}
+        {epubResult && !isGenerating && (
+          <button
+            className="nd-primary-btn"
+            onClick={handleDownload}
+            disabled={isDownloading}
+            style={{
+              background: isDownloading ? 'var(--ink-3)' : '#10b981',
+              boxShadow: isDownloading
+                ? 'none'
+                : '0 4px 14px -4px rgba(16, 185, 129, 0.55)',
+              padding: '6px 16px',
+              fontSize: '13px',
+            }}
+            type="button"
+          >
+            {isDownloading ? (
+              <>
+                <span className="loading-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                生成中…
+              </>
+            ) : (
+              <>
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                下载
+              </>
+            )}
+          </button>
+        )}
+      </div>
+
+      <AutoAnimateHeight duration={300}>
+        <div className="epub-preview-content">
+          {/* 加载中 */}
+          {isGenerating && (
+            <ThinkingIndicator className="py-4" />
+          )}
+
+          {/* 错误 */}
+          {generateError && !isGenerating && (
+            <div
+              className="flex flex-col items-center gap-3 py-4"
+              style={{ color: 'var(--ink-2)' }}
+            >
+              <p className="text-sm" style={{ color: '#ef4444' }}>{generateError}</p>
+              <button
+                className="nd-soft-btn"
+                onClick={handleRetry}
+                type="button"
+              >
+                {Icon.refresh}
+                <span>重试</span>
+              </button>
+            </div>
+          )}
+
+          {/* AI 生成的内容 — 多文章结构 */}
+          {epubResult && !isGenerating && (
+            <>
+              {epubResult.articles.map((article, ai) => (
+                <div key={ai}>
+                  {/* 文章标题 H1 */}
+                  {article.title && (
+                    <h1 className={ai > 0 ? 'epub-context-title epub-article-break' : 'epub-context-title'}>
+                      {article.title}
+                    </h1>
+                  )}
+
+                  {/* 扉页 colophon */}
+                  <div className="epub-colophon">
+                    <p>生成日期：{article.meta.generatedAt}</p>
+                    <p>段落数：{article.meta.sectionCount} 句</p>
+                    <p>总字数：{article.meta.totalChars} 字</p>
+                  </div>
+
+                  {/* 无标题文章也加分页符 */}
+                  {!article.title && ai > 0 && (
+                    <div className="epub-page-break-hint">── 下一篇 ──</div>
+                  )}
+
+                  {article.sections.map((sec, si) => (
+                    <div key={si} className={si > 0 ? 'epub-section-divider' : ''}>
+                      {sec.text.length > 80 && (
+                        <div className="epub-page-break-hint">── 分页 ──</div>
+                      )}
+
+                      <h2 id={`s-${ai}-${si}`} className="epub-section-title">
+                        {sec.text}
+                        {' '}
+                        <a href={`#review-${ai}`} className="epub-to-review">{'>>'}</a>
+                      </h2>
+
+                      {sec.chineseQuotes && sec.chineseQuotes.length > 0 && (
+                        sec.chineseQuotes.map((q, j) => (
+                          <blockquote key={`cq-${j}`} className="epub-chinese-quote">
+                            {q}
+                          </blockquote>
+                        ))
+                      )}
+
+                      {sec.words.length > 0 && (
+                        <ul className="epub-word-list">
+                          {sec.words.map((line, j) => (
+                            <li key={j}>{line}</li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {sec.translation && (
+                        <blockquote className="epub-translation">
+                          {sec.translation}
+                        </blockquote>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* 完整原文回顾区 */}
+                  <div id={`review-${ai}`} className="epub-full-original">
+                    <h3>完整原文回顾</h3>
+                    {buildReviewLines(article.sections, ai)}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* 空状态 */}
+          {!epubResult && !isGenerating && !generateError && (
+            <p style={{ color: 'var(--ink-3)', textAlign: 'center' }}>
+              正在准备 AI 分解内容…
+            </p>
+          )}
+        </div>
+      </AutoAnimateHeight>
+
+    </section>
+  );
+}

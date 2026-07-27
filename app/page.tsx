@@ -9,20 +9,17 @@ import SettingsModal from './components/SettingsModal';
 import Header from './components/Header';
 import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
+import EpubExport from './components/EpubExport';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
-import { trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
+import { Sakura } from './components/Icons';
 import {
   analyzeSentence,
-  AIModelName,
   TokenData,
   DEFAULT_AI_PROVIDER,
   AIProvider,
-  TTSProvider,
-  getModelName,
   loadAISettingsFromStorage,
-  parseAnalyzeResponseContent,
   streamAnalyzeSentence
 } from './services/api';
 
@@ -36,14 +33,15 @@ export default function Home() {
   const [translationTrigger, setTranslationTrigger] = useState(0);
   const [showFurigana, setShowFurigana] = useState(true);
   const [showRomaji, setShowRomaji] = useState(true);
+  const [activeTab, setActiveTab] = useState<'analysis' | 'epub'>('analysis');
+  const [epubTrigger, setEpubTrigger] = useState(0);
 
   // API设置相关状态
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [aiProvider, setAiProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
-  const [aiModel, setAiModel] = useState<AIModelName>(getModelName(DEFAULT_AI_PROVIDER));
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [deepseekApiKey, setDeepseekApiKey] = useState('');
-  const [ttsProvider, setTtsProvider] = useState<TTSProvider>('edge');
+  const [ttsProvider, setTtsProvider] = useState<'edge' | 'gemini'>('edge');
 
   // 密码验证相关状态
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -63,7 +61,7 @@ export default function Home() {
     streamError: wordDetailStreamError,
     fetchWordDetails,
     clearWordDetail,
-  } = useWordDetail({ userApiKey, aiProvider, aiModel, useStream });
+  } = useWordDetail({ userApiKey, aiProvider, useStream });
 
   // 侧栏在 lg(1024px) 以上显示，以下使用模态
   useEffect(() => {
@@ -82,13 +80,16 @@ export default function Home() {
         const data = await response.json();
         setRequiresAuth(data.requiresAuth);
 
-        if (!data.requiresAuth || data.authenticated) {
+        // 如果不需要验证，直接设置为已认证
+        if (!data.requiresAuth) {
           setIsAuthenticated(true);
-          return;
+        } else {
+          // 检查是否已经有有效的认证状态
+          const authStatus = localStorage.getItem('isAuthenticated');
+          if (authStatus === 'true') {
+            setIsAuthenticated(true);
+          }
         }
-
-        localStorage.removeItem('isAuthenticated');
-        setIsAuthenticated(false);
       } catch (error) {
         console.error('检查认证状态失败:', error);
         // 出错时默认不需要认证
@@ -104,10 +105,9 @@ export default function Home() {
   useEffect(() => {
     const storedAISettings = loadAISettingsFromStorage(localStorage);
     const storedUseStream = localStorage.getItem('useStream');
-    const storedTtsProvider = (localStorage.getItem('ttsProvider') || 'edge') as TTSProvider;
+    const storedTtsProvider = (localStorage.getItem('ttsProvider') || 'edge') as 'edge' | 'gemini';
 
     setAiProvider(storedAISettings.aiProvider);
-    setAiModel(storedAISettings.aiModel);
     setGeminiApiKey(storedAISettings.geminiApiKey);
     setDeepseekApiKey(storedAISettings.deepseekApiKey);
     setTtsProvider(storedTtsProvider);
@@ -121,13 +121,11 @@ export default function Home() {
   // 保存用户API设置
   const handleSaveSettings = (settings: {
     aiProvider: AIProvider;
-    aiModel: AIModelName;
     geminiApiKey: string;
     deepseekApiKey: string;
     useStream: boolean;
   }) => {
     localStorage.setItem('aiProvider', settings.aiProvider);
-    localStorage.setItem('aiModel', settings.aiModel);
     localStorage.setItem('geminiApiKey', settings.geminiApiKey);
     localStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
     localStorage.setItem('useStream', settings.useStream.toString());
@@ -139,13 +137,12 @@ export default function Home() {
     localStorage.setItem('userApiKey', settings.geminiApiKey);
 
     setAiProvider(settings.aiProvider);
-    setAiModel(settings.aiModel);
     setGeminiApiKey(settings.geminiApiKey);
     setDeepseekApiKey(settings.deepseekApiKey);
     setUseStream(settings.useStream);
   };
 
-  const handleTtsProviderChange = (provider: TTSProvider) => {
+  const handleTtsProviderChange = (provider: 'edge' | 'gemini') => {
     setTtsProvider(provider);
     localStorage.setItem('ttsProvider', provider);
   };
@@ -166,7 +163,7 @@ export default function Home() {
 
       if (data.success) {
         setIsAuthenticated(true);
-        localStorage.removeItem('isAuthenticated');
+        localStorage.setItem('isAuthenticated', 'true');
       } else {
         setAuthError(data.message || '验证失败');
       }
@@ -281,9 +278,8 @@ export default function Home() {
       return;
     }
     setSelectedIndex(index);
-    trackWordDetailUsage(aiProvider, aiModel);
     fetchWordDetails(token.word, token.pos, currentSentence, token.furigana, token.romaji);
-  }, [aiProvider, aiModel, selectedIndex, currentSentence, fetchWordDetails, handleCloseWordDetail]);
+  }, [selectedIndex, currentSentence, fetchWordDetails, handleCloseWordDetail]);
 
   const handleRefreshWordDetail = useCallback(() => {
     if (selectedIndex === null) return;
@@ -301,13 +297,13 @@ export default function Home() {
     );
   }, [analyzedTokens, currentSentence, fetchWordDetails, selectedIndex]);
 
-  const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
-    if (!text.trim()) return;
+  const handleAnalyze = async (text: string) => {
+    if (!text) return;
 
-    trackAnalyzeUsage(aiProvider, usage, aiModel);
     setIsAnalyzing(true);
     setAnalysisError('');
     setCurrentSentence(text);
+    setActiveTab('analysis');
     setTranslationTrigger(Date.now());
     setStreamContent('');
     setAnalyzedTokens([]);
@@ -322,11 +318,10 @@ export default function Home() {
             setStreamContent(chunk);
             if (isDone) {
               setIsAnalyzing(false);
-              try {
-                setAnalyzedTokens(parseAnalyzeResponseContent(chunk));
-              } catch (error) {
-                console.error('Final stream analysis parse error:', error);
-                setAnalysisError('解析结果JSON格式错误');
+              // 最终解析完整的内容
+              const tokens = parseStreamContent(chunk);
+              if (tokens.length > 0) {
+                setAnalyzedTokens(tokens);
               }
             }
           },
@@ -336,12 +331,11 @@ export default function Home() {
             setIsAnalyzing(false);
           },
           userApiKey,
-          aiProvider,
-          aiModel
+          aiProvider
         );
       } else {
         // 使用传统API进行分析
-        const tokens = await analyzeSentence(text, userApiKey, aiProvider, aiModel);
+        const tokens = await analyzeSentence(text, userApiKey, aiProvider);
         setAnalyzedTokens(tokens);
         setIsAnalyzing(false);
       }
@@ -374,6 +368,7 @@ export default function Home() {
       <>
         <div className="flex min-h-screen flex-col items-center justify-center p-4 transition-colors duration-200">
           <div className="mb-8 text-center">
+            <div className="mb-4 flex justify-center"><Sakura size={48} /></div>
             <h1 className="mb-3 text-3xl font-semibold tracking-wide" style={{ color: 'var(--ink)' }}>
               日本語文章解析
             </h1>
@@ -402,7 +397,8 @@ export default function Home() {
 
         <main className="mx-auto grid w-full max-w-[1480px] flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* 主列 */}
-          <div className="flex min-w-0 flex-col gap-[22px]">
+          <div className="flex min-w-0 flex-col">
+     
             <InputSection
               onAnalyze={handleAnalyze}
               userApiKey={userApiKey}
@@ -412,6 +408,11 @@ export default function Home() {
               ttsProvider={ttsProvider}
               onTtsProviderChange={handleTtsProviderChange}
               isAnalyzing={isAnalyzing}
+              onEpubClick={(text) => {
+                setCurrentSentence(text);
+                setActiveTab('epub');
+                setEpubTrigger((n) => n + 1);
+              }}
             />
 
             {isAnalyzing && (!analyzedTokens.length || !useStream) && (
@@ -421,7 +422,7 @@ export default function Home() {
             )}
 
             {analysisError && (
-              <div className="nd-card">
+              <div className="nd-card mb-[22px]">
                 <div
                   className="flex items-start gap-2 rounded-[10px] p-3 text-sm"
                   style={{
@@ -441,28 +442,60 @@ export default function Home() {
               </div>
             )}
 
-            {shouldShowAnalyzer() && (
-              <AnalysisResult
-                tokens={analyzedTokens}
-                showFurigana={showFurigana}
-                onShowFuriganaChange={setShowFurigana}
-                showRomaji={showRomaji}
-                onShowRomajiChange={setShowRomaji}
-                onWordClick={handleWordClick}
-                selectedIndex={selectedIndex}
-              />
+            {/* 标签页切换 —— 有内容时显示 */}
+            {currentSentence && (
+              <div className="epub-tab-bar">
+                <button
+                  className={`epub-tab${activeTab === 'analysis' ? ' active' : ''}`}
+                  onClick={() => setActiveTab('analysis')}
+                >
+                  解析结果
+                </button>
+                <button
+                  className={`epub-tab${activeTab === 'epub' ? ' active' : ''}`}
+                  onClick={() => setActiveTab('epub')}
+                >
+                  阅读增强（Epub）
+                </button>
+              </div>
             )}
 
-            {currentSentence && (
-              <TranslationSection
-                japaneseText={currentSentence}
-                userApiKey={userApiKey}
-                aiProvider={aiProvider}
-                aiModel={aiModel}
-                useStream={useStream}
-                trigger={translationTrigger}
-              />
+            {/* Tab 1: 解析结果 */}
+            {activeTab === 'analysis' && (
+              <>
+                {shouldShowAnalyzer() && (
+                  <AnalysisResult
+                    tokens={analyzedTokens}
+                    showFurigana={showFurigana}
+                    onShowFuriganaChange={setShowFurigana}
+                    showRomaji={showRomaji}
+                    onShowRomajiChange={setShowRomaji}
+                    onWordClick={handleWordClick}
+                    selectedIndex={selectedIndex}
+                  />
+                )}
+
+                {currentSentence && (
+                  <TranslationSection
+                    japaneseText={currentSentence}
+                    userApiKey={userApiKey}
+                    aiProvider={aiProvider}
+                    useStream={useStream}
+                    trigger={translationTrigger}
+                  />
+                )}
+              </>
             )}
+
+            {/* Tab 2: 阅读增强（Epub） */}
+            {/* Tab 2: 阅读增强（Epub）—— 始终挂载避免重复请求 */}
+            <EpubExport
+              currentSentence={currentSentence}
+              userApiKey={userApiKey}
+              aiProvider={aiProvider}
+              active={activeTab === 'epub'}
+              generateTrigger={epubTrigger}
+            />
           </div>
 
           {/* 侧栏：词汇详情（桌面端） */}
@@ -478,7 +511,6 @@ export default function Home() {
         {/* 设置模态框 */}
         <SettingsModal
           aiProvider={aiProvider}
-          aiModel={aiModel}
           geminiApiKey={geminiApiKey}
           deepseekApiKey={deepseekApiKey}
           useStream={useStream}
@@ -524,7 +556,6 @@ export default function Home() {
       <AIChat
         userApiKey={userApiKey}
         aiProvider={aiProvider}
-        aiModel={aiModel}
         currentSentence={currentSentence}
       />
     </>

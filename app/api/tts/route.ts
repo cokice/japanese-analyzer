@@ -4,7 +4,7 @@ import { requireApiSession } from '../_utils/sessionAuth';
 
 // API配置
 const GEMINI_TTS_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent';
-const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
+const EDGE_TTS_URL = process.env.EDGE_TTS_URL || 'https://api.howen.ink/api/tts';
 const MODEL_NAME = 'gemini-3.1-flash-tts-preview';
 
 // Edge TTS 声音配置
