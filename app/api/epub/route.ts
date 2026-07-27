@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
-import { writeRunLog } from '../_utils/runLog';
 import { extractQuotes } from '@/app/utils/quoteProcessor';
 
 function buildEpubPrompt(sentence: string): string {
@@ -107,21 +106,12 @@ function parseAiSections(data: unknown): AiSection[] | null {
 }
 
 export async function POST(req: NextRequest) {
-  const startedAt = Date.now();
-  let inputText = '';
 
   try {
     const { sentence, provider, apiUrl, model } = await req.json();
-    inputText = sentence || '';
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
 
     if (!providerConfig.apiKey) {
-      writeRunLog({
-        endpoint: '/api/epub',
-        input: inputText,
-        error: 'missing API key',
-        durationMs: Date.now() - startedAt,
-      });
       return NextResponse.json(
         { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
         { status: 500 }
@@ -205,12 +195,6 @@ export async function POST(req: NextRequest) {
         if (!proxied.ok) {
           const errMsg = proxied.error.raw ?? proxied.error.message;
           console.error(`AI API error (Epub):`, errMsg);
-          writeRunLog({
-            endpoint: '/api/epub',
-            input: inputText,
-            error: String(errMsg),
-            durationMs: Date.now() - startedAt,
-          });
           return NextResponse.json(
             { error: { message: proxied.error.message } },
             { status: proxied.status }
@@ -222,12 +206,6 @@ export async function POST(req: NextRequest) {
 
         if (!sections) {
           console.error('Failed to parse AI response');
-          writeRunLog({
-            endpoint: '/api/epub',
-            input: inputText,
-            error: 'AI response parse error',
-            durationMs: Date.now() - startedAt,
-          });
           return NextResponse.json(
             { error: { message: 'AI 返回格式异常，请重试' } },
             { status: 500 }
@@ -270,22 +248,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ---- 日志记录 ----
-    let summary: unknown = null;
-    try {
-      summary = {
-        articleCount: articles.length,
-        totalSections: articles.reduce((sum, a) => sum + a.sections.length, 0),
-      };
-    } catch { /* ignore */ }
-
-    writeRunLog({
-      endpoint: '/api/epub',
-      input: inputText,
-      output: summary,
-      durationMs: Date.now() - startedAt,
-    });
-
     return NextResponse.json({
       choices: [{
         message: {
@@ -295,12 +257,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     if (error instanceof ProviderConfigError) {
-      writeRunLog({
-        endpoint: '/api/epub',
-        input: inputText,
-        error: error.message,
-        durationMs: Date.now() - startedAt,
-      });
       return NextResponse.json(
         { error: { message: error.message } },
         { status: error.status }
@@ -309,12 +265,6 @@ export async function POST(req: NextRequest) {
 
     const errMsg = error instanceof Error ? error.message : '服务器错误';
     console.error('Server error (Epub):', error);
-    writeRunLog({
-      endpoint: '/api/epub',
-      input: inputText,
-      error: errMsg,
-      durationMs: Date.now() - startedAt,
-    });
 
     return NextResponse.json(
       { error: { message: errMsg } },
