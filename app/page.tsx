@@ -16,9 +16,11 @@ import { useWordDetail } from './hooks/useWordDetail';
 import { Sakura } from './components/Icons';
 import {
   analyzeSentence,
+  AIModelName,
   TokenData,
   DEFAULT_AI_PROVIDER,
   AIProvider,
+  getModelName,
   loadAISettingsFromStorage,
   streamAnalyzeSentence
 } from './services/api';
@@ -39,6 +41,7 @@ export default function Home() {
   // API设置相关状态
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [aiProvider, setAiProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
+  const [aiModel, setAiModel] = useState<AIModelName>(getModelName(DEFAULT_AI_PROVIDER));
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [deepseekApiKey, setDeepseekApiKey] = useState('');
   const [ttsProvider, setTtsProvider] = useState<'edge' | 'gemini'>('edge');
@@ -61,7 +64,7 @@ export default function Home() {
     streamError: wordDetailStreamError,
     fetchWordDetails,
     clearWordDetail,
-  } = useWordDetail({ userApiKey, aiProvider, useStream });
+  } = useWordDetail({ userApiKey, aiProvider, aiModel, useStream });
 
   // 侧栏在 lg(1024px) 以上显示，以下使用模态
   useEffect(() => {
@@ -108,6 +111,7 @@ export default function Home() {
     const storedTtsProvider = (localStorage.getItem('ttsProvider') || 'edge') as 'edge' | 'gemini';
 
     setAiProvider(storedAISettings.aiProvider);
+    setAiModel(storedAISettings.aiModel);
     setGeminiApiKey(storedAISettings.geminiApiKey);
     setDeepseekApiKey(storedAISettings.deepseekApiKey);
     setTtsProvider(storedTtsProvider);
@@ -121,11 +125,13 @@ export default function Home() {
   // 保存用户API设置
   const handleSaveSettings = (settings: {
     aiProvider: AIProvider;
+    aiModel: AIModelName;
     geminiApiKey: string;
     deepseekApiKey: string;
     useStream: boolean;
   }) => {
     localStorage.setItem('aiProvider', settings.aiProvider);
+    localStorage.setItem('aiModel', settings.aiModel);
     localStorage.setItem('geminiApiKey', settings.geminiApiKey);
     localStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
     localStorage.setItem('useStream', settings.useStream.toString());
@@ -137,6 +143,7 @@ export default function Home() {
     localStorage.setItem('userApiKey', settings.geminiApiKey);
 
     setAiProvider(settings.aiProvider);
+    setAiModel(settings.aiModel);
     setGeminiApiKey(settings.geminiApiKey);
     setDeepseekApiKey(settings.deepseekApiKey);
     setUseStream(settings.useStream);
