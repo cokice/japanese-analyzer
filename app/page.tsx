@@ -35,7 +35,7 @@ export default function Home() {
   const [streamContent, setStreamContent] = useState('');
   const [translationTrigger, setTranslationTrigger] = useState(0);
   const [showFurigana, setShowFurigana] = useState(true);
-  const [showRomaji, setShowRomaji] = useState(true);
+  const [showRomaji, setShowRomaji] = useState(false);
 
   // API设置相关状态
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
