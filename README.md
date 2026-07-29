@@ -12,6 +12,10 @@
   <img alt="React" src="https://img.shields.io/badge/React-19-61dafb" />
 </p>
 
+<p align="center">
+  <a href="https://doc.howen.ink/">在线文档</a>
+</p>
+
 ## 界面预览
 
 ### 主界面
