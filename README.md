@@ -15,6 +15,10 @@
   <a href="https://linux.do/"><img alt="LINUX DO" src="https://img.shields.io/badge/LINUX%20DO-%E6%96%B0%E7%9A%84%E7%90%86%E6%83%B3%E5%9E%8B%E7%A4%BE%E5%8C%BA-f8c12c" /></a>
 </p>
 
+<p align="center">
+  <a href="https://doc.howen.ink/">在线文档</a>
+</p>
+
 ## 界面预览
 
 ### 演示
