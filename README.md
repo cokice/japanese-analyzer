@@ -242,53 +242,6 @@ docker run -d \
   howenhowen/japanese-analyzer:latest
 ```
 
-也可以用 Docker Compose 管理容器。复制 `.env.production.example` 为 `.env.production` 并填入密钥后执行：
-
-```bash
-docker compose -f docker-compose.hub.yml up -d
-```
-
-镜像名：
-
-```text
-howenhowen/japanese-analyzer:latest
-```
-
-## GitHub Actions 自动构建
-
-仓库包含 `.github/workflows/docker.yml`。每次 push 或 pull request 会自动执行：
-
-- `npm ci`
-- `npm test`
-- `npm run lint`
-- `npm run build`
-- Docker image build
-
-推送到 `howendev/dev`、仓库默认分支或 `v*` tag 时，如果配置了 Docker Hub secrets，会自动构建并推送多架构镜像。`linux/amd64` 会在 `ubuntu-latest` 上构建，`linux/arm64` 会在 `ubuntu-24.04-arm` 上构建，最后合并成同一组 Docker tag。
-
-分支发布会生成：
-
-```text
-howenhowen/japanese-analyzer:latest
-howenhowen/japanese-analyzer:<branch>
-howenhowen/japanese-analyzer:sha-<commit>
-```
-
-版本 tag 发布会生成：
-
-```text
-howenhowen/japanese-analyzer:<tag>
-howenhowen/japanese-analyzer:sha-<commit>
-```
-
-需要在 GitHub 仓库 `Settings -> Secrets and variables -> Actions` 配置：
-
-| Secret | 说明 |
-| --- | --- |
-| `DOCKERHUB_USERNAME` | Docker Hub 用户名，例如 `howenhowen`。 |
-| `DOCKERHUB_TOKEN` | Docker Hub Personal Access Token，不要使用账号密码。 |
-
-运行时密钥不要打进镜像；VPS 仍然通过 `.env.production` 注入 `DEEPSEEK_API_KEY`、`GEMINI_API_KEY`、`CODE`、`NEXT_PUBLIC_UMAMI_SRC`、`NEXT_PUBLIC_UMAMI_WEBSITE_ID` 等变量。
 
 ## 开发命令
 
@@ -298,17 +251,6 @@ npm test         # 运行 API / provider 配置测试
 npm run build    # 生产构建，发布前建议先跑
 ```
 
-## 项目结构
-
-```text
-app/
-  api/                 # Next.js API routes
-  api/_utils/          # provider 配置与 OpenAI 兼容代理
-  components/          # 输入区、解析结果、设置弹窗、AI 助手等组件
-  hooks/               # 单词详情和交互逻辑
-  services/            # 前端 API 调用与本地设置迁移
-docs/images/           # README 截图
-tests/                 # 轻量测试
 ```
 ## 致谢
 
