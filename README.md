@@ -17,9 +17,16 @@
 
 ## 界面预览
 
+### 演示
+<img width="2244" height="1668" alt="动画" src="https://github.com/user-attachments/assets/23871163-c3c9-4cf5-9619-715c22c85ef8" />
+
 ### 主界面
 
 ![主界面](./docs/images/app-home.png)
+
+
+
+ 
 
 ### 模型与 API 设置
 
