@@ -97,6 +97,78 @@ body {
   }
 }
 
+/* ========== 首次访问示例 ========== */
+.first-visit-example-kicker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  pointer-events: none;
+  animation: firstVisitExampleReveal 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+#japaneseInput.first-visit-example-input {
+  padding-top: 30px;
+}
+
+.first-visit-example-hint {
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  z-index: 1;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in oklab, var(--primary) 18%, transparent);
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  pointer-events: none;
+  animation: firstVisitExampleReveal 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.first-visit-submit-cue {
+  animation: firstVisitSubmitCue 1.8s ease-in-out infinite;
+}
+
+@keyframes firstVisitExampleReveal {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes firstVisitSubmitCue {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--primary) 22%, transparent),
+      0 4px 14px -4px rgba(109, 76, 219, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 0 0 8px transparent,
+      0 4px 18px -3px rgba(109, 76, 219, 0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .first-visit-example-kicker,
+  .first-visit-example-hint,
+  .first-visit-submit-cue {
+    animation: none;
+  }
+}
+
 /* ========== 按钮 ========== */
 .nd-icon-btn {
   width: 40px;
