@@ -56,6 +56,9 @@ const TTS_STYLES = [
   { value: 'clearly', label: '清晰朗读', prompt: 'Say clearly: ' },
 ];
 
+const FIRST_VISIT_EXAMPLE_KEY = 'japaneseAnalyzer:firstVisitExampleSeen';
+const FIRST_VISIT_EXAMPLE = '天気がいいから、散歩しましょう';
+
 export default function InputSection({
   onAnalyze,
   userApiKey,
@@ -79,6 +82,7 @@ export default function InputSection({
   const [selectedVoice, setSelectedVoice] = useState('Kore');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [submitState, setSubmitState] = useState<StateMorphButtonState>('idle');
+  const [showFirstVisitExample, setShowFirstVisitExample] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const submitStartedRef = useRef(false);
   const wasAnalyzingRef = useRef(false);
@@ -119,6 +123,21 @@ export default function InputSection({
         clearTimeout(submitResetTimerRef.current);
       }
     };
+  }, []);
+
+  // 仅在当前浏览器第一次进入网站时展示示例引导。
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(FIRST_VISIT_EXAMPLE_KEY) !== 'true') {
+        setInputText(FIRST_VISIT_EXAMPLE);
+        setShowFirstVisitExample(true);
+        localStorage.setItem(FIRST_VISIT_EXAMPLE_KEY, 'true');
+      }
+    } catch {
+      // localStorage 不可用时仍展示一次当前会话内的引导。
+      setInputText(FIRST_VISIT_EXAMPLE);
+      setShowFirstVisitExample(true);
+    }
   }, []);
 
   // 从本地存储加载TTS设置
@@ -166,6 +185,7 @@ export default function InputSection({
 
   const handleInputTextChange = (value: string) => {
     setInputText(value);
+    setShowFirstVisitExample(false);
 
     if (!value.trim()) {
       clearUsageMetadata();
@@ -197,15 +217,20 @@ export default function InputSection({
     trackTtsUsage(provider);
   };
 
-  const handleAnalyze = () => {
-    if (!inputText.trim()) {
+  const startAnalysis = (text: string, usage: AnalyzeUsageMetadata) => {
+    if (!text.trim()) {
       alert('请输入日语句子！');
       return;
     }
 
     submitStartedRef.current = true;
     setSubmitState('loading');
-    onAnalyze(inputText, getCurrentUsageMetadata());
+    onAnalyze(text, usage);
+  };
+
+  const handleAnalyze = () => {
+    setShowFirstVisitExample(false);
+    startAnalysis(inputText, getCurrentUsageMetadata());
   };
 
   const handleSpeak = async () => {
@@ -440,21 +465,32 @@ export default function InputSection({
     <div className="w-full">
       <section className="nd-card">
         <div className="relative">
+          {showFirstVisitExample && (
+            <div className="first-visit-example-kicker">
+              第一次来？从这个句子开始
+            </div>
+          )}
           <textarea
             id="japaneseInput"
             lang="ja"
-            className={`jp w-full resize-none border-none bg-transparent outline-none ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
+            className={`jp w-full resize-none border-none bg-transparent outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''} ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
             rows={5}
             placeholder="输入日语句子"
             value={inputText}
             onChange={(e) => handleInputTextChange(e.target.value)}
             onPaste={handlePaste}
             style={inputTextStyle}
+            aria-describedby={showFirstVisitExample ? 'firstVisitExampleHint' : undefined}
             autoCapitalize="none"
             autoComplete="off"
             autoCorrect="off"
             spellCheck="false"
           ></textarea>
+          {showFirstVisitExample && (
+            <div id="firstVisitExampleHint" className="first-visit-example-hint" role="status">
+              点击提交试试
+            </div>
+          )}
           {showInputShimmer && (
             <div className="input-text-shimmer-layer-frame" aria-hidden="true" lang="ja">
               <TextShimmer
@@ -636,6 +672,7 @@ export default function InputSection({
               onClick={() => {
                 setInputText('');
                 setTtsAudioUrl(null);
+                setShowFirstVisitExample(false);
                 clearUsageMetadata();
               }}
               title="清空内容"
@@ -650,6 +687,7 @@ export default function InputSection({
             onClick={handleAnalyze}
             disabled={isLoading}
             state={submitState}
+            className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
           />
         </div>
 
