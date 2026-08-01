@@ -2,9 +2,6 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "flowtoken/dist/styles.css";
 import "streamdown/styles.css";
-import "@fontsource/noto-sans-jp/japanese-400.css";
-import "@fontsource/noto-sans-jp/japanese-500.css";
-import "@fontsource/noto-sans-jp/japanese-700.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import "./globals.css";
@@ -21,8 +18,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f7f6fb' },
-    { media: '(prefers-color-scheme: dark)', color: '#272238' }
+    { media: '(prefers-color-scheme: light)', color: '#f9f6ef' },
+    { media: '(prefers-color-scheme: dark)', color: '#f9f6ef' }
   ],
 };
 
@@ -34,6 +31,12 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&amp;family=Noto+Serif+SC:wght@500;600&amp;family=Shippori+Mincho:wght@500;600;700;800&amp;display=swap"
+          rel="stylesheet"
+        />
         <link rel="icon" href="/logo/logo.png" type="image/png" />
         <link rel="icon" href="/logo/logo-dark.png" type="image/png" media="(prefers-color-scheme: dark)" />
         <link rel="apple-touch-icon" href="/logo/logo.png" />
@@ -69,8 +72,7 @@ export default function RootLayout({
               document.addEventListener('DOMContentLoaded', function() {
                 var inputs = document.querySelectorAll('input, textarea');
                 inputs.forEach(function(input) {
-                  var isDark = document.documentElement.classList.contains('dark');
-                  input.style.webkitTextFillColor = isDark ? '#f9fafb' : 'black';
+                    input.style.webkitTextFillColor = '#26231e';
                   input.style.opacity = '1';
                 });
               });
@@ -78,7 +80,7 @@ export default function RootLayout({
           })();
         `}} />
       </head>
-      <body className="antialiased transition-colors duration-200">
+      <body className="antialiased">
         <ThemeProvider>
           {children}
         </ThemeProvider>

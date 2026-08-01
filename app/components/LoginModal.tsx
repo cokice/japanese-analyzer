@@ -39,14 +39,13 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(20,10,40,.50)' }}
+      style={{ background: 'color-mix(in oklab, var(--ink) 50%, transparent)' }}
     >
       <div
-        className="w-full max-w-md rounded-2xl p-6"
+        className="w-full max-w-md rounded-[3px] p-6"
         style={{
           background: 'var(--bg-2)',
           border: '1px solid var(--line)',
-          boxShadow: '0 20px 50px -10px rgba(40,10,80,.25)',
         }}
       >
         <div className="mb-6 text-center">

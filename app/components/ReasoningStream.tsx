@@ -127,6 +127,7 @@ export default function ReasoningStream({
     <section
       className={`reasoning-stream-card${reviewMode ? ' is-review-expanded' : ''}`}
       data-testid="reasoning-stream"
+      lang="zh-CN"
     >
       <button
         type="button"

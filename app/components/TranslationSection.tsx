@@ -115,7 +115,7 @@ export default function TranslationSection({
   }, [isLoading, translation]);
 
   return (
-    <section id="fullTranslationCard" className="nd-card">
+    <section id="fullTranslationCard" className="nd-card" lang="zh-CN">
       <div className="mb-3 flex items-center">
         <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>全文翻译（中）</h2>
         <div className="flex-1" />

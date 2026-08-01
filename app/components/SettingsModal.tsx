@@ -120,18 +120,17 @@ export default function SettingsModal({
           <label className="mb-2 block text-xs font-semibold uppercase tracking-[.08em]" style={{ color: 'var(--ink-3)' }}>
             文本模型服务商
           </label>
-          <div className="grid grid-cols-2 gap-2 rounded-[12px] p-1" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
+          <div className="grid grid-cols-2 gap-2 rounded-[3px] p-1" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
             {(['gemini', 'deepseek'] as AIProvider[]).map((provider) => {
               const active = selectedProvider === provider;
               return (
                 <button
                   key={provider}
                   type="button"
-                  className="inline-flex items-center justify-center gap-2 rounded-[10px] px-3 py-2 text-sm font-semibold transition-colors"
+                  className="inline-flex items-center justify-center gap-2 rounded-[3px] px-3 py-2 text-sm font-semibold transition-colors"
                   style={{
                     background: active ? 'var(--bg-2)' : 'transparent',
                     color: active ? 'var(--primary)' : 'var(--ink-3)',
-                    boxShadow: active ? '0 1px 2px rgba(20,10,40,.06)' : 'none',
                   }}
                   onClick={() => setSelectedProvider(provider)}
                 >
@@ -143,7 +142,7 @@ export default function SettingsModal({
           </div>
           {selectedProvider === 'deepseek' && (
             <p
-              className="mt-2 flex items-start gap-2 rounded-[10px] p-2 text-xs leading-5"
+              className="mt-2 flex items-start gap-2 rounded-[3px] p-2 text-xs leading-5"
               style={{
                 background: 'color-mix(in oklab, var(--pos-adj) 12%, transparent)',
                 color: 'var(--ink-2)',
@@ -195,7 +194,7 @@ export default function SettingsModal({
           />
         </div>
 
-        <div className="mb-5 rounded-[12px] p-3" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
+        <div className="mb-5 rounded-[3px] p-3" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
           <div className="flex items-center justify-between gap-4">
             <div>
               <label htmlFor="useStreamToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>
@@ -218,7 +217,7 @@ export default function SettingsModal({
         </div>
 
         {selectedProvider === 'deepseek' && (
-          <div className="mb-5 rounded-[12px] p-3" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
+          <div className="mb-5 rounded-[3px] p-3" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
             <div className="flex items-center justify-between gap-4">
               <div>
                 <label htmlFor="deepseekThinkingToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>

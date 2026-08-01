@@ -137,7 +137,7 @@ export default function WordDetailPanel({
 
   if (isLoading || (isStreamLoading && !wordDetail)) {
     return (
-      <section className="word-detail-panel">
+      <section className="word-detail-panel" lang="zh-CN">
         <div className="flex items-center justify-center py-10">
           <div className="loading-spinner"></div>
           <span className="ml-2 text-sm" style={{ color: 'var(--ink-3)' }}>正在查询释义...</span>
@@ -148,7 +148,7 @@ export default function WordDetailPanel({
 
   if (streamError) {
     return (
-      <section className="word-detail-panel">
+      <section className="word-detail-panel" lang="zh-CN">
         <div className="p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h3 className="m-0 text-base font-semibold" style={{ color: 'var(--pos-p)' }}>词汇详解（出错）</h3>
@@ -168,7 +168,7 @@ export default function WordDetailPanel({
           <p className="m-0 text-sm" style={{ color: 'var(--ink-2)' }}>{streamError}</p>
           {streamContent && (
             <div
-              className="mono mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-[10px] p-3 text-xs"
+              className="mono mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-[3px] p-3 text-xs"
               style={{ background: 'var(--bg)', color: 'var(--ink-2)' }}
             >
               {streamContent}
@@ -192,7 +192,7 @@ export default function WordDetailPanel({
   const posLabel = posChineseMap[normalizePosBase(wordDetail.pos)] || POS_GROUP_LABELS[posGroup];
 
   return (
-    <section className="word-detail-panel">
+    <section className="word-detail-panel" lang="zh-CN">
       {/* 顶栏 */}
       <div
         className="flex items-center border-b px-4 py-2.5"

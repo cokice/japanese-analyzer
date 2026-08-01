@@ -37,19 +37,17 @@ export default function ThemeToggle() {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         title={`切换主题 - ${currentLabel}`}
-        className="grid h-10 w-10 place-items-center rounded-[10px] border border-transparent transition-colors hover:border-[var(--line)] hover:text-[var(--primary)]"
-        style={{ color: 'var(--ink-2)' }}
+        className="masthead-action"
       >
         {actualTheme === 'dark' ? Icon.moon : Icon.sun}
       </button>
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full z-20 mt-2 w-40 rounded-2xl p-1.5"
+          className="paper-popover absolute right-0 top-full z-20 mt-2 w-40 p-1.5"
           style={{
             background: 'var(--bg-2)',
             border: '1px solid var(--line)',
-            boxShadow: '0 20px 50px -10px rgba(40,10,80,.20), 0 2px 8px rgba(20,10,40,.06)',
           }}
         >
           {THEME_OPTIONS.map((option) => {
@@ -62,7 +60,7 @@ export default function ThemeToggle() {
                   setTheme(option.value);
                   setIsOpen(false);
                 }}
-                className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm font-medium transition-colors"
+                className="paper-menu-item flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm font-medium"
                 style={{
                   background: active ? 'var(--primary-soft)' : 'transparent',
                   color: active ? 'var(--primary)' : 'var(--ink-2)',

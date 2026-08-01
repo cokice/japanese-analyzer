@@ -242,12 +242,11 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
           return (
             <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
               <div
-                className={`${expanded ? 'max-w-[72%]' : 'max-w-[82%]'} rounded-2xl px-4 py-3 text-sm leading-6`}
+                className={`${expanded ? 'max-w-[72%]' : 'max-w-[82%]'} rounded-[3px] px-4 py-3 text-sm leading-6`}
                 style={{
                   background: isUser ? 'var(--primary)' : 'var(--bg)',
-                  color: isUser ? '#fff' : 'var(--ink-2)',
+                  color: isUser ? 'var(--paper)' : 'var(--ink-2)',
                   border: isUser ? '1px solid var(--primary)' : '1px solid var(--line)',
-                  boxShadow: '0 1px 2px rgba(20,10,40,.03)',
                 }}
               >
                 <AutoAnimateHeight duration={300}>
@@ -300,14 +299,14 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
       {isExpanded && (
         <div
           className="fixed inset-0 z-40"
-          style={{ background: 'rgba(20,10,40,.45)' }}
+          style={{ background: 'color-mix(in oklab, var(--ink) 45%, transparent)' }}
           onClick={() => setIsExpanded(false)}
         />
       )}
 
       {isExpanded && (
         <div
-          className="fixed z-50 flex flex-col overflow-hidden rounded-2xl transition-all duration-300"
+          className="fixed z-50 flex flex-col overflow-hidden rounded-[3px] transition-[transform,opacity] duration-300"
           style={{
             top: '50%',
             left: '50%',
@@ -316,7 +315,6 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
             transform: 'translate(-50%, -50%)',
             background: 'var(--bg-2)',
             border: '1px solid var(--line)',
-            boxShadow: '0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06)',
           }}
         >
           {renderChatPanel(true)}

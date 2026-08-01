@@ -592,11 +592,10 @@ export default function InputSection({
               {/* TTS设置下拉菜单 */}
               {showTtsDropdown && (
                 <div
-                  className="absolute bottom-full left-0 z-20 mb-2 min-w-[280px] rounded-2xl p-4"
+                  className="absolute bottom-full left-0 z-20 mb-2 min-w-[280px] rounded-[3px] p-4"
                   style={{
                     background: 'var(--bg-2)',
                     border: '1px solid var(--line)',
-                    boxShadow: '0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06)',
                   }}
                 >
                   <div className="mb-3 text-sm font-medium" style={{ color: 'var(--ink)' }}>语音设置</div>
@@ -608,7 +607,7 @@ export default function InputSection({
                       {(['edge', 'gemini'] as const).map((provider) => (
                         <button
                           key={provider}
-                          className="cursor-pointer rounded-full border-none px-3 py-2 text-sm transition-colors"
+                          className="cursor-pointer rounded-[3px] border-none px-3 py-2 text-sm transition-colors"
                           style={ttsProvider === provider
                             ? { background: 'var(--primary-soft)', color: 'var(--primary)', fontWeight: 600 }
                             : { background: 'var(--bg)', color: 'var(--ink-3)' }}
@@ -749,7 +748,7 @@ export default function InputSection({
             src={ttsAudioUrl}
             controls
             autoPlay
-            className="w-full rounded-lg"
+            className="w-full rounded-[3px]"
             style={{ height: '40px' }}
           />
         </div>
@@ -757,7 +756,7 @@ export default function InputSection({
 
       {isSpeaking && (
         <div
-          className="mt-4 rounded-xl p-4 text-sm"
+          className="mt-4 rounded-[3px] border border-[var(--rule)] p-4 text-sm"
           style={{ background: 'var(--primary-soft)', color: 'var(--ink-2)' }}
         >
           <p className="m-0 font-medium" style={{ color: 'var(--primary)' }}>正在进行高质量语音合成，请稍候...</p>

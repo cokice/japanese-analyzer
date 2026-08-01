@@ -528,14 +528,14 @@ export default function Home() {
 
   return (
     <>
-      <div className="flex min-h-screen flex-col">
+      <div className="paper-page flex min-h-screen flex-col">
         <Header
           thinking={isAnalyzing}
-          aiProvider={aiProvider}
+          aiModel={aiModel}
           onSettingsClick={() => setIsSettingsModalOpen(true)}
         />
 
-        <main className="mx-auto grid w-full max-w-[1480px] flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <main className="paper-main mx-auto grid w-full max-w-[1480px] flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* 主列 */}
           <div className="flex min-w-0 flex-col gap-[22px]">
             <InputSection
@@ -572,7 +572,7 @@ export default function Home() {
             {analysisError && (
               <div className="nd-card">
                 <div
-                  className="flex items-start gap-2 rounded-[10px] p-3 text-sm"
+                  className="flex items-start gap-2 rounded-[3px] p-3 text-sm"
                   style={{
                     background: 'color-mix(in oklab, var(--pos-p) 10%, transparent)',
                     color: 'var(--ink-2)',
@@ -620,8 +620,9 @@ export default function Home() {
           </aside>
         </main>
 
-        <footer className="px-4 pb-6 pt-1 text-center text-xs sm:px-9" style={{ color: 'var(--ink-3)' }}>
-          AI也可能会犯错，请核查重要信息。
+        <footer className="paper-footer">
+          <span>解析由 AI 生成,細節請以詞典為準</span>
+          <span className="paper-colophon">日本語文章解析</span>
         </footer>
 
         {/* 设置模态框 */}

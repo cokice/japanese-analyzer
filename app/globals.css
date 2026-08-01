@@ -2,98 +2,299 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ========== 新设计 Design Tokens ========== */
+/* ========== Paper Edition · semantic design tokens ========== */
 :root {
-  --bg: #f7f6fb;
-  --bg-2: #ffffff;
-  --ink: #1f1b2e;
-  --ink-2: #4b465c;
-  --ink-3: #7c7790;
-  --line: #ebe9f2;
-  --line-2: #e2dff0;
-  --primary: #6d4cdb;
-  --primary-2: #5a39c8;
-  --primary-soft: #efeaff;
-  /* 词性颜色 */
-  --pos-n: #2563eb;      /* 名词 blue */
-  --pos-v: #059669;      /* 动词 green */
-  --pos-adj: #d97706;    /* 形容词 amber */
-  --pos-adjv: #e11d48;   /* 形容动词 rose */
-  --pos-adv: #0d9488;    /* 副词 teal */
-  --pos-adn: #7c3aed;    /* 连体词 violet */
-  --pos-conj: #dc2626;   /* 接续词 red */
-  --pos-int: #65a30d;    /* 感动词 lime */
-  --pos-p: #ea580c;      /* 助词 orange */
-  --pos-aux: #c026d3;    /* 助动词 fuchsia */
-  --pos-o: #6b7280;      /* 其他 gray */
+  --paper: #f9f6ef;
+  --ink: #26231e;
+  --ink2: #57534a;
+  --ink3: #8a8477;
+  --rule: #d9d3c4;
+  --rule-strong: #26231e;
+  --shu: #c3402f;
+  --shu-soft: #f5e2dc;
+  --green-ok: #8fa58f;
 
-  /* 兼容旧变量 */
+  --font-display: "Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif;
+  --font-jp: "Noto Serif SC", "Yu Mincho", "Hiragino Mincho ProN", serif;
+  --font-ui: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  /* Legacy aliases remain until every component consumes semantic paper tokens. */
+  --bg: var(--paper);
+  --bg-2: var(--paper);
+  --ink-2: var(--ink2);
+  --ink-3: var(--ink3);
+  --line: var(--rule);
+  --line-2: var(--rule);
+  --primary: var(--shu);
+  --primary-2: var(--shu);
+  --primary-soft: var(--shu-soft);
+
+  /* 词性颜色 */
+  --pos-n: #496a78;
+  --pos-v: #66785a;
+  --pos-adj: #9c7045;
+  --pos-adjv: #a5665c;
+  --pos-adv: #5e7771;
+  --pos-adn: #766a83;
+  --pos-conj: #98554a;
+  --pos-int: #7c8055;
+  --pos-p: #a06944;
+  --pos-aux: #8a5f71;
+  --pos-o: #777268;
+
   --background: var(--bg);
   --foreground: var(--ink);
 }
 
+/* Step F replaces this temporary light-paper fallback with night-paper values. */
 .dark {
-  --bg: #272238;
-  --bg-2: #302a42;
-  --ink: #f1eefb;
-  --ink-2: #c4bedb;
-  --ink-3: #9f97b2;
-  --line: #3f3650;
-  --line-2: #4d425f;
-  --primary: #8b6fff;
-  --primary-2: #7a5cff;
-  --primary-soft: #3b305a;
-
-  --background: var(--bg);
-  --foreground: var(--ink);
+  --bg: var(--paper);
+  --bg-2: var(--paper);
+  --ink-2: var(--ink2);
+  --ink-3: var(--ink3);
+  --line: var(--rule);
+  --line-2: var(--rule);
+  --primary: var(--shu);
+  --primary-2: var(--shu);
+  --primary-soft: var(--shu-soft);
 }
 
 /* ========== 基础 ========== */
+html {
+  background: #e8e4da;
+}
+
 body {
-  background: var(--bg);
+  background: #e8e4da;
   color: var(--ink);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
 
-.brand-logo {
-  display: block;
+.paper-page {
+  width: min(100%, 1480px);
+  margin: 0 auto;
+  background-color: var(--paper);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.012) 1px, transparent 1px);
+  background-size: 4px 4px;
 }
 
-.brand-logo-dark {
-  display: none;
+.paper-main {
+  padding-bottom: 28px;
 }
 
-.dark .brand-logo-light {
-  display: none;
+.paper-footer {
+  display: flex;
+  margin: 38px 54px 0;
+  padding: 13px 0 24px;
+  border-top: 1px solid var(--rule);
+  color: var(--ink3);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
 }
 
-.dark .brand-logo-dark {
-  display: block;
+.paper-colophon {
+  margin-left: auto;
 }
 
-.jp { font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", "Hiragino Sans", system-ui, sans-serif; }
+html[lang="zh-CN"],
+[lang="zh-CN"] { font-family: var(--font-ui); }
+[lang="ja"],
+.jp { font-family: var(--font-jp); }
+.font-display { font-family: var(--font-display); }
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+@media (max-width: 640px) {
+  .paper-page {
+    width: 100%;
+  }
+
+  .paper-footer {
+    margin-inline: 16px;
+  }
+}
+
+/* ========== 报头 ========== */
+.masthead {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin: 0 54px 34px;
+  padding: 30px 0 15px;
+  border-bottom: 3px double var(--rule-strong);
+}
+
+.masthead-brand {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.masthead-seal {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+  transform: rotate(-3deg);
+  border: 2.5px solid var(--shu);
+  border-radius: 7px;
+  color: var(--shu);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.masthead h1 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.masthead-right {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.masthead-engine.provider-indicator {
+  width: auto;
+  height: auto;
+  gap: 4px;
+  padding: 0 0 4px;
+  color: var(--ink3);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+.masthead-engine b {
+  color: var(--ink2);
+  font-weight: 500;
+}
+
+.masthead-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.masthead-action {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink2);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.masthead-action:hover,
+.masthead-action:focus-visible {
+  color: var(--shu);
+}
+
+.masthead-action:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--shu) 35%, transparent);
+  outline-offset: 1px;
+}
+
+.paper-popover {
+  border-radius: 3px;
+  background: var(--paper);
+}
+
+.paper-menu-item {
+  border-radius: 2px;
+  transition: color 0.15s ease;
+}
+
+@media (max-width: 760px) {
+  .masthead {
+    align-items: center;
+    margin-inline: 16px;
+    padding-top: 20px;
+  }
+
+  .masthead-brand {
+    gap: 10px;
+  }
+
+  .masthead-seal {
+    width: 36px;
+    height: 36px;
+  }
+
+  .masthead h1 {
+    font-size: clamp(18px, 5vw, 24px);
+  }
+
+  .masthead-right {
+    gap: 2px;
+  }
+
+  .masthead-engine {
+    display: none !important;
+  }
+
+  .masthead-action {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .masthead {
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 26px;
+  }
+
+  .masthead-brand {
+    flex: 1 1 auto;
+  }
+
+  .masthead-actions {
+    margin-left: auto;
+  }
+
+  .masthead-action {
+    width: 40px;
+  }
+}
 
 /* ========== 卡片 ========== */
 .nd-card {
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 22px 26px;
-  box-shadow: 0 1px 2px rgba(20, 10, 40, 0.03);
+  padding: 22px 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
 }
 
 .dark .nd-card {
-  background: linear-gradient(180deg, #342e47 0%, var(--bg-2) 100%);
-  box-shadow: 0 18px 42px -34px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  background: transparent;
 }
 
 @media (max-width: 640px) {
   .nd-card {
-    padding: 16px 16px;
-    border-radius: 14px;
+    padding: 16px 0;
   }
 }
 
@@ -123,7 +324,7 @@ body {
   z-index: 1;
   padding: 7px 12px;
   border: 1px solid color-mix(in oklab, var(--primary) 18%, transparent);
-  border-radius: 999px;
+  border-radius: 3px;
   background: var(--primary-soft);
   color: var(--primary);
   font-size: 13px;
@@ -149,16 +350,8 @@ body {
 }
 
 @keyframes firstVisitSubmitCue {
-  0%, 100% {
-    box-shadow:
-      0 0 0 0 color-mix(in oklab, var(--primary) 22%, transparent),
-      0 4px 14px -4px rgba(109, 76, 219, 0.55);
-  }
-  50% {
-    box-shadow:
-      0 0 0 8px transparent,
-      0 4px 18px -3px rgba(109, 76, 219, 0.7);
-  }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -173,21 +366,21 @@ body {
 .nd-icon-btn {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 3px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--ink-2);
-  background: var(--bg);
-  border: 1px solid var(--line);
+  background: transparent;
+  border: 1px solid var(--rule);
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 
 .nd-icon-btn:hover:not(:disabled) {
-  border-color: var(--line-2);
-  color: var(--primary);
+  border-color: var(--shu);
+  color: var(--shu);
 }
 
 .nd-icon-btn:disabled {
@@ -201,7 +394,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  border-radius: 10px;
+  border-radius: 0;
   padding: 0 10px;
   color: var(--ink-2);
   font-size: 12.5px;
@@ -224,18 +417,25 @@ body {
   justify-content: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 0;
   background: transparent;
   border: none;
   color: var(--ink-2);
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
+  transition: color 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.nd-ghost-btn:hover:not(:disabled) { color: var(--primary); }
+.nd-ghost-btn:hover:not(:disabled) {
+  color: var(--shu);
+  text-decoration-color: currentColor;
+}
 
 .nd-soft-btn {
   display: inline-flex;
@@ -243,43 +443,45 @@ body {
   justify-content: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: 8px;
-  background: var(--bg);
-  border: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed transparent;
   color: var(--ink-2);
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  transition: color 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 .nd-soft-btn:hover:not(:disabled) {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-bottom-color: var(--ink3);
+  color: var(--shu);
 }
 
 .nd-soft-btn:disabled { opacity: 0.6; cursor: wait; }
 
 .nd-primary-btn {
-  background: var(--primary);
-  color: #fff;
+  background: var(--ink);
+  color: var(--paper);
   padding: 10px 22px;
-  border-radius: 999px;
+  border-radius: 3px;
   border: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 14px;
+  letter-spacing: 0.22em;
   cursor: pointer;
-  box-shadow: 0 4px 14px -4px rgba(109, 76, 219, 0.55);
-  transition: background 0.15s, opacity 0.15s;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.nd-primary-btn:hover:not(:disabled) { background: var(--primary-2); }
+.nd-primary-btn:hover:not(:disabled) { background: var(--shu); }
 .nd-primary-btn:disabled { opacity: 0.7; cursor: wait; }
 
 .state-morph-btn {
@@ -298,33 +500,37 @@ body {
 
 /* ========== 开关 Toggle ========== */
 .nd-toggle {
-  width: 38px;
-  height: 22px;
-  border-radius: 999px;
-  background: var(--line-2);
+  width: 18px;
+  height: 18px;
+  border-radius: 0;
+  background: transparent;
   position: relative;
-  border: none;
+  border: 1px solid var(--ink3);
   cursor: pointer;
   transition: background 0.18s;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
 }
 
-.nd-toggle[aria-pressed="true"] { background: var(--primary); }
+.nd-toggle[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+}
 
 .nd-toggle .nd-toggle-knob {
   position: absolute;
   top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #fff;
-  transition: left 0.18s;
-  box-shadow: 0 1px 3px rgba(20, 10, 40, 0.25);
+  left: 6px;
+  width: 5px;
+  height: 10px;
+  transform: rotate(45deg);
+  border-right: 1.5px solid var(--paper);
+  border-bottom: 1.5px solid var(--paper);
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-.nd-toggle[aria-pressed="true"] .nd-toggle-knob { left: 18px; }
+.nd-toggle[aria-pressed="true"] .nd-toggle-knob { opacity: 1; }
 
 .nd-dots {
   display: inline-flex;
@@ -382,8 +588,8 @@ input, textarea {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--line-2);
-  border-radius: 10px;
-  background: var(--bg);
+  border-radius: 3px;
+  background: transparent;
   color: var(--ink);
   font-size: 14px;
   outline: none;
@@ -417,9 +623,9 @@ input, textarea {
   font-weight: 500;
   line-height: 1.16;
   color: var(--ink);
-  border-radius: 6px;
+  border-radius: 0;
   transition: background 0.15s;
-  font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", "Hiragino Sans", system-ui, sans-serif;
+  font-family: var(--font-jp);
   letter-spacing: 0;
 }
 
@@ -515,7 +721,7 @@ input, textarea {
   line-height: 1.1;
   text-align: center;
   white-space: nowrap;
-  font-family: "Noto Sans JP", sans-serif;
+  font-family: var(--font-ui);
 }
 
 @media (max-width: 640px) {
@@ -589,11 +795,10 @@ input, textarea {
 
 /* ========== 词汇详情面板 ========== */
 .word-detail-panel {
-  background: var(--bg-2);
+  background: transparent;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(20, 10, 40, 0.03);
   animation: detailIn 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
@@ -603,9 +808,9 @@ input, textarea {
 }
 
 .word-detail-panel-empty {
-  background: var(--bg-2);
+  background: transparent;
   border: 1px dashed var(--line-2);
-  border-radius: 16px;
+  border-radius: 0;
   padding: 30px 24px;
   text-align: center;
   color: var(--ink-3);
@@ -764,7 +969,7 @@ input, textarea {
   flex: 1;
   overflow: hidden;
   color: inherit;
-  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
@@ -803,7 +1008,7 @@ input, textarea {
   display: block;
   overflow: hidden;
   color: var(--ink-3);
-  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 500;
   line-height: 19px;
@@ -817,17 +1022,17 @@ input, textarea {
 }
 
 .reasoning-stream-card {
-  --reasoning-archive-bg: #faf9fd;
-  --reasoning-archive-summary-text: #8a889c;
-  --reasoning-archive-check: #a8c9b4;
-  --reasoning-archive-body-text: #7a788c;
-  --reasoning-archive-quote: #e2dff0;
-  --reasoning-archive-divider: #eeecf6;
-  --reasoning-archive-heading: #9a97aa;
+  --reasoning-archive-bg: var(--paper);
+  --reasoning-archive-summary-text: var(--ink3);
+  --reasoning-archive-check: var(--green-ok);
+  --reasoning-archive-body-text: var(--ink3);
+  --reasoning-archive-quote: var(--rule);
+  --reasoning-archive-divider: var(--rule);
+  --reasoning-archive-heading: var(--ink3);
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg);
+  border-radius: 0;
+  background: transparent;
 }
 
 .dark .reasoning-stream-card {
@@ -958,7 +1163,7 @@ input, textarea {
   border-radius: 0;
   background: transparent;
   color: var(--reasoning-archive-summary-text);
-  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-family: var(--font-ui);
   font-size: 13px;
   font-weight: 400;
   line-height: 1.6;
@@ -984,8 +1189,8 @@ input, textarea {
   margin: 0 10px 10px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-radius: 9px;
-  background: var(--bg-2);
+  border-radius: 0;
+  background: transparent;
   scrollbar-color: var(--line-2) var(--bg-2);
   scrollbar-width: thin;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, var(--ink) 24px, var(--ink) 100%);
@@ -1023,7 +1228,7 @@ input, textarea {
 .reasoning-stream-tail,
 .reasoning-stream-virtual-row {
   color: var(--ink-3);
-  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-family: var(--font-ui);
   font-size: 11.5px;
   font-weight: 400;
   line-height: 1.9;
@@ -1172,7 +1377,7 @@ input, textarea {
   width: 100%;
   height: 100%;
   overflow: auto;
-  background-color: rgba(20, 10, 40, 0.45);
+  background-color: color-mix(in oklab, var(--ink) 42%, transparent);
   justify-content: center;
   align-items: center;
 }
@@ -1182,8 +1387,7 @@ input, textarea {
   border: 1px solid var(--line);
   margin: auto;
   padding: 25px;
-  border-radius: 16px;
-  box-shadow: 0 20px 50px -10px rgba(40, 10, 80, 0.25);
+  border-radius: 3px;
   width: 90%;
   max-width: 450px;
   color: var(--ink);
@@ -1224,7 +1428,7 @@ input, textarea {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(20, 10, 40, 0.5);
+  background-color: color-mix(in oklab, var(--ink) 48%, transparent);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1237,13 +1441,12 @@ input, textarea {
 .word-detail-modal-content {
   background: var(--bg-2);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 3px;
   width: 100%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   animation: zoomInModal 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
   will-change: transform, opacity;
 }
@@ -1256,7 +1459,6 @@ input, textarea {
 /* 模态内嵌面板去掉双重边框 */
 .word-detail-modal-content .word-detail-panel {
   border: none;
-  box-shadow: none;
   animation: none;
 }
 
@@ -1267,7 +1469,7 @@ input, textarea {
   background: var(--line);
   color: var(--ink-3);
   border: none;
-  border-radius: 50%;
+  border-radius: 3px;
   width: 30px;
   height: 30px;
   font-size: 18px;
@@ -1290,20 +1492,19 @@ input, textarea {
   bottom: 28px;
   width: 48px;
   height: 48px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--paper);
   border: none;
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 10px 24px -6px rgba(109, 76, 219, 0.55), 0 2px 6px rgba(20, 10, 40, 0.1);
   z-index: 9999;
   transition: background 0.15s, transform 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 
-.nd-fab:hover { background: var(--primary-2); transform: translateY(-1px); }
+.nd-fab:hover { background: var(--shu); transform: translateY(-1px); }
 
 .assistant-modal-anchor {
   position: fixed;
@@ -1358,10 +1559,9 @@ input, textarea {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 3px;
   background: var(--bg-2);
   color: var(--ink);
-  box-shadow: 0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06);
   will-change: transform, opacity;
 }
 
@@ -1499,7 +1699,7 @@ input, textarea {
 textarea,
 input[type="text"],
 #japaneseInput {
-  font-family: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+  font-family: var(--font-jp);
   -webkit-font-smoothing: antialiased;
   caret-color: var(--primary);
   margin: 0;
