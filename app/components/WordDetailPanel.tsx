@@ -34,7 +34,7 @@ async function handleWordSpeak(word: string) {
 
 function DetailSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="mt-[18px]">
+    <div className="word-detail-section">
       <div className="detail-section-label">
         <span>{label}</span>
       </div>
@@ -99,6 +99,16 @@ function renderStaticExplanation(text: string): React.ReactNode {
   ));
 }
 
+function splitExplanationSections(text: string): { explanation: string; example: string } {
+  const exampleMarker = /(?:^|\n)\s*(?:例句|例文)[:：]\s*/m.exec(text);
+  if (!exampleMarker) return { explanation: text, example: '' };
+
+  return {
+    explanation: text.slice(0, exampleMarker.index).trim(),
+    example: text.slice(exampleMarker.index + exampleMarker[0].length).trim(),
+  };
+}
+
 export default function WordDetailPanel({
   wordDetail,
   isLoading,
@@ -134,6 +144,11 @@ export default function WordDetailPanel({
       return renderStaticExplanation(displayText);
     };
   }, [isExplanationExpanded]);
+
+  const explanationSections = useMemo(
+    () => splitExplanationSections(wordDetail?.explanation || ''),
+    [wordDetail?.explanation]
+  );
 
   if (isLoading || (isStreamLoading && !wordDetail)) {
     return (
@@ -193,17 +208,14 @@ export default function WordDetailPanel({
 
   return (
     <section className="word-detail-panel" lang="zh-CN">
-      {/* 顶栏 */}
-      <div
-        className="flex items-center border-b px-4 py-2.5"
-        style={{ borderColor: 'var(--line)', background: 'var(--bg)' }}
-      >
-        <span className="mr-2 h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+      {/* 辞书顶栏 */}
+      <div className="dictionary-bar">
+        <span className="dictionary-bar-mark" style={{ background: accent }} />
         <span
-          className="text-[11px] font-semibold uppercase tracking-[1.2px]"
+          className="dictionary-bar-title"
           style={{ color: 'var(--ink-3)' }}
         >
-          词语详解
+          辞 書
         </span>
         {isStreamLoading && (
           <span className="nd-dots ml-2" style={{ color: 'var(--primary)' }} aria-hidden="true">
@@ -247,59 +259,44 @@ export default function WordDetailPanel({
         )}
       </div>
 
-      {/* Hero */}
-      <div
-        className="relative px-5 pb-4 pt-5"
-        style={{
-          background: `linear-gradient(180deg, color-mix(in oklab, ${accent} 6%, transparent), transparent 70%)`
-        }}
-      >
+      {/* 辞书词头 */}
+      <div className="dictionary-headword">
         {wordDetail.furigana && wordDetail.furigana !== display && (
-          <div lang="ja" className="jp text-center text-[13px] tracking-[2px]" style={{ color: 'var(--ink-3)' }}>
+          <div lang="ja" className="dictionary-reading">
             {wordDetail.furigana}
           </div>
         )}
         <div
           lang="ja"
-          className="jp text-center text-[30px] font-semibold leading-tight tracking-[1px] sm:text-[36px]"
-          style={{ color: 'var(--ink)' }}
+          className="dictionary-word"
         >
           {display}
         </div>
         {wordDetail.romaji && (
-          <div
-            className="mono mt-2 text-center text-xs uppercase tracking-[1.5px]"
-            style={{ color: 'var(--ink-3)' }}
-          >
+          <div className="dictionary-romaji">
             {wordDetail.romaji}
           </div>
         )}
 
         {/* 标签行 */}
-        <div className="mt-3.5 flex flex-wrap justify-center gap-1.5">
+        <div className="dictionary-meta">
           <span
-            className="inline-flex items-center gap-[5px] rounded-md px-2.5 py-[3px] text-[11.5px] font-semibold"
-            style={{
-              color: accent,
-              background: `color-mix(in oklab, ${accent} 12%, transparent)`
-            }}
+            className="dictionary-pos-box"
+            style={{ color: accent, borderColor: accent }}
           >
-            <span className="h-1.5 w-1.5 rounded-[1px]" style={{ background: accent }} />
             {posLabel}
           </span>
           {wordDetail.pos && (
             <span
               lang="ja"
-              className="rounded-md border px-2.5 py-[3px] text-[11.5px] font-medium"
-              style={{ color: 'var(--ink-3)', background: 'var(--bg)', borderColor: 'var(--line)' }}
+              className="dictionary-meta-box"
             >
               {wordDetail.pos}
             </span>
           )}
           {wordDetail.dictionaryForm && wordDetail.dictionaryForm !== wordDetail.originalWord && (
             <span
-              className="jp rounded-md border px-2.5 py-[3px] text-[11.5px] font-medium"
-              style={{ color: 'var(--ink-2)', background: 'var(--bg)', borderColor: 'var(--line)' }}
+              className="dictionary-meta-box jp"
             >
               辞书形 <span lang="ja">{wordDetail.dictionaryForm}</span>
             </span>
@@ -308,8 +305,8 @@ export default function WordDetailPanel({
       </div>
 
       {/* 正文 */}
-      <div className="px-5 pb-5 pt-1">
-        <DetailSection label="释义">
+      <div className="dictionary-body">
+        <DetailSection label="釋 義">
           <div
             className={`text-sm leading-relaxed ${wordDetail.chineseTranslation === '加载中...' ? 'animate-pulse' : ''}`}
             style={{ color: 'var(--ink)' }}
@@ -322,10 +319,10 @@ export default function WordDetailPanel({
           </div>
         </DetailSection>
 
-        {wordDetail.explanation && (
-          <DetailSection label="解释">
+        {explanationSections.explanation && (
+          <DetailSection label="解 釋">
             <div className="flow-markdown word-detail-explanation text-[13px] leading-relaxed">
-              {explanationContent(wordDetail.explanation)}
+              {explanationContent(explanationSections.explanation)}
             </div>
             {showExpandButton && (
               <button
@@ -336,6 +333,14 @@ export default function WordDetailPanel({
                 {isExplanationExpanded ? '收起 ▲' : '展开全文 ▼'}
               </button>
             )}
+          </DetailSection>
+        )}
+
+        {explanationSections.example && (
+          <DetailSection label="例 句">
+            <div className="dictionary-example" lang="ja">
+              {renderStaticExplanation(explanationSections.example)}
+            </div>
           </DetailSection>
         )}
       </div>

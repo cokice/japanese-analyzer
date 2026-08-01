@@ -601,198 +601,6 @@ input, textarea {
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 15%, transparent);
 }
 
-/* ========== 解析结果 token ========== */
-#analyzedSentenceOutput {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  row-gap: 14px;
-  min-height: 80px;
-  overflow-wrap: break-word;
-}
-
-.word-unit-wrapper {
-  position: relative;
-  display: inline-grid;
-  grid-template-rows: 13px auto 7px 13px;
-  justify-items: center;
-  align-items: end;
-  padding: 0 4px;
-  margin: 8px 1px 0;
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 1.16;
-  color: var(--ink);
-  border-radius: 0;
-  transition: background 0.15s;
-  font-family: var(--font-jp);
-  letter-spacing: 0;
-}
-
-.word-unit-wrapper.is-punct {
-  padding: 0 1px;
-  margin: 8px 0 0 -1px;
-  font-size: 22px;
-  font-weight: 500;
-  color: var(--ink);
-}
-
-.word-unit-wrapper.is-punct .word-token {
-  grid-row: 2;
-}
-
-.word-unit-wrapper.active-unit {
-  background: color-mix(in oklab, var(--primary) 10%, transparent);
-}
-
-@media (max-width: 640px) {
-  .word-unit-wrapper { font-size: 19px; }
-  .word-unit-wrapper.is-punct {
-    font-size: 18px;
-  }
-}
-
-.word-token {
-  position: relative;
-  display: block;
-  cursor: pointer;
-  transition: color 0.2s ease;
-  line-height: 1.15;
-  white-space: nowrap;
-}
-
-.word-token.no-click { cursor: default; }
-
-/* 词性下划线 */
-.pos-underline {
-  height: 2px;
-  width: 100%;
-  align-self: start;
-  justify-self: stretch;
-  margin-top: 4px;
-  border-radius: 2px;
-  background: var(--pos-o);
-}
-
-.pos-underline.pos-名詞, .pos-underline.pos-代名詞 { background: var(--pos-n); }
-.pos-underline.pos-動詞 { background: var(--pos-v); }
-.pos-underline.pos-形容詞 { background: var(--pos-adj); }
-.pos-underline.pos-形容動詞, .pos-underline.pos-形状詞 { background: var(--pos-adjv); }
-.pos-underline.pos-副詞 { background: var(--pos-adv); }
-.pos-underline.pos-連体詞 { background: var(--pos-adn); }
-.pos-underline.pos-接続詞 { background: var(--pos-conj); }
-.pos-underline.pos-感動詞 { background: var(--pos-int); }
-.pos-underline.pos-助詞 { background: var(--pos-p); }
-.pos-underline.pos-助動詞 { background: var(--pos-aux); }
-.pos-underline.pos-記号 { background: transparent; }
-.pos-underline.pos-group-n { background: var(--pos-n); }
-.pos-underline.pos-group-v { background: var(--pos-v); }
-.pos-underline.pos-group-adj { background: var(--pos-adj); }
-.pos-underline.pos-group-adjv { background: var(--pos-adjv); }
-.pos-underline.pos-group-adv { background: var(--pos-adv); }
-.pos-underline.pos-group-adn { background: var(--pos-adn); }
-.pos-underline.pos-group-conj { background: var(--pos-conj); }
-.pos-underline.pos-group-int { background: var(--pos-int); }
-.pos-underline.pos-group-p { background: var(--pos-p); }
-.pos-underline.pos-group-aux { background: var(--pos-aux); }
-.pos-underline.pos-group-o { background: var(--pos-o); }
-
-.romaji-text {
-  font-size: 10px;
-  color: var(--ink-3);
-  letter-spacing: 0.5px;
-  font-weight: 400;
-  line-height: 1.2;
-  user-select: none;
-  text-align: center;
-  white-space: nowrap;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-}
-
-@media (max-width: 640px) {
-  .romaji-text { font-size: 9px; }
-}
-
-.furigana-text {
-  font-size: 10px;
-  font-weight: 400;
-  color: var(--ink-3);
-  user-select: none;
-  line-height: 1.1;
-  text-align: center;
-  white-space: nowrap;
-  font-family: var(--font-ui);
-}
-
-@media (max-width: 640px) {
-  .furigana-text { font-size: 8px; }
-}
-
-/* 解析结果底栏 */
-.analysis-footer {
-  margin-top: 24px;
-  padding: 0 2px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 6px 14px;
-}
-
-.analysis-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  line-height: 1.4;
-  color: var(--ink-3);
-  white-space: nowrap;
-}
-
-/* 词性图例 */
-.pos-legend {
-  display: flex;
-  flex: 0 1 auto;
-  flex-wrap: wrap;
-  margin-left: auto;
-  justify-content: flex-end;
-  gap: 5px 12px;
-  font-size: 11.5px;
-  line-height: 1.2;
-  color: var(--ink-3);
-}
-
-.pos-legend .legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-}
-
-.pos-legend .legend-swatch {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  flex: 0 0 auto;
-}
-
-@media (max-width: 640px) {
-  .analysis-footer {
-    align-items: flex-start;
-    padding: 0 2px;
-  }
-
-  .analysis-hint {
-    white-space: normal;
-  }
-
-  .pos-legend {
-    flex-basis: 100%;
-    justify-content: flex-end;
-    gap: 5px 10px;
-  }
-}
-
 /* ========== 词汇详情面板 ========== */
 .word-detail-panel {
   background: transparent;
@@ -1993,6 +1801,10 @@ html.safari input::placeholder {
   color: var(--ink);
 }
 
+.annotated-text.is-done {
+  transition: line-height 0.35s ease;
+}
+
 .annotated-text.is-working {
   cursor: progress;
   user-select: none;
@@ -2141,6 +1953,99 @@ html.safari input::placeholder {
   opacity: 1;
 }
 
+.annotation-gloss-anchor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: min(430px, 100%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(var(--gloss-x, 0), calc(var(--gloss-y, 0) - 4px), 0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.annotation-gloss-anchor.is-positioned {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate3d(var(--gloss-x, 0), var(--gloss-y, 0), 0);
+}
+
+.annotation-gloss {
+  position: relative;
+  max-width: 430px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--ink-2);
+}
+
+.annotation-gloss::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 2px;
+  width: 1.5px;
+  height: 8px;
+  background: var(--shu);
+  opacity: 0.55;
+}
+
+.gloss-line-one {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 1px;
+}
+
+.gloss-kana {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--shu);
+}
+
+.gloss-pos {
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.gloss-line-two {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.gloss-meaning {
+  min-width: 0;
+}
+
+.gloss-meaning.is-loading {
+  color: var(--ink-3);
+}
+
+.gloss-more {
+  flex: none;
+  border: 0;
+  border-bottom: 1px dashed var(--ink-3);
+  padding: 0;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: nowrap;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.gloss-more:hover,
+.gloss-more:focus-visible {
+  border-bottom-color: var(--shu);
+  color: var(--shu);
+}
+
 .annotation-options {
   display: flex;
   align-items: center;
@@ -2271,6 +2176,8 @@ html.safari input::placeholder {
 @media (prefers-reduced-motion: reduce) {
   .original-stage,
   .annotation-brush,
+  .annotated-text.is-done,
+  .annotation-gloss-anchor,
   .label-act {
     transition: none;
   }
@@ -2295,5 +2202,136 @@ html.safari input::placeholder {
 
   .annotation-token.is-inked .annotation-underline {
     transform: scaleX(1);
+  }
+}
+
+/* ========== Paper Edition · 辞书词条 ========== */
+.dictionary-bar {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  border-bottom: 1px solid var(--rule);
+  padding: 8px 14px;
+  background: transparent;
+}
+
+.dictionary-bar-mark {
+  width: 5px;
+  height: 5px;
+  margin-right: 9px;
+}
+
+.dictionary-bar-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+}
+
+.dictionary-headword {
+  position: relative;
+  border-bottom: 1px solid var(--rule);
+  padding: 22px 20px 18px;
+}
+
+.dictionary-reading {
+  font-family: var(--font-jp);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--shu);
+}
+
+.dictionary-word {
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.dictionary-romaji {
+  margin-top: 5px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.dictionary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.dictionary-pos-box,
+.dictionary-meta-box {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 2px 8px;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.dictionary-pos-box {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.dictionary-body {
+  padding: 2px 20px 22px;
+}
+
+.word-detail-section {
+  margin-top: 20px;
+}
+
+.detail-section-label {
+  gap: 9px;
+  margin-bottom: 10px;
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  color: var(--ink-3);
+  text-transform: none;
+}
+
+.detail-section-label::before {
+  width: 12px;
+  background: var(--shu);
+  opacity: 0.65;
+}
+
+.detail-section-label::after {
+  background: var(--rule);
+}
+
+.dictionary-example {
+  border-left: 1.5px solid color-mix(in oklab, var(--shu) 55%, transparent);
+  padding-left: 11px;
+  font-family: var(--font-jp);
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--ink-2);
+}
+
+@media (max-width: 640px) {
+  .dictionary-word {
+    font-size: 30px;
+  }
+
+  .dictionary-pos-box,
+  .dictionary-meta-box {
+    min-height: 28px;
   }
 }

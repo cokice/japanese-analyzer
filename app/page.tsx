@@ -71,6 +71,7 @@ export default function Home() {
 
   // 选中词汇（右侧详情面板 / 移动端模态）
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [isWordDetailPanelOpen, setIsWordDetailPanelOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
   const {
     wordDetail,
@@ -302,6 +303,7 @@ export default function Home() {
 
   const handleCloseWordDetail = useCallback(() => {
     setSelectedIndex(null);
+    setIsWordDetailPanelOpen(false);
     clearWordDetail();
   }, [clearWordDetail]);
 
@@ -312,9 +314,14 @@ export default function Home() {
       return;
     }
     setSelectedIndex(index);
+    setIsWordDetailPanelOpen(false);
     trackWordDetailUsage(aiProvider, aiModel);
     fetchWordDetails(token.word, token.pos, currentSentence, token.furigana, token.romaji);
   }, [aiProvider, aiModel, selectedIndex, currentSentence, fetchWordDetails, handleCloseWordDetail]);
+
+  const handleOpenWordDetails = useCallback(() => {
+    if (selectedIndex !== null) setIsWordDetailPanelOpen(true);
+  }, [selectedIndex]);
 
   const handleRefreshWordDetail = useCallback(() => {
     if (selectedIndex === null) return;
@@ -515,6 +522,8 @@ export default function Home() {
 
   const hasWordDetail = selectedIndex !== null
     && (isWordDetailLoading || isWordDetailStreaming || wordDetail !== null || !!wordDetailStreamError);
+  const showDesktopWordDetail = isDesktop && isWordDetailPanelOpen && hasWordDetail;
+  const reserveDesktopWordDetailColumn = isDesktop && selectedIndex !== null;
 
   const wordDetailPanel = (
     <WordDetailPanel
@@ -560,7 +569,7 @@ export default function Home() {
           onSettingsClick={() => setIsSettingsModalOpen(true)}
         />
 
-        <main className={`paper-main mx-auto grid w-full flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 ${isDesktop && hasWordDetail ? 'max-w-[1280px] lg:grid-cols-[minmax(0,1fr)_360px]' : 'max-w-[972px]'}`}>
+        <main className={`paper-main mx-auto grid w-full flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 ${reserveDesktopWordDetailColumn ? 'max-w-[1280px] lg:grid-cols-[minmax(0,1fr)_360px]' : 'max-w-[972px]'}`}>
           {/* 主列 */}
           <div className="flex min-w-0 flex-col gap-[22px]">
             <InputSection
@@ -581,6 +590,11 @@ export default function Home() {
               showPosColors={showPosColors}
               onShowPosColorsChange={setShowPosColors}
               onWordClick={handleWordClick}
+              isDesktop={isDesktop}
+              wordDetail={wordDetail}
+              isWordDetailLoading={isWordDetailLoading}
+              isWordDetailStreaming={isWordDetailStreaming}
+              onOpenWordDetails={handleOpenWordDetails}
               selectedIndex={selectedIndex}
               onResetAnalysis={handleResetAnalysis}
             />
@@ -638,7 +652,7 @@ export default function Home() {
           </div>
 
           {/* 侧栏：词汇详情（桌面端） */}
-          {isDesktop && hasWordDetail && (
+          {showDesktopWordDetail && (
             <aside className="sticky top-4 hidden flex-col gap-4 self-start lg:flex">
               {wordDetailPanel}
             </aside>

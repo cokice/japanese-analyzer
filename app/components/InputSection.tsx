@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
-import type { AIProvider, TokenData, TTSProvider } from '../services/api';
+import type { AIProvider, TokenData, TTSProvider, WordDetail } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
 import {
   getImageRecognitionUsage,
@@ -33,6 +33,11 @@ interface InputSectionProps {
   showPosColors: boolean;
   onShowPosColorsChange: (show: boolean) => void;
   onWordClick: (token: TokenData, index: number) => void;
+  isDesktop: boolean;
+  wordDetail: WordDetail | null;
+  isWordDetailLoading: boolean;
+  isWordDetailStreaming: boolean;
+  onOpenWordDetails: () => void;
   selectedIndex: number | null;
   onResetAnalysis: () => void;
 }
@@ -88,6 +93,11 @@ export default function InputSection({
   showPosColors,
   onShowPosColorsChange,
   onWordClick,
+  isDesktop,
+  wordDetail,
+  isWordDetailLoading,
+  isWordDetailStreaming,
+  onOpenWordDetails,
   selectedIndex,
   onResetAnalysis,
 }: InputSectionProps) {
@@ -587,6 +597,11 @@ export default function InputSection({
             showPosColors={showPosColors}
             onShowPosColorsChange={onShowPosColorsChange}
             onWordClick={onWordClick}
+            isDesktop={isDesktop}
+            wordDetail={wordDetail}
+            isWordDetailLoading={isWordDetailLoading}
+            isWordDetailStreaming={isWordDetailStreaming}
+            onOpenWordDetails={onOpenWordDetails}
             onEdit={() => returnToEdit(false)}
             selectedIndex={selectedIndex}
           />
