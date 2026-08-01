@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
-import type { AIProvider, TTSProvider } from '../services/api';
+import type { AIProvider, TokenData, TTSProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
 import {
   getImageRecognitionUsage,
@@ -12,7 +12,7 @@ import {
   type AnalyzeUsageMetadata
 } from '../utils/analytics';
 import { Icon } from './Icons';
-import { TextShimmer } from '@/components/ui/text-shimmer';
+import AnalysisResult from './AnalysisResult';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
 
 interface InputSectionProps {
@@ -25,6 +25,16 @@ interface InputSectionProps {
   ttsProvider: TTSProvider;
   onTtsProviderChange: (provider: TTSProvider) => void;
   isAnalyzing?: boolean;
+  analyzedTokens: TokenData[];
+  showFurigana: boolean;
+  onShowFuriganaChange: (show: boolean) => void;
+  showRomaji: boolean;
+  onShowRomajiChange: (show: boolean) => void;
+  showPosColors: boolean;
+  onShowPosColorsChange: (show: boolean) => void;
+  onWordClick: (token: TokenData, index: number) => void;
+  selectedIndex: number | null;
+  onResetAnalysis: () => void;
 }
 
 // TTS配置选项
@@ -69,7 +79,17 @@ export default function InputSection({
   useStream = true, // 默认启用流式输出
   ttsProvider,
   onTtsProviderChange,
-  isAnalyzing = false
+  isAnalyzing = false,
+  analyzedTokens,
+  showFurigana,
+  onShowFuriganaChange,
+  showRomaji,
+  onShowRomajiChange,
+  showPosColors,
+  onShowPosColorsChange,
+  onWordClick,
+  selectedIndex,
+  onResetAnalysis,
 }: InputSectionProps) {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -85,12 +105,14 @@ export default function InputSection({
   const [selectedStyle, setSelectedStyle] = useState('');
   const [submitState, setSubmitState] = useState<StateMorphButtonState>('idle');
   const [showFirstVisitExample, setShowFirstVisitExample] = useState(false);
+  const [manualEditing, setManualEditing] = useState(true);
+  const [stageFading, setStageFading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const japaneseInputRef = useRef<HTMLTextAreaElement>(null);
-  const inputShimmerFrameRef = useRef<HTMLDivElement>(null);
   const submitStartedRef = useRef(false);
   const wasAnalyzingRef = useRef(false);
   const submitResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stageTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const usageMetadataRef = useRef<AnalyzeUsageMetadata>({});
   const spokenTextRef = useRef('');
 
@@ -125,6 +147,9 @@ export default function InputSection({
     return () => {
       if (submitResetTimerRef.current) {
         clearTimeout(submitResetTimerRef.current);
+      }
+      if (stageTransitionTimerRef.current) {
+        clearTimeout(stageTransitionTimerRef.current);
       }
     };
   }, []);
@@ -233,8 +258,16 @@ export default function InputSection({
   };
 
   const handleAnalyze = () => {
+    if (!inputText.trim() || stageFading) return;
     setShowFirstVisitExample(false);
-    startAnalysis(inputText, getCurrentUsageMetadata());
+    const usage = getCurrentUsageMetadata();
+    setStageFading(true);
+    stageTransitionTimerRef.current = setTimeout(() => {
+      setManualEditing(false);
+      setStageFading(false);
+      stageTransitionTimerRef.current = null;
+      startAnalysis(inputText, usage);
+    }, 250);
   };
 
   const handleCancelAnalyze = () => {
@@ -246,6 +279,31 @@ export default function InputSection({
     wasAnalyzingRef.current = false;
     setSubmitState('idle');
     onCancelAnalyze();
+    setManualEditing(true);
+    requestAnimationFrame(() => japaneseInputRef.current?.focus());
+  };
+
+  const returnToEdit = (clearText: boolean) => {
+    if (stageFading) return;
+    setStageFading(true);
+    stageTransitionTimerRef.current = setTimeout(() => {
+      onResetAnalysis();
+      setManualEditing(true);
+      setShowTtsDropdown(false);
+      setShowFirstVisitExample(false);
+      if (clearText) {
+        setInputText('');
+        setTtsAudioUrl(null);
+        setUploadStatus('');
+        clearUsageMetadata();
+      }
+      setSubmitState('idle');
+      submitStartedRef.current = false;
+      wasAnalyzingRef.current = false;
+      setStageFading(false);
+      stageTransitionTimerRef.current = null;
+      requestAnimationFrame(() => japaneseInputRef.current?.focus());
+    }, 250);
   };
 
   const handleSpeak = async () => {
@@ -467,30 +525,28 @@ export default function InputSection({
     });
   };
 
-  const inputTextStyle = {
-    color: 'var(--ink)',
-    fontSize: '20px',
-    lineHeight: 1.6,
-    letterSpacing: '0.3px',
-    minHeight: '148px',
-  };
-  const showInputShimmer = isLoading && inputText.trim().length > 0;
-
-  useEffect(() => {
-    if (!showInputShimmer) return;
-
-    const input = japaneseInputRef.current;
-    const shimmerFrame = inputShimmerFrameRef.current;
-    if (!input || !shimmerFrame) return;
-
-    shimmerFrame.scrollTop = input.scrollTop;
-    shimmerFrame.scrollLeft = input.scrollLeft;
-  }, [inputText, showInputShimmer]);
+  const phase = manualEditing || (!isAnalyzing && analyzedTokens.length === 0)
+    ? 'edit'
+    : isAnalyzing
+      ? 'working'
+      : 'done';
 
   return (
     <div className="w-full">
-      <section className="nd-card">
-        <div className="relative">
+      <section className="original-paper-section">
+        <div className="section-label">
+          <span>原 文</span>
+          <i className="section-label-rule" aria-hidden="true" />
+          {phase === 'done' && (
+            <span className="original-actions">
+              <button type="button" className="label-act" onClick={() => returnToEdit(false)}>✎ 編集</button>
+              <button type="button" className="label-act" onClick={() => returnToEdit(true)}>＋ 新規</button>
+            </span>
+          )}
+        </div>
+
+        <div className={`original-stage ${stageFading ? 'is-fading' : ''}`}>
+        <div className={phase === 'edit' ? 'edit-state relative' : 'hidden'}>
           {showFirstVisitExample && (
             <div className="first-visit-example-kicker">
               第一次来？从这个句子开始
@@ -500,19 +556,12 @@ export default function InputSection({
             id="japaneseInput"
             ref={japaneseInputRef}
             lang="ja"
-            className={`jp w-full resize-none border-none bg-transparent outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''} ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
+            className={`jp original-textarea w-full resize-none border-none outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''}`}
             rows={5}
             placeholder="输入日语句子"
             value={inputText}
             onChange={(e) => handleInputTextChange(e.target.value)}
-            onScroll={(event) => {
-              const shimmerFrame = inputShimmerFrameRef.current;
-              if (!shimmerFrame) return;
-              shimmerFrame.scrollTop = event.currentTarget.scrollTop;
-              shimmerFrame.scrollLeft = event.currentTarget.scrollLeft;
-            }}
             onPaste={handlePaste}
-            style={inputTextStyle}
             aria-describedby={showFirstVisitExample ? 'firstVisitExampleHint' : undefined}
             autoCapitalize="none"
             autoComplete="off"
@@ -524,26 +573,26 @@ export default function InputSection({
               点击提交试试
             </div>
           )}
-          {showInputShimmer && (
-            <div
-              ref={inputShimmerFrameRef}
-              className="input-text-shimmer-layer-frame"
-              aria-hidden="true"
-              lang="ja"
-            >
-              <TextShimmer
-                as="div"
-                className="input-text-shimmer-layer jp"
-                duration={2.2}
-                spread={1.4}
-              >
-                {inputText}
-              </TextShimmer>
-            </div>
-          )}
         </div>
 
-        <div className="mt-3.5 flex items-center">
+        {phase !== 'edit' && (
+          <AnalysisResult
+            tokens={analyzedTokens}
+            fallbackText={inputText}
+            phase={phase}
+            showFurigana={showFurigana}
+            onShowFuriganaChange={onShowFuriganaChange}
+            showRomaji={showRomaji}
+            onShowRomajiChange={onShowRomajiChange}
+            showPosColors={showPosColors}
+            onShowPosColorsChange={onShowPosColorsChange}
+            onWordClick={onWordClick}
+            onEdit={() => returnToEdit(false)}
+            selectedIndex={selectedIndex}
+          />
+        )}
+
+        <div className={phase === 'edit' ? 'edit-foot' : 'hidden'}>
           {/* 左侧工具按钮区域 */}
           <div className="flex items-center gap-2.5" style={{ color: 'var(--ink-3)' }}>
             {/* 上传图片按钮 */}
@@ -721,11 +770,24 @@ export default function InputSection({
           {/* 解析按钮 */}
           <StateMorphButton
             id="analyzeButton"
-            onClick={isLoading ? handleCancelAnalyze : handleAnalyze}
-            disabled={!isLoading && !inputText.trim()}
+            onClick={handleAnalyze}
+            disabled={!inputText.trim() || stageFading}
             state={submitState}
             className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
           />
+        </div>
+
+        {phase === 'working' && (
+          <div className="annotation-working-foot">
+            <span>朱筆批注中</span>
+            <StateMorphButton
+              id="cancelAnalyzeButton"
+              onClick={handleCancelAnalyze}
+              state="loading"
+            />
+          </div>
+        )}
+
         </div>
 
         {/* 隐藏的文件输入 */}

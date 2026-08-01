@@ -1878,3 +1878,422 @@ html.safari input::placeholder {
   color: var(--ink-3) !important;
   opacity: 0.8 !important;
 }
+
+/* ========== Paper Edition · 原地标注 ========== */
+.original-paper-section {
+  width: 100%;
+  padding-top: 2px;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: var(--ink-2);
+}
+
+.section-label-rule {
+  height: 1px;
+  min-width: 24px;
+  flex: 1;
+  background: var(--rule);
+}
+
+.original-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  letter-spacing: normal;
+}
+
+.label-act {
+  min-height: 32px;
+  border: 0;
+  border-bottom: 1px dashed transparent;
+  padding: 0;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.label-act:hover {
+  border-bottom-color: var(--ink-3);
+  color: var(--ink-2);
+}
+
+.original-stage {
+  position: relative;
+  margin-top: 4px;
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
+.original-stage.is-fading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.original-textarea {
+  min-height: 170px;
+  padding-top: 8px !important;
+  background-color: transparent;
+  background-image: linear-gradient(
+    transparent calc(2.5em - 1px),
+    var(--rule) calc(2.5em - 1px),
+    var(--rule) 2.5em,
+    transparent 2.5em
+  );
+  background-size: 100% 2.5em;
+  background-attachment: local;
+  font-family: var(--font-jp);
+  font-size: 20px;
+  line-height: 2.5;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.original-textarea::placeholder {
+  color: #b9b2a2;
+}
+
+.original-textarea.first-visit-example-input {
+  padding-top: 30px !important;
+}
+
+.edit-foot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 14px;
+}
+
+.annotation-state {
+  min-width: 0;
+}
+
+.annotated-text {
+  --brush-x: 0px;
+  --brush-y: 0px;
+  position: relative;
+  min-height: 118px;
+  overflow-wrap: anywhere;
+  padding-top: 8px;
+  font-family: var(--font-jp);
+  font-size: 20px;
+  line-height: 3.05;
+  color: var(--ink);
+}
+
+.annotated-text.is-working {
+  cursor: progress;
+  user-select: none;
+}
+
+.annotated-text.is-working .annotation-token {
+  pointer-events: none;
+}
+
+.annotation-fallback {
+  color: #a39c8c;
+}
+
+.annotation-token {
+  position: relative;
+  display: inline-block;
+  margin: 0 2px;
+  padding: 0 1px 2px;
+  text-align: center;
+  color: #a39c8c;
+}
+
+.annotated-text.is-done .annotation-token:not(.is-punct) {
+  cursor: pointer;
+}
+
+.annotation-token.is-inked {
+  animation: annotationInkIn 0.5s ease forwards;
+}
+
+@keyframes annotationInkIn {
+  from { color: #a39c8c; }
+  to { color: var(--ink); }
+}
+
+.annotation-token.is-active {
+  background: var(--shu-soft);
+}
+
+.annotation-furi,
+.annotation-romaji {
+  position: absolute;
+  right: 0;
+  left: 0;
+  display: block;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--ink-3);
+  opacity: 0;
+}
+
+.annotation-furi {
+  top: -3px;
+}
+
+.annotation-romaji {
+  bottom: -12px;
+  font-size: 9px;
+}
+
+.annotation-token.is-inked .annotation-furi:not(.is-hidden) {
+  animation: annotationFloatUp 0.4s ease 0.3s forwards;
+}
+
+.annotation-token.is-inked .annotation-romaji:not(.is-hidden) {
+  animation: annotationFloatUp 0.4s ease 0.5s forwards;
+}
+
+.annotation-furi.is-hidden,
+.annotation-romaji.is-hidden {
+  visibility: hidden;
+}
+
+.annotation-pos {
+  margin-left: 1px;
+  font-family: var(--font-display);
+  font-size: 9.5px;
+  vertical-align: -6px;
+  color: var(--ink-3);
+  opacity: 0;
+}
+
+.annotation-token.is-inked .annotation-pos {
+  animation: annotationFloatUp 0.4s ease 0.4s forwards;
+}
+
+@keyframes annotationFloatUp {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.annotation-underline {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1.6px;
+  background: #c9c2b2;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.annotation-token.is-inked .annotation-underline {
+  animation: annotationDrawLine 0.38s cubic-bezier(0.3, 0.7, 0.4, 1) 0.12s forwards;
+}
+
+@keyframes annotationDrawLine {
+  to { transform: scaleX(1); }
+}
+
+.annotated-text.is-done .annotation-token:hover .annotation-underline,
+.annotation-token.is-active .annotation-underline {
+  background: var(--shu);
+}
+
+.annotation-token.is-punct {
+  margin: 0;
+  cursor: default;
+}
+
+.annotation-brush {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2.2px;
+  height: 1.15em;
+  border-radius: 2px;
+  background: var(--shu);
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 4px rgba(195, 64, 47, 0.45));
+  transform: translate3d(var(--brush-x), var(--brush-y), 0);
+  transition: transform 0.34s cubic-bezier(0.35, 0.8, 0.35, 1), opacity 0.2s ease;
+}
+
+.annotated-text[data-brush-ready="true"] .annotation-brush {
+  opacity: 1;
+}
+
+.annotation-options {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+  color: var(--ink-3);
+}
+
+.annotation-hint {
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+}
+
+.annotation-toggles {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-left: auto;
+}
+
+.annotation-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.annotation-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 14px;
+  padding-top: 10px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.annotation-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.annotation-legend i {
+  width: 14px;
+  height: 1.5px;
+}
+
+.annotation-token.pos-group-n .annotation-underline { background: var(--pos-n); }
+.annotation-token.pos-group-v .annotation-underline { background: var(--pos-v); }
+.annotation-token.pos-group-adj .annotation-underline { background: var(--pos-adj); }
+.annotation-token.pos-group-adjv .annotation-underline { background: var(--pos-adjv); }
+.annotation-token.pos-group-adv .annotation-underline { background: var(--pos-adv); }
+.annotation-token.pos-group-adn .annotation-underline { background: var(--pos-adn); }
+.annotation-token.pos-group-conj .annotation-underline { background: var(--pos-conj); }
+.annotation-token.pos-group-int .annotation-underline { background: var(--pos-int); }
+.annotation-token.pos-group-p .annotation-underline { background: var(--pos-p); }
+.annotation-token.pos-group-aux .annotation-underline { background: var(--pos-aux); }
+
+.annotation-token.pos-group-n .annotation-pos { color: var(--pos-n); }
+.annotation-token.pos-group-v .annotation-pos { color: var(--pos-v); }
+.annotation-token.pos-group-adj .annotation-pos { color: var(--pos-adj); }
+.annotation-token.pos-group-adjv .annotation-pos { color: var(--pos-adjv); }
+.annotation-token.pos-group-adv .annotation-pos { color: var(--pos-adv); }
+.annotation-token.pos-group-adn .annotation-pos { color: var(--pos-adn); }
+.annotation-token.pos-group-conj .annotation-pos { color: var(--pos-conj); }
+.annotation-token.pos-group-int .annotation-pos { color: var(--pos-int); }
+.annotation-token.pos-group-p .annotation-pos { color: var(--pos-p); }
+.annotation-token.pos-group-aux .annotation-pos { color: var(--pos-aux); }
+
+.annotation-working-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+@media (max-width: 640px) {
+  .label-act {
+    min-height: 44px;
+  }
+
+  .original-actions {
+    gap: 9px;
+  }
+
+  .original-textarea,
+  .annotated-text {
+    font-size: 18px;
+  }
+
+  .annotated-text {
+    min-height: 104px;
+    overflow-x: clip;
+  }
+
+  .annotation-options {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .annotation-toggles {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0 14px;
+    margin-left: 0;
+  }
+
+  .annotation-toggles label {
+    min-height: 44px;
+  }
+
+  .annotation-hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .original-stage,
+  .annotation-brush,
+  .label-act {
+    transition: none;
+  }
+
+  .annotation-token.is-inked,
+  .annotation-token.is-inked .annotation-furi:not(.is-hidden),
+  .annotation-token.is-inked .annotation-romaji:not(.is-hidden),
+  .annotation-token.is-inked .annotation-pos,
+  .annotation-token.is-inked .annotation-underline {
+    animation: none;
+  }
+
+  .annotation-token.is-inked {
+    color: var(--ink);
+  }
+
+  .annotation-token.is-inked .annotation-furi:not(.is-hidden),
+  .annotation-token.is-inked .annotation-romaji:not(.is-hidden),
+  .annotation-token.is-inked .annotation-pos {
+    opacity: 1;
+  }
+
+  .annotation-token.is-inked .annotation-underline {
+    transform: scaleX(1);
+  }
+}

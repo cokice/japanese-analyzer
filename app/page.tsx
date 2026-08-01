@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import InputSection from './components/InputSection';
-import AnalysisResult from './components/AnalysisResult';
 import TranslationSection from './components/TranslationSection';
 import SettingsModal from './components/SettingsModal';
 import Header from './components/Header';
@@ -11,7 +10,7 @@ import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import ReasoningStream from './components/ReasoningStream';
-import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
+import WordDetailPanel from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
 import { trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import {
@@ -40,6 +39,7 @@ export default function Home() {
   const [translationTrigger, setTranslationTrigger] = useState(0);
   const [showFurigana, setShowFurigana] = useState(true);
   const [showRomaji, setShowRomaji] = useState(false);
+  const [showPosColors, setShowPosColors] = useState(false);
 
   // API设置相关状态
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -300,9 +300,6 @@ export default function Home() {
     }
   }, [streamContent, isAnalyzing]);
 
-  // 添加函数，检查是否显示分析器
-  const shouldShowAnalyzer = (): boolean => analyzedTokens.length > 0;
-
   const handleCloseWordDetail = useCallback(() => {
     setSelectedIndex(null);
     clearWordDetail();
@@ -476,16 +473,44 @@ export default function Home() {
 
   const handleCancelAnalysis = () => {
     const controller = analysisAbortControllerRef.current;
-    if (!controller || controller.signal.aborted) return;
-
     analysisAbortControllerRef.current = null;
-    controller.abort();
+    if (controller && !controller.signal.aborted) controller.abort();
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;
+    reasoningTextStore.reset();
+    hasDeepseekReasoningRef.current = false;
+    setHasDeepseekReasoning(false);
     setIsAnalyzing(false);
     setAnalysisError('');
-    setDeepseekReasoningCompletionLabel('已终止思考');
+    setCurrentSentence('');
+    setTranslationTrigger(0);
+    setStreamContent('');
+    setAnalyzedTokens([]);
+    setDeepseekReasoningSummaryHistory([]);
+    setDeepseekReasoningCompletionLabel('已深度思考');
     setDeepseekReasoningDone(true);
+    handleCloseWordDetail();
+  };
+
+  const handleResetAnalysis = () => {
+    const controller = analysisAbortControllerRef.current;
+    analysisAbortControllerRef.current = null;
+    if (controller && !controller.signal.aborted) controller.abort();
+    reasoningSummaryControllerRef.current?.cancel();
+    reasoningSummaryControllerRef.current = null;
+    reasoningTextStore.reset();
+    hasDeepseekReasoningRef.current = false;
+    setHasDeepseekReasoning(false);
+    setIsAnalyzing(false);
+    setAnalysisError('');
+    setCurrentSentence('');
+    setTranslationTrigger(0);
+    setStreamContent('');
+    setAnalyzedTokens([]);
+    setDeepseekReasoningDone(true);
+    setDeepseekReasoningSummaryHistory([]);
+    setDeepseekReasoningCompletionLabel('已深度思考');
+    handleCloseWordDetail();
   };
 
   const hasWordDetail = selectedIndex !== null
@@ -535,7 +560,7 @@ export default function Home() {
           onSettingsClick={() => setIsSettingsModalOpen(true)}
         />
 
-        <main className="paper-main mx-auto grid w-full max-w-[1480px] flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <main className={`paper-main mx-auto grid w-full flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 ${isDesktop && hasWordDetail ? 'max-w-[1280px] lg:grid-cols-[minmax(0,1fr)_360px]' : 'max-w-[972px]'}`}>
           {/* 主列 */}
           <div className="flex min-w-0 flex-col gap-[22px]">
             <InputSection
@@ -548,6 +573,16 @@ export default function Home() {
               ttsProvider={ttsProvider}
               onTtsProviderChange={handleTtsProviderChange}
               isAnalyzing={isAnalyzing}
+              analyzedTokens={analyzedTokens}
+              showFurigana={showFurigana}
+              onShowFuriganaChange={setShowFurigana}
+              showRomaji={showRomaji}
+              onShowRomajiChange={setShowRomaji}
+              showPosColors={showPosColors}
+              onShowPosColorsChange={setShowPosColors}
+              onWordClick={handleWordClick}
+              selectedIndex={selectedIndex}
+              onResetAnalysis={handleResetAnalysis}
             />
 
             {aiProvider === 'deepseek'
@@ -590,19 +625,7 @@ export default function Home() {
               </div>
             )}
 
-            {shouldShowAnalyzer() && (
-              <AnalysisResult
-                tokens={analyzedTokens}
-                showFurigana={showFurigana}
-                onShowFuriganaChange={setShowFurigana}
-                showRomaji={showRomaji}
-                onShowRomajiChange={setShowRomaji}
-                onWordClick={handleWordClick}
-                selectedIndex={selectedIndex}
-              />
-            )}
-
-            {currentSentence && (
+            {currentSentence && !isAnalyzing && analyzedTokens.length > 0 && (
               <TranslationSection
                 japaneseText={currentSentence}
                 userApiKey={userApiKey}
@@ -615,9 +638,11 @@ export default function Home() {
           </div>
 
           {/* 侧栏：词汇详情（桌面端） */}
-          <aside className="sticky top-4 hidden flex-col gap-4 self-start lg:flex">
-            {isDesktop && hasWordDetail ? wordDetailPanel : <WordDetailPlaceholder />}
-          </aside>
+          {isDesktop && hasWordDetail && (
+            <aside className="sticky top-4 hidden flex-col gap-4 self-start lg:flex">
+              {wordDetailPanel}
+            </aside>
+          )}
         </main>
 
         <footer className="paper-footer">
