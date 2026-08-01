@@ -11,7 +11,14 @@ export async function POST(req: NextRequest) {
     // 解析请求体
     const requestData = await req.json();
 
-    const { prompt, model, apiUrl, stream = false, provider } = requestData;
+    const {
+      prompt,
+      model,
+      apiUrl,
+      stream = false,
+      provider,
+      thinkingEnabled = false,
+    } = requestData;
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
     
     if (!providerConfig.apiKey) {
@@ -33,12 +40,16 @@ export async function POST(req: NextRequest) {
       model: providerConfig.model,
       messages: [{ role: "user", content: prompt }],
       stream: stream,
-    }, { structuredOutput: 'analysisTokens' });
+    }, {
+      structuredOutput: 'analysisTokens',
+      enableThinking: thinkingEnabled === true,
+    });
 
     const proxied = await proxyOpenAICompatibleRequest({
       url: providerConfig.apiUrl,
       apiKey: providerConfig.apiKey,
       payload,
+      signal: req.signal,
     });
 
     if (!proxied.ok) {
@@ -81,6 +92,10 @@ export async function POST(req: NextRequest) {
         { error: { message: error.message } },
         { status: error.status }
       );
+    }
+
+    if (req.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      return new Response(null, { status: 499 });
     }
 
     console.error('Server error:', error);

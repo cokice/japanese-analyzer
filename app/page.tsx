@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import InputSection from './components/InputSection';
 import AnalysisResult from './components/AnalysisResult';
@@ -10,6 +10,7 @@ import Header from './components/Header';
 import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
 import ThinkingIndicator from './components/ThinkingIndicator';
+import ReasoningStream from './components/ReasoningStream';
 import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
 import { trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
@@ -23,8 +24,11 @@ import {
   getModelName,
   loadAISettingsFromStorage,
   parseAnalyzeResponseContent,
+  summarizeDeepSeekReasoningProgress,
   streamAnalyzeSentence
 } from './services/api';
+import { ReasoningSummaryController } from './utils/reasoningSummary';
+import { ReasoningTextStore } from './utils/reasoningTextStore';
 
 export default function Home() {
   const [currentSentence, setCurrentSentence] = useState('');
@@ -43,6 +47,19 @@ export default function Home() {
   const [aiModel, setAiModel] = useState<AIModelName>(getModelName(DEFAULT_AI_PROVIDER));
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [deepseekApiKey, setDeepseekApiKey] = useState('');
+  const [deepseekThinkingEnabled, setDeepseekThinkingEnabled] = useState(false);
+  const [hasDeepseekReasoning, setHasDeepseekReasoning] = useState(false);
+  const hasDeepseekReasoningRef = useRef(false);
+  const reasoningTextStoreRef = useRef<ReasoningTextStore | null>(null);
+  if (reasoningTextStoreRef.current === null) {
+    reasoningTextStoreRef.current = new ReasoningTextStore();
+  }
+  const reasoningTextStore = reasoningTextStoreRef.current;
+  const [deepseekReasoningDone, setDeepseekReasoningDone] = useState(true);
+  const [deepseekReasoningSummaryHistory, setDeepseekReasoningSummaryHistory] = useState<string[]>([]);
+  const [deepseekReasoningCompletionLabel, setDeepseekReasoningCompletionLabel] = useState('已深度思考');
+  const reasoningSummaryControllerRef = useRef<ReasoningSummaryController | null>(null);
+  const analysisAbortControllerRef = useRef<AbortController | null>(null);
   const [ttsProvider, setTtsProvider] = useState<TTSProvider>('edge');
 
   // 密码验证相关状态
@@ -72,6 +89,11 @@ export default function Home() {
     update();
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => () => {
+    analysisAbortControllerRef.current?.abort();
+    reasoningSummaryControllerRef.current?.cancel();
   }, []);
 
   // 检查是否需要密码验证
@@ -110,6 +132,7 @@ export default function Home() {
     setAiModel(storedAISettings.aiModel);
     setGeminiApiKey(storedAISettings.geminiApiKey);
     setDeepseekApiKey(storedAISettings.deepseekApiKey);
+    setDeepseekThinkingEnabled(storedAISettings.deepseekThinkingEnabled);
     setTtsProvider(storedTtsProvider);
 
     // 只有当明确设置了值时才更新，否则保持默认值
@@ -124,12 +147,14 @@ export default function Home() {
     aiModel: AIModelName;
     geminiApiKey: string;
     deepseekApiKey: string;
+    deepseekThinkingEnabled: boolean;
     useStream: boolean;
   }) => {
     localStorage.setItem('aiProvider', settings.aiProvider);
     localStorage.setItem('aiModel', settings.aiModel);
     localStorage.setItem('geminiApiKey', settings.geminiApiKey);
     localStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
+    localStorage.setItem('deepseekThinkingEnabled', settings.deepseekThinkingEnabled.toString());
     localStorage.setItem('useStream', settings.useStream.toString());
     localStorage.removeItem('geminiApiUrl');
     localStorage.removeItem('deepseekApiUrl');
@@ -142,7 +167,16 @@ export default function Home() {
     setAiModel(settings.aiModel);
     setGeminiApiKey(settings.geminiApiKey);
     setDeepseekApiKey(settings.deepseekApiKey);
+    setDeepseekThinkingEnabled(settings.deepseekThinkingEnabled);
     setUseStream(settings.useStream);
+    reasoningTextStore.reset();
+    hasDeepseekReasoningRef.current = false;
+    setHasDeepseekReasoning(false);
+    setDeepseekReasoningDone(true);
+    setDeepseekReasoningSummaryHistory([]);
+    setDeepseekReasoningCompletionLabel('已深度思考');
+    reasoningSummaryControllerRef.current?.cancel();
+    reasoningSummaryControllerRef.current = null;
   };
 
   const handleTtsProviderChange = (provider: TTSProvider) => {
@@ -304,6 +338,14 @@ export default function Home() {
   const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
     if (!text.trim()) return;
 
+    analysisAbortControllerRef.current?.abort();
+    const analysisAbortController = new AbortController();
+    analysisAbortControllerRef.current = analysisAbortController;
+    const isCurrentAnalysis = () => (
+      analysisAbortControllerRef.current === analysisAbortController
+      && !analysisAbortController.signal.aborted
+    );
+
     trackAnalyzeUsage(aiProvider, usage, aiModel);
     setIsAnalyzing(true);
     setAnalysisError('');
@@ -311,7 +353,65 @@ export default function Home() {
     setTranslationTrigger(Date.now());
     setStreamContent('');
     setAnalyzedTokens([]);
+    const deepseekThinkingActive = aiProvider === 'deepseek' && deepseekThinkingEnabled;
+    reasoningTextStore.reset();
+    hasDeepseekReasoningRef.current = false;
+    setHasDeepseekReasoning(false);
+    setDeepseekReasoningDone(!deepseekThinkingActive);
+    setDeepseekReasoningSummaryHistory([]);
+    setDeepseekReasoningCompletionLabel('已深度思考');
+    reasoningSummaryControllerRef.current?.cancel();
+    const reasoningSummaryController = deepseekThinkingActive
+      ? new ReasoningSummaryController({
+          requestSummary: ({ reasoningSnippet, signal }) => (
+            summarizeDeepSeekReasoningProgress({
+              reasoningSnippet,
+              userApiKey,
+              signal,
+            })
+          ),
+          onSummary: (summary) => {
+            if (!isCurrentAnalysis()) return;
+            setDeepseekReasoningSummaryHistory((current) => [...current, summary]);
+          },
+          onError: (error) => {
+            console.warn('DeepSeek reasoning summary skipped:', error);
+          },
+        })
+      : null;
+    reasoningSummaryControllerRef.current = reasoningSummaryController;
+    if (reasoningSummaryController) {
+      reasoningSummaryController.start();
+    }
+    let reasoningStatusEnded = !deepseekThinkingActive;
+    const finishReasoningStatus = (summary: string) => {
+      if (!isCurrentAnalysis() || reasoningStatusEnded || !deepseekThinkingActive) return;
+      reasoningStatusEnded = true;
+      reasoningSummaryController?.finish();
+      if (reasoningSummaryControllerRef.current !== reasoningSummaryController) return;
+      setDeepseekReasoningCompletionLabel(summary);
+      setDeepseekReasoningDone(true);
+    };
     handleCloseWordDetail();
+
+    const reasoningOptions = {
+      deepseekThinkingEnabled: deepseekThinkingActive,
+      signal: analysisAbortController.signal,
+      onReasoning: (reasoningText: string) => {
+        if (!isCurrentAnalysis()) return;
+        if (!reasoningStatusEnded) {
+          reasoningSummaryController?.ingest(reasoningText);
+        }
+        reasoningTextStore.setText(reasoningText);
+        if (reasoningText && !hasDeepseekReasoningRef.current) {
+          hasDeepseekReasoningRef.current = true;
+          setHasDeepseekReasoning(true);
+        }
+      },
+      onContentStart: () => {
+        if (isCurrentAnalysis()) finishReasoningStatus('已深度思考');
+      },
+    };
 
     try {
       if (useStream) {
@@ -319,9 +419,12 @@ export default function Home() {
         streamAnalyzeSentence(
           text,
           (chunk, isDone) => {
+            if (!isCurrentAnalysis()) return;
             setStreamContent(chunk);
             if (isDone) {
+              finishReasoningStatus('已深度思考');
               setIsAnalyzing(false);
+              analysisAbortControllerRef.current = null;
               try {
                 setAnalyzedTokens(parseAnalyzeResponseContent(chunk));
               } catch (error) {
@@ -331,26 +434,58 @@ export default function Home() {
             }
           },
           (error) => {
+            if (!isCurrentAnalysis()) return;
+            finishReasoningStatus('深度思考已中止');
             console.error('Stream analysis error:', error);
             setAnalysisError(error.message || '流式解析错误');
+            setStreamContent('');
+            setAnalyzedTokens([]);
             setIsAnalyzing(false);
+            analysisAbortControllerRef.current = null;
           },
           userApiKey,
           aiProvider,
-          aiModel
+          aiModel,
+          reasoningOptions
         );
       } else {
         // 使用传统API进行分析
-        const tokens = await analyzeSentence(text, userApiKey, aiProvider, aiModel);
+        const tokens = await analyzeSentence(
+          text,
+          userApiKey,
+          aiProvider,
+          aiModel,
+          reasoningOptions
+        );
+        if (!isCurrentAnalysis()) return;
         setAnalyzedTokens(tokens);
+        finishReasoningStatus('已深度思考');
         setIsAnalyzing(false);
+        analysisAbortControllerRef.current = null;
       }
     } catch (error) {
+      if (!isCurrentAnalysis()) return;
+      finishReasoningStatus('深度思考已中止');
       console.error('Analysis error:', error);
       setAnalysisError(error instanceof Error ? error.message : '未知错误');
       setAnalyzedTokens([]);
       setIsAnalyzing(false);
+      analysisAbortControllerRef.current = null;
     }
+  };
+
+  const handleCancelAnalysis = () => {
+    const controller = analysisAbortControllerRef.current;
+    if (!controller || controller.signal.aborted) return;
+
+    analysisAbortControllerRef.current = null;
+    controller.abort();
+    reasoningSummaryControllerRef.current?.cancel();
+    reasoningSummaryControllerRef.current = null;
+    setIsAnalyzing(false);
+    setAnalysisError('');
+    setDeepseekReasoningCompletionLabel('已终止思考');
+    setDeepseekReasoningDone(true);
   };
 
   const hasWordDetail = selectedIndex !== null
@@ -405,6 +540,7 @@ export default function Home() {
           <div className="flex min-w-0 flex-col gap-[22px]">
             <InputSection
               onAnalyze={handleAnalyze}
+              onCancelAnalyze={handleCancelAnalysis}
               userApiKey={userApiKey}
               aiProvider={aiProvider}
               geminiApiKey={geminiApiKey}
@@ -414,7 +550,20 @@ export default function Home() {
               isAnalyzing={isAnalyzing}
             />
 
-            {isAnalyzing && (!analyzedTokens.length || !useStream) && (
+            {aiProvider === 'deepseek'
+              && deepseekThinkingEnabled
+              && (isAnalyzing || hasDeepseekReasoning) && (
+                <ReasoningStream
+                  store={reasoningTextStore}
+                  done={deepseekReasoningDone}
+                  summaryHistory={deepseekReasoningSummaryHistory}
+                  completionLabel={deepseekReasoningCompletionLabel}
+                />
+              )}
+
+            {isAnalyzing
+              && (!analyzedTokens.length || !useStream)
+              && !(aiProvider === 'deepseek' && deepseekThinkingEnabled) && (
               <div className="nd-card">
                 <ThinkingIndicator className="py-6" />
               </div>
@@ -481,6 +630,7 @@ export default function Home() {
           aiModel={aiModel}
           geminiApiKey={geminiApiKey}
           deepseekApiKey={deepseekApiKey}
+          deepseekThinkingEnabled={deepseekThinkingEnabled}
           useStream={useStream}
           onSaveSettings={handleSaveSettings}
           isModalOpen={isSettingsModalOpen}

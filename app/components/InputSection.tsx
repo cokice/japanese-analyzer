@@ -17,6 +17,7 @@ import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-m
 
 interface InputSectionProps {
   onAnalyze: (text: string, usage?: AnalyzeUsageMetadata) => void;
+  onCancelAnalyze: () => void;
   userApiKey?: string;
   aiProvider: AIProvider;
   geminiApiKey?: string;
@@ -61,6 +62,7 @@ const FIRST_VISIT_EXAMPLE = '天気がいいから、散歩しましょう';
 
 export default function InputSection({
   onAnalyze,
+  onCancelAnalyze,
   userApiKey,
   aiProvider,
   geminiApiKey,
@@ -84,6 +86,8 @@ export default function InputSection({
   const [submitState, setSubmitState] = useState<StateMorphButtonState>('idle');
   const [showFirstVisitExample, setShowFirstVisitExample] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const japaneseInputRef = useRef<HTMLTextAreaElement>(null);
+  const inputShimmerFrameRef = useRef<HTMLDivElement>(null);
   const submitStartedRef = useRef(false);
   const wasAnalyzingRef = useRef(false);
   const submitResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -231,6 +235,17 @@ export default function InputSection({
   const handleAnalyze = () => {
     setShowFirstVisitExample(false);
     startAnalysis(inputText, getCurrentUsageMetadata());
+  };
+
+  const handleCancelAnalyze = () => {
+    if (submitResetTimerRef.current) {
+      clearTimeout(submitResetTimerRef.current);
+      submitResetTimerRef.current = null;
+    }
+    submitStartedRef.current = false;
+    wasAnalyzingRef.current = false;
+    setSubmitState('idle');
+    onCancelAnalyze();
   };
 
   const handleSpeak = async () => {
@@ -461,6 +476,17 @@ export default function InputSection({
   };
   const showInputShimmer = isLoading && inputText.trim().length > 0;
 
+  useEffect(() => {
+    if (!showInputShimmer) return;
+
+    const input = japaneseInputRef.current;
+    const shimmerFrame = inputShimmerFrameRef.current;
+    if (!input || !shimmerFrame) return;
+
+    shimmerFrame.scrollTop = input.scrollTop;
+    shimmerFrame.scrollLeft = input.scrollLeft;
+  }, [inputText, showInputShimmer]);
+
   return (
     <div className="w-full">
       <section className="nd-card">
@@ -472,12 +498,19 @@ export default function InputSection({
           )}
           <textarea
             id="japaneseInput"
+            ref={japaneseInputRef}
             lang="ja"
             className={`jp w-full resize-none border-none bg-transparent outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''} ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
             rows={5}
             placeholder="输入日语句子"
             value={inputText}
             onChange={(e) => handleInputTextChange(e.target.value)}
+            onScroll={(event) => {
+              const shimmerFrame = inputShimmerFrameRef.current;
+              if (!shimmerFrame) return;
+              shimmerFrame.scrollTop = event.currentTarget.scrollTop;
+              shimmerFrame.scrollLeft = event.currentTarget.scrollLeft;
+            }}
             onPaste={handlePaste}
             style={inputTextStyle}
             aria-describedby={showFirstVisitExample ? 'firstVisitExampleHint' : undefined}
@@ -492,11 +525,16 @@ export default function InputSection({
             </div>
           )}
           {showInputShimmer && (
-            <div className="input-text-shimmer-layer-frame" aria-hidden="true" lang="ja">
+            <div
+              ref={inputShimmerFrameRef}
+              className="input-text-shimmer-layer-frame"
+              aria-hidden="true"
+              lang="ja"
+            >
               <TextShimmer
                 as="div"
                 className="input-text-shimmer-layer jp"
-                duration={1.35}
+                duration={2.2}
                 spread={1.4}
               >
                 {inputText}
@@ -684,8 +722,8 @@ export default function InputSection({
           {/* 解析按钮 */}
           <StateMorphButton
             id="analyzeButton"
-            onClick={handleAnalyze}
-            disabled={isLoading}
+            onClick={isLoading ? handleCancelAnalyze : handleAnalyze}
+            disabled={!isLoading && !inputText.trim()}
             state={submitState}
             className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
           />

@@ -30,6 +30,10 @@ export function normalizeEscapedLineBreaks(text: string) {
     .replace(/\\r/g, '\n');
 }
 
+export function stripReasoningBoldMarkdown(text: string) {
+  return text.replace(/\*\*/g, '').replace(/__/g, '');
+}
+
 const MARKDOWN_HIGHLIGHT_SEPARATOR = '\u200b';
 
 export function highlightMarkedTextForMarkdown(text: string) {

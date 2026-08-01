@@ -1,4 +1,9 @@
-import { createUpstreamSignal, isUpstreamTimeoutError } from './requestTimeout';
+import {
+  UPSTREAM_STREAM_IDLE_TIMEOUT_MS,
+  createUpstreamSignal,
+  createUpstreamTimeoutController,
+  isUpstreamTimeoutError,
+} from './requestTimeout';
 
 type ParsedUpstreamError = {
   message: string;
@@ -45,10 +50,90 @@ async function parseUpstreamError(response: Response): Promise<ParsedUpstreamErr
   }
 }
 
+export function wrapStreamingResponseWithIdleTimeout(
+  response: Response,
+  upstreamController: AbortController,
+  idleTimeoutMs = UPSTREAM_STREAM_IDLE_TIMEOUT_MS
+): Response {
+  if (!response.body) return response;
+
+  const reader = response.body.getReader();
+  const encoder = new TextEncoder();
+  let idleTimeout: ReturnType<typeof setTimeout> | null = null;
+  let finished = false;
+
+  const clearIdleTimeout = () => {
+    if (idleTimeout) {
+      clearTimeout(idleTimeout);
+      idleTimeout = null;
+    }
+  };
+
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const resetIdleTimeout = () => {
+        clearIdleTimeout();
+        idleTimeout = setTimeout(() => {
+          if (finished) return;
+          finished = true;
+          const error = new DOMException('上游流式响应长时间没有返回数据', 'TimeoutError');
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ error: { message: '上游流式响应空闲超时，请重试。' } })}\n\n`
+          ));
+          controller.close();
+          upstreamController.abort(error);
+          void reader.cancel(error).catch(() => undefined);
+        }, idleTimeoutMs);
+      };
+
+      const pump = async () => {
+        resetIdleTimeout();
+        try {
+          while (!finished) {
+            const { value, done } = await reader.read();
+            if (done) {
+              finished = true;
+              clearIdleTimeout();
+              controller.close();
+              return;
+            }
+
+            resetIdleTimeout();
+            controller.enqueue(value);
+          }
+        } catch (error) {
+          clearIdleTimeout();
+          if (!finished) {
+            finished = true;
+            controller.error(error);
+          }
+        }
+      };
+
+      void pump();
+    },
+    async cancel(reason) {
+      finished = true;
+      clearIdleTimeout();
+      if (!upstreamController.signal.aborted) {
+        upstreamController.abort(reason);
+      }
+      await reader.cancel(reason).catch(() => undefined);
+    },
+  });
+
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
 export async function proxyOpenAICompatibleRequest(options: {
   url: string;
   apiKey: string;
   payload: Record<string, unknown>;
+  signal?: AbortSignal;
 }): Promise<
   | { ok: true; response: Response }
   | { ok: false; status: number; error: ParsedUpstreamError }
@@ -57,6 +142,14 @@ export async function proxyOpenAICompatibleRequest(options: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${options.apiKey}`,
   };
+  const isStreamingRequest = options.payload.stream === true;
+  const streamConnectionTimeout = isStreamingRequest
+    ? createUpstreamTimeoutController()
+    : null;
+  const timeoutSignal = streamConnectionTimeout?.controller.signal ?? createUpstreamSignal();
+  const upstreamSignal = options.signal && timeoutSignal
+    ? AbortSignal.any([options.signal, timeoutSignal])
+    : options.signal ?? timeoutSignal;
 
   let response: Response;
   try {
@@ -64,7 +157,7 @@ export async function proxyOpenAICompatibleRequest(options: {
       method: 'POST',
       headers,
       body: JSON.stringify(options.payload),
-      signal: createUpstreamSignal(),
+      signal: upstreamSignal,
     });
   } catch (error) {
     if (isUpstreamTimeoutError(error)) {
@@ -76,9 +169,18 @@ export async function proxyOpenAICompatibleRequest(options: {
     }
 
     throw error;
+  } finally {
+    streamConnectionTimeout?.clear();
   }
 
-  if (response.ok) return { ok: true, response };
+  if (response.ok) {
+    return {
+      ok: true,
+      response: streamConnectionTimeout
+        ? wrapStreamingResponseWithIdleTimeout(response, streamConnectionTimeout.controller)
+        : response,
+    };
+  }
 
   const upstreamError = await parseUpstreamError(response);
   return { ok: false, status: response.status, error: upstreamError };

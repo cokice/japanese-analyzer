@@ -149,17 +149,23 @@ export function getStructuredResponseFormat(
 export function withProviderControls(
   provider: AIProvider,
   payload: Record<string, unknown>,
-  options: { structuredOutput?: StructuredOutputKind } = {}
+  options: {
+    structuredOutput?: StructuredOutputKind;
+    enableThinking?: boolean;
+  } = {}
 ): Record<string, unknown> {
   const responseFormat = options.structuredOutput
     ? { response_format: getStructuredResponseFormat(provider, options.structuredOutput) }
     : {};
 
   if (provider === 'deepseek') {
+    const thinkingEnabled = options.enableThinking === true;
+
     return {
       ...payload,
       ...responseFormat,
-      thinking: { type: 'disabled' },
+      thinking: { type: thinkingEnabled ? 'enabled' : 'disabled' },
+      ...(thinkingEnabled ? { reasoning_effort: 'high' } : {}),
     };
   }
 
