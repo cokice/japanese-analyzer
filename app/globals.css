@@ -865,94 +865,181 @@ input, textarea {
 
 /* AI 思考指示器 */
 .ai-thinking-indicator {
-  min-height: 50px;
   display: flex;
+  min-width: 0;
+  min-height: 50px;
   align-items: center;
-  justify-content: center;
-  color: var(--ink-3);
-  font-size: 13px;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink3);
+  font-size: 12.5px;
 }
 
 /* DeepSeek 动态思考摘要与完整思维流 */
 
 .reasoning-summary-viewport {
   position: relative;
-  display: block;
+  display: flex;
   min-width: 0;
   width: 100%;
-  max-height: 90px;
+  align-items: flex-end;
+  gap: 10px;
   overflow: hidden;
 }
 
-.reasoning-summary-viewport.is-done {
-  max-height: 19px;
+.reasoning-state-icon {
+  display: block;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin-bottom: 2px;
+  transform-origin: center;
+}
+
+.reasoning-state-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.reasoning-state-ring,
+.reasoning-state-tick {
+  fill: none;
+  stroke: var(--shu);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.reasoning-state-ring {
+  stroke-dasharray: 42 14.5;
+  transform-origin: center;
+}
+
+.reasoning-state-icon.is-active .reasoning-state-ring {
+  animation: reasoning-ring-spin 0.9s linear infinite;
+}
+
+.reasoning-state-tick {
+  stroke-linejoin: round;
+  stroke-dasharray: 17;
+  stroke-dashoffset: 17;
+}
+
+.reasoning-state-icon.is-finishing .reasoning-state-ring {
+  animation:
+    reasoning-ring-last-spin 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+    reasoning-ring-close 0.35s ease-out 0.3s forwards;
+}
+
+.reasoning-state-icon.is-finishing .reasoning-state-tick {
+  animation: reasoning-tick-draw 0.32s cubic-bezier(0.3, 1.2, 0.5, 1) 0.62s forwards;
+}
+
+.reasoning-state-icon.is-finishing {
+  animation: reasoning-icon-pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1) 0.78s;
+}
+
+@keyframes reasoning-ring-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes reasoning-ring-last-spin {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes reasoning-ring-close {
+  to { stroke-dasharray: 56.6 0; }
+}
+
+@keyframes reasoning-tick-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes reasoning-icon-pop {
+  40% { transform: scale(1.22); }
+}
+
+.reasoning-summary-state-copy {
+  position: relative;
+  min-width: 0;
+  flex: 1;
 }
 
 .reasoning-summary-stack {
   position: relative;
-  display: grid;
+  display: flex;
   min-width: 0;
-  padding-bottom: 6px;
-  grid-auto-rows: 20px;
-  gap: 4px;
+  min-height: 58px;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
 }
 
 .reasoning-summary-entry {
   position: relative;
-  height: 20px;
-  min-width: 0;
-}
-
-.reasoning-summary-entry-visual {
   display: grid;
-  height: 20px;
+  height: 19px;
   min-width: 0;
   align-items: center;
   grid-template-columns: 14px minmax(0, 1fr);
-  gap: 4px;
-  color: var(--ink-2);
-  transition: color 300ms ease-out;
-  will-change: transform, color;
+  gap: 7px;
+  color: var(--ink2);
+  transform-origin: left center;
 }
 
-.reasoning-summary-entry.is-previous .reasoning-summary-entry-visual {
-  color: color-mix(in oklab, var(--ink-3) 58%, var(--bg-2));
+.reasoning-summary-entry + .reasoning-summary-entry {
+  margin-top: 2px;
+}
+
+.reasoning-summary-entry.is-current {
+  margin-top: 7px;
+}
+
+.reasoning-summary-entry.is-previous {
+  color: color-mix(in oklab, var(--ink3) 68%, var(--paper));
 }
 
 .reasoning-summary-icon-slot {
   position: relative;
   display: grid;
-  width: 14px;
-  height: 20px;
+  width: 11px;
+  height: 19px;
   place-items: center;
 }
 
-.reasoning-summary-check {
-  display: grid;
-  width: 14px;
-  height: 20px;
-  place-items: center;
-  color: color-mix(in oklab, var(--pos-v) 36%, var(--ink-3));
-  font-size: 11px;
-  font-weight: 450;
-  line-height: 20px;
+.reasoning-summary-current-dot {
+  width: 4.5px;
+  height: 4.5px;
+  border-radius: 50%;
+  background: var(--shu);
+  animation: reasoning-current-pulse 1.4s ease-in-out infinite;
 }
 
-.reasoning-summary-current-indicator {
-  display: grid;
-  width: 14px;
-  height: 20px;
-  place-items: center;
+.reasoning-summary-mini-tick {
+  display: block;
+  width: 11px;
+  height: 11px;
 }
 
-.reasoning-summary-current-indicator::before {
-  width: 8px;
-  height: 8px;
-  border: 1.5px solid color-mix(in oklab, var(--primary) 24%, var(--line-2));
-  border-top-color: var(--primary);
-  border-radius: 999px;
-  content: "";
-  animation: reasoning-summary-loader-spin 0.9s linear infinite;
+.reasoning-summary-mini-tick path {
+  fill: none;
+  stroke: var(--green-ok);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 17;
+  stroke-dashoffset: 17;
+  animation: reasoning-tick-draw 0.3s ease-out 0.05s forwards;
+}
+
+@keyframes reasoning-current-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
 }
 
 .reasoning-summary-copy-motion {
@@ -970,9 +1057,9 @@ input, textarea {
   overflow: hidden;
   color: inherit;
   font-family: var(--font-ui);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 19px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -984,41 +1071,56 @@ input, textarea {
 .reasoning-summary-copy.is-thinking {
   color: transparent;
   background: linear-gradient(
-    100deg,
-    var(--ink-2) 5%,
-    var(--ink-2) 30%,
-    color-mix(in oklab, var(--primary) 58%, var(--ink)) 43%,
-    var(--primary) 50%,
-    color-mix(in oklab, var(--primary) 58%, var(--ink)) 57%,
-    var(--ink-2) 70%,
-    var(--ink-2) 95%
+    90deg,
+    #57534a 35%,
+    #b8ab90 50%,
+    #57534a 65%
   );
-  background-size: 260% 100%;
+  background-size: 250% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent !important;
-  animation: reasoning-summary-shimmer 1.9s linear infinite;
-}
-
-@keyframes reasoning-summary-loader-spin {
-  to { transform: rotate(360deg); }
+  animation: reasoning-summary-shimmer 2.2s linear infinite;
 }
 
 .reasoning-summary-done {
-  display: block;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
   overflow: hidden;
-  color: var(--ink-3);
+  color: var(--ink3);
   font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 12.5px;
+  font-weight: 400;
   line-height: 19px;
+  opacity: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.reasoning-summary-viewport.is-done .reasoning-summary-stack {
+  min-height: 19px;
+  height: 19px;
+  animation: reasoning-stack-archive 0.18s ease 0.98s forwards;
+}
+
+.reasoning-summary-viewport.is-done .reasoning-summary-done {
+  animation: reasoning-archive-in 0.2s ease 1.08s forwards;
+}
+
+@keyframes reasoning-stack-archive {
+  to { opacity: 0; filter: blur(3px); transform: translateY(-3px); }
+}
+
+@keyframes reasoning-archive-in {
+  from { opacity: 0; filter: blur(3px); transform: translateY(3px); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+
 @keyframes reasoning-summary-shimmer {
-  from { background-position: 160% 0; }
-  to { background-position: -120% 0; }
+  from { background-position: 200% 0; }
+  to { background-position: -50% 0; }
 }
 
 .reasoning-stream-card {
@@ -1030,7 +1132,9 @@ input, textarea {
   --reasoning-archive-divider: var(--rule);
   --reasoning-archive-heading: var(--ink3);
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
   border-radius: 0;
   background: transparent;
 }
@@ -1046,33 +1150,38 @@ input, textarea {
 }
 
 .reasoning-stream-card.is-review-expanded {
-  background: var(--reasoning-archive-bg);
+  background: transparent;
 }
 
 .reasoning-stream-header {
   display: flex;
   width: 100%;
-  min-height: 42px;
+  min-height: 37px;
   align-items: flex-end;
-  gap: 9px;
-  padding: 14px 15px;
+  gap: 10px;
+  padding: 9px 0;
   border: 0;
   background: transparent;
-  color: var(--ink-3);
-  cursor: pointer;
+  color: var(--ink3);
+  cursor: default;
   text-align: left;
   -webkit-tap-highlight-color: transparent;
 }
 
-.reasoning-stream-header:hover .reasoning-stream-title {
-  color: var(--ink-2);
+.reasoning-stream-header.is-archived {
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.reasoning-stream-header.is-archived:hover .reasoning-summary-done {
+  color: var(--ink2);
 }
 
 .reasoning-stream-title {
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  transition: color 0.18s ease;
 }
 
 .reasoning-stream-elapsed {
@@ -1080,7 +1189,8 @@ input, textarea {
   height: 20px;
   flex: 0 0 auto;
   align-items: center;
-  color: var(--ink-3);
+  margin-bottom: 2px;
+  color: var(--ink3);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
@@ -1097,8 +1207,8 @@ input, textarea {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.5;
-  color: var(--primary);
-  margin-bottom: 2px;
+  color: var(--ink3);
+  margin-bottom: 0;
   transition: transform 0.18s ease;
 }
 
@@ -1107,13 +1217,17 @@ input, textarea {
 }
 
 .reasoning-stream-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  display: none;
 }
 
 .reasoning-stream-collapse.is-expanded {
-  grid-template-rows: 1fr;
+  display: block;
+  animation: reasoning-detail-in 0.25s ease both;
+}
+
+@keyframes reasoning-detail-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .reasoning-stream-collapse-inner {
@@ -1132,15 +1246,17 @@ input, textarea {
 }
 
 .reasoning-archive-summary {
-  padding: 10px 15px 11px;
+  margin: -1px 0 0;
+  padding: 8px 0 11px 22px;
+  border-top: 1px dashed var(--rule);
 }
 
 .reasoning-archive-process.is-review {
-  padding: 10px 15px 14px;
+  padding: 10px 0 12px 22px;
 }
 
 .reasoning-stream-expanded-content.has-summary-history .reasoning-archive-process.is-review {
-  border-top: 1px solid var(--reasoning-archive-divider);
+  border-top: 1px dashed var(--reasoning-archive-divider);
 }
 
 .reasoning-archive-heading {
@@ -1148,7 +1264,7 @@ input, textarea {
   color: var(--reasoning-archive-heading);
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.12em;
   line-height: 1.4;
 }
 
@@ -1158,7 +1274,7 @@ input, textarea {
   padding: 0;
   overflow: visible;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -1173,15 +1289,20 @@ input, textarea {
 .reasoning-summary-history-item {
   display: grid;
   min-width: 0;
-  grid-template-columns: 14px minmax(0, 1fr);
-  gap: 3px;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 5px;
+  padding: 4px 0;
+}
+
+.reasoning-summary-history-item + .reasoning-summary-history-item {
+  border-top: 1px dashed color-mix(in oklab, var(--rule) 72%, transparent);
 }
 
 .reasoning-summary-history-check {
   color: var(--reasoning-archive-check);
   font-size: 11px;
   font-weight: 600;
-  line-height: 1.89;
+  line-height: 1.9;
 }
 
 .reasoning-stream-window {
@@ -1298,12 +1419,44 @@ input, textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reasoning-summary-copy.is-thinking {
-    animation: none;
+  .reasoning-state-icon,
+  .reasoning-state-ring,
+  .reasoning-state-tick,
+  .reasoning-summary-current-dot,
+  .reasoning-summary-mini-tick path,
+  .reasoning-summary-stack,
+  .reasoning-summary-done,
+  .reasoning-stream-collapse.is-expanded {
+    animation: none !important;
   }
 
-  .reasoning-summary-current-indicator::before {
+  .reasoning-state-icon.is-finishing .reasoning-state-ring {
+    stroke-dasharray: 56.6 0;
+  }
+
+  .reasoning-state-icon.is-finishing .reasoning-state-tick,
+  .reasoning-summary-mini-tick path {
+    stroke-dashoffset: 0;
+  }
+
+  .reasoning-summary-current-dot {
+    opacity: 1;
+    transform: none;
+  }
+
+  .reasoning-summary-copy.is-thinking {
     animation: none;
+    background: none;
+    color: var(--ink2);
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .reasoning-summary-viewport.is-done .reasoning-summary-stack {
+    opacity: 0;
+  }
+
+  .reasoning-summary-viewport.is-done .reasoning-summary-done {
+    opacity: 1;
   }
 
   .reasoning-stream-tail.is-streaming::after,
@@ -1314,10 +1467,10 @@ input, textarea {
 
 .ai-thinking-text {
   display: inline-block;
-  font-weight: 650;
+  font-weight: 500;
   letter-spacing: 0.02em;
-  --base-color: var(--ink-3);
-  --base-gradient-color: var(--primary);
+  --base-color: #57534a;
+  --base-gradient-color: #b8ab90;
 }
 
 .input-text-shimmer-source {

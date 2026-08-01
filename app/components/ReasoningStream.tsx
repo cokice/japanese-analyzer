@@ -120,7 +120,7 @@ export default function ReasoningStream({
     followTailRef.current = distanceFromBottom < SCROLL_BOTTOM_THRESHOLD;
   };
 
-  const doneText = `${completionLabel}（用时 ${elapsedSeconds} 秒）`;
+  const doneText = `${completionLabel} · 用時 ${elapsedSeconds} 秒`;
   const virtualItems = rowVirtualizer.getVirtualItems();
 
   return (
@@ -131,10 +131,11 @@ export default function ReasoningStream({
     >
       <button
         type="button"
-        className="reasoning-stream-header"
+        className={`reasoning-stream-header${done ? ' is-archived' : ' is-active'}`}
         aria-expanded={expanded}
         aria-controls="deepseek-reasoning-content"
-        onClick={handleToggle}
+        onClick={done ? handleToggle : undefined}
+        tabIndex={done ? 0 : -1}
       >
         <div className="reasoning-stream-title">
           <ReasoningSummaryStatus
@@ -151,13 +152,15 @@ export default function ReasoningStream({
             {elapsedSeconds} 秒
           </span>
         )}
-        <svg
-          className={`reasoning-stream-chevron${expanded ? ' is-expanded' : ''}`}
-          viewBox="0 0 16 16"
-          aria-hidden="true"
-        >
-          <path d="m4 6 4 4 4-4" />
-        </svg>
+        {done && (
+          <svg
+            className={`reasoning-stream-chevron${expanded ? ' is-expanded' : ''}`}
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+          >
+            <path d="m4 6 4 4 4-4" />
+          </svg>
+        )}
       </button>
 
       <div

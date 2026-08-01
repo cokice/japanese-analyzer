@@ -16,9 +16,9 @@ export default function ReasoningSummaryStatus({
   doneText,
 }: ReasoningSummaryStatusProps) {
   const reduceMotion = useReducedMotion();
-  const displaySummaries = summaries.length > 0 ? summaries : ['正在分析…'];
+  const displaySummaries = summaries.length > 0 ? summaries : ['正在連接模型…'];
   const visibleSummaries = displaySummaries.slice(-VISIBLE_SUMMARY_COUNT);
-  const currentSummary = visibleSummaries.at(-1) ?? '正在分析…';
+  const currentSummary = visibleSummaries.at(-1) ?? '正在連接模型…';
 
   return (
     <div
@@ -28,110 +28,70 @@ export default function ReasoningSummaryStatus({
       aria-atomic="false"
       title={done ? doneText : currentSummary}
     >
-      <AnimatePresence initial={false} mode="popLayout">
-        {done ? (
-          <motion.span
-            key="reasoning-complete"
-            className="reasoning-summary-done"
-            initial={reduceMotion ? false : { opacity: 0, filter: 'blur(6px)' }}
-            animate={{ opacity: 1, filter: 'blur(0px)' }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, filter: 'blur(6px)' }}
-            transition={reduceMotion
-              ? { duration: 0 }
-              : { duration: 0.45, ease: 'easeInOut' }}
-          >
-            {doneText}
-          </motion.span>
-        ) : (
-          <motion.div
-            key="reasoning-summary-stack"
-            className="reasoning-summary-stack"
-            initial={false}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, filter: 'blur(6px)' }}
-          >
-            <AnimatePresence initial={false} mode="popLayout">
-              {visibleSummaries.map((summary, index) => {
-                const isCurrent = index === visibleSummaries.length - 1;
-                return (
-                  <motion.div
-                    layout="position"
-                    key={summary}
-                    className={`reasoning-summary-entry${isCurrent ? ' is-current' : ' is-previous'}`}
-                    aria-hidden={!isCurrent}
-                    initial={false}
-                    animate={{ opacity: 1, filter: 'blur(0px)' }}
-                    exit={reduceMotion
-                      ? { opacity: 0 }
-                      : { opacity: 0, filter: 'blur(6px)', y: -10 }}
+      <span className={`reasoning-state-icon${done ? ' is-finishing' : ' is-active'}`} aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <circle className="reasoning-state-ring" cx="12" cy="12" r="9" />
+          <path className="reasoning-state-tick" d="M7.5 12.4 L10.8 15.6 L16.5 9.2" />
+        </svg>
+      </span>
+
+      <div className="reasoning-summary-state-copy">
+        <motion.div
+          className="reasoning-summary-stack"
+          aria-hidden={done}
+          initial={false}
+        >
+          <AnimatePresence initial={false} mode="popLayout">
+            {visibleSummaries.map((summary, index) => {
+              const isCurrent = index === visibleSummaries.length - 1;
+              return (
+                <motion.div
+                  layout="position"
+                  key={summary}
+                  className={`reasoning-summary-entry${isCurrent ? ' is-current' : ' is-previous'}`}
+                  aria-hidden={!isCurrent}
+                  initial={reduceMotion ? false : { opacity: 0, filter: 'blur(5px)' }}
+                  animate={{ opacity: 1, filter: 'blur(0px)' }}
+                  exit={reduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, filter: 'blur(5px)', y: -8 }}
+                  transition={reduceMotion
+                    ? { duration: 0 }
+                    : { duration: 0.4, ease: 'easeOut', layout: { duration: 0.3, ease: 'easeOut' } }}
+                >
+                  <span className="reasoning-summary-icon-slot" aria-hidden="true">
+                    {isCurrent ? (
+                      <span className="reasoning-summary-current-dot" />
+                    ) : (
+                      <svg className="reasoning-summary-mini-tick" viewBox="0 0 24 24">
+                        <path d="M7.5 12.4 L10.8 15.6 L16.5 9.2" />
+                      </svg>
+                    )}
+                  </span>
+                  <motion.span
+                    className="reasoning-summary-copy-motion"
+                    animate={{
+                      opacity: isCurrent ? 1 : 0.72,
+                      scale: isCurrent ? 1 : 0.88,
+                    }}
                     transition={reduceMotion
                       ? { duration: 0 }
-                      : { duration: 0.3, ease: 'easeOut', layout: { duration: 0.3, ease: 'easeOut' } }}
+                      : { duration: 0.3, ease: 'easeOut' }}
                   >
-                    <motion.div
-                      className="reasoning-summary-entry-visual"
-                      initial={reduceMotion ? false : { y: 7 }}
-                      animate={{
-                        y: isCurrent && visibleSummaries.length > 1 ? 6 : 0,
-                      }}
-                      transition={reduceMotion
-                        ? { duration: 0 }
-                        : { duration: 0.3, ease: 'easeOut' }}
-                    >
-                      <span className="reasoning-summary-icon-slot" aria-hidden="true">
-                        <AnimatePresence initial={false} mode="popLayout">
-                          {isCurrent ? (
-                            <motion.span
-                              key="loader"
-                              className="reasoning-summary-current-indicator"
-                              initial={reduceMotion ? false : { opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              transition={reduceMotion
-                                ? { duration: 0 }
-                                : { duration: 0.3, ease: 'easeOut' }}
-                            />
-                          ) : (
-                            <motion.span
-                              key="check"
-                              className="reasoning-summary-check"
-                              initial={reduceMotion ? false : { opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              transition={reduceMotion
-                                ? { duration: 0 }
-                                : { duration: 0.3, ease: 'easeOut' }}
-                            >
-                              ✓
-                            </motion.span>
-                          )}
-                        </AnimatePresence>
-                      </span>
-                      <motion.span
-                        className="reasoning-summary-copy-motion"
-                        initial={reduceMotion
-                          ? false
-                          : { opacity: 0, filter: 'blur(6px)', scale: 1 }}
-                        animate={{
-                          opacity: isCurrent ? 1 : 0.78,
-                          filter: 'blur(0px)',
-                          scale: isCurrent ? 1 : 0.86,
-                        }}
-                        transition={reduceMotion
-                          ? { duration: 0 }
-                          : { duration: 0.3, ease: 'easeOut' }}
-                      >
-                        <span className={`reasoning-summary-copy${isCurrent ? ' is-thinking' : ''}`}>
-                          {summary}
-                        </span>
-                      </motion.span>
-                    </motion.div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                    <span className={`reasoning-summary-copy${isCurrent ? ' is-thinking' : ''}`}>
+                      {summary}
+                    </span>
+                  </motion.span>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
+
+        <span className="reasoning-summary-done" aria-hidden={!done}>
+          {doneText}
+        </span>
+      </div>
     </div>
   );
 }
