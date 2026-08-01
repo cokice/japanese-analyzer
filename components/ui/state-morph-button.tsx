@@ -16,16 +16,21 @@ type StateMorphButtonProps = {
 
 const labels: Record<StateMorphButtonState, string> = {
   idle: "提交",
-  loading: "处理中",
+  loading: "终止",
   success: "完成",
 };
 
-function Spinner() {
+function StopIcon() {
   return (
-    <span
-      className="state-morph-spinner"
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
       aria-hidden="true"
-    />
+    >
+      <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+    </svg>
   );
 }
 
@@ -54,8 +59,6 @@ export function StateMorphButton({
   disabled,
   className,
 }: StateMorphButtonProps) {
-  const isBusy = state === "loading";
-
   return (
     <motion.button
       id={id}
@@ -63,7 +66,9 @@ export function StateMorphButton({
       type="button"
       className={cn("nd-primary-btn state-morph-btn", className)}
       onClick={onClick}
-      disabled={disabled || isBusy}
+      disabled={disabled}
+      aria-label={state === "loading" ? "终止解析" : undefined}
+      title={state === "loading" ? "终止解析" : undefined}
       transition={{ type: "spring", stiffness: 420, damping: 34 }}
     >
       <AnimatePresence mode="wait" initial={false}>
@@ -75,7 +80,7 @@ export function StateMorphButton({
           exit={{ opacity: 0, y: -4, filter: "blur(2px)" }}
           transition={{ duration: 0.16, ease: "easeOut" }}
         >
-          {state === "loading" && <Spinner />}
+          {state === "loading" && <StopIcon />}
           {state === "success" && <CheckIcon />}
           <span>{labels[state]}</span>
         </motion.span>

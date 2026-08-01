@@ -17,6 +17,16 @@ const DEFAULT_MAX_SNIPPET_CHARS = 800;
 const DEFAULT_MAX_CHARS_BEFORE_SUMMARY = 600;
 const SUMMARY_TRIGGER_PATTERN = /\n|接下来|然后|现在|好[,，]|另外/u;
 export const INITIAL_REASONING_SUMMARY = '正在连接模型…';
+const NON_STEP_SUMMARY_PATTERN = /^(?:正在)?(?:连接模型|等待模型(?:响应)?|分析)(?:…|\.{3})?$/u;
+
+export function formatCompletedReasoningSummaries(
+  summaries: readonly string[]
+): string[] {
+  return summaries
+    .map((summary) => summary.trim())
+    .filter((summary) => summary && !NON_STEP_SUMMARY_PATTERN.test(summary))
+    .map((summary) => summary.replace(/^正在/u, '').trim());
+}
 
 function takeLastCharacters(text: string, maxChars: number): string {
   const characters = Array.from(text);

@@ -126,14 +126,14 @@ export default function TranslationSection({
           disabled={isLoading}
         >
           {Icon.globe}
-          <span>{isLoading ? 'Thinking…' : '翻译整句'}</span>
+          <span>{isLoading ? '翻译中' : '翻译'}</span>
         </button>
       </div>
 
       <AutoAnimateHeight duration={300}>
         {isVisible ? (
           isLoading && !translation ? (
-            <ThinkingIndicator />
+            <ThinkingIndicator label="翻译中" />
           ) : translation ? (
             <div
               className="flow-markdown full-translation-markdown mb-3.5 mt-1 text-[16px] leading-7"
@@ -156,7 +156,7 @@ export default function TranslationSection({
               className="mb-3.5 mt-1 whitespace-pre-wrap text-[16px] leading-7"
               style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
             >
-              {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译整句。</span>}
+              {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译。</span>}
             </p>
           )
         ) : null}

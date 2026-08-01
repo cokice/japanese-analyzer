@@ -59,6 +59,7 @@ export default function Home() {
   const [deepseekReasoningSummaryHistory, setDeepseekReasoningSummaryHistory] = useState<string[]>([]);
   const [deepseekReasoningCompletionLabel, setDeepseekReasoningCompletionLabel] = useState('已深度思考');
   const reasoningSummaryControllerRef = useRef<ReasoningSummaryController | null>(null);
+  const analysisAbortControllerRef = useRef<AbortController | null>(null);
   const [ttsProvider, setTtsProvider] = useState<TTSProvider>('edge');
 
   // 密码验证相关状态
@@ -91,6 +92,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => () => {
+    analysisAbortControllerRef.current?.abort();
     reasoningSummaryControllerRef.current?.cancel();
   }, []);
 
@@ -336,6 +338,14 @@ export default function Home() {
   const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
     if (!text.trim()) return;
 
+    analysisAbortControllerRef.current?.abort();
+    const analysisAbortController = new AbortController();
+    analysisAbortControllerRef.current = analysisAbortController;
+    const isCurrentAnalysis = () => (
+      analysisAbortControllerRef.current === analysisAbortController
+      && !analysisAbortController.signal.aborted
+    );
+
     trackAnalyzeUsage(aiProvider, usage, aiModel);
     setIsAnalyzing(true);
     setAnalysisError('');
@@ -361,6 +371,7 @@ export default function Home() {
             })
           ),
           onSummary: (summary) => {
+            if (!isCurrentAnalysis()) return;
             setDeepseekReasoningSummaryHistory((current) => [...current, summary]);
           },
           onError: (error) => {
@@ -374,7 +385,7 @@ export default function Home() {
     }
     let reasoningStatusEnded = !deepseekThinkingActive;
     const finishReasoningStatus = (summary: string) => {
-      if (reasoningStatusEnded || !deepseekThinkingActive) return;
+      if (!isCurrentAnalysis() || reasoningStatusEnded || !deepseekThinkingActive) return;
       reasoningStatusEnded = true;
       reasoningSummaryController?.finish();
       if (reasoningSummaryControllerRef.current !== reasoningSummaryController) return;
@@ -385,7 +396,9 @@ export default function Home() {
 
     const reasoningOptions = {
       deepseekThinkingEnabled: deepseekThinkingActive,
+      signal: analysisAbortController.signal,
       onReasoning: (reasoningText: string) => {
+        if (!isCurrentAnalysis()) return;
         if (!reasoningStatusEnded) {
           reasoningSummaryController?.ingest(reasoningText);
         }
@@ -395,7 +408,9 @@ export default function Home() {
           setHasDeepseekReasoning(true);
         }
       },
-      onContentStart: () => finishReasoningStatus('已深度思考'),
+      onContentStart: () => {
+        if (isCurrentAnalysis()) finishReasoningStatus('已深度思考');
+      },
     };
 
     try {
@@ -404,10 +419,12 @@ export default function Home() {
         streamAnalyzeSentence(
           text,
           (chunk, isDone) => {
+            if (!isCurrentAnalysis()) return;
             setStreamContent(chunk);
             if (isDone) {
               finishReasoningStatus('已深度思考');
               setIsAnalyzing(false);
+              analysisAbortControllerRef.current = null;
               try {
                 setAnalyzedTokens(parseAnalyzeResponseContent(chunk));
               } catch (error) {
@@ -417,12 +434,14 @@ export default function Home() {
             }
           },
           (error) => {
+            if (!isCurrentAnalysis()) return;
             finishReasoningStatus('深度思考已中止');
             console.error('Stream analysis error:', error);
             setAnalysisError(error.message || '流式解析错误');
             setStreamContent('');
             setAnalyzedTokens([]);
             setIsAnalyzing(false);
+            analysisAbortControllerRef.current = null;
           },
           userApiKey,
           aiProvider,
@@ -438,17 +457,35 @@ export default function Home() {
           aiModel,
           reasoningOptions
         );
+        if (!isCurrentAnalysis()) return;
         setAnalyzedTokens(tokens);
         finishReasoningStatus('已深度思考');
         setIsAnalyzing(false);
+        analysisAbortControllerRef.current = null;
       }
     } catch (error) {
+      if (!isCurrentAnalysis()) return;
       finishReasoningStatus('深度思考已中止');
       console.error('Analysis error:', error);
       setAnalysisError(error instanceof Error ? error.message : '未知错误');
       setAnalyzedTokens([]);
       setIsAnalyzing(false);
+      analysisAbortControllerRef.current = null;
     }
+  };
+
+  const handleCancelAnalysis = () => {
+    const controller = analysisAbortControllerRef.current;
+    if (!controller || controller.signal.aborted) return;
+
+    analysisAbortControllerRef.current = null;
+    controller.abort();
+    reasoningSummaryControllerRef.current?.cancel();
+    reasoningSummaryControllerRef.current = null;
+    setIsAnalyzing(false);
+    setAnalysisError('');
+    setDeepseekReasoningCompletionLabel('已终止思考');
+    setDeepseekReasoningDone(true);
   };
 
   const hasWordDetail = selectedIndex !== null
@@ -503,6 +540,7 @@ export default function Home() {
           <div className="flex min-w-0 flex-col gap-[22px]">
             <InputSection
               onAnalyze={handleAnalyze}
+              onCancelAnalyze={handleCancelAnalysis}
               userApiKey={userApiKey}
               aiProvider={aiProvider}
               geminiApiKey={geminiApiKey}

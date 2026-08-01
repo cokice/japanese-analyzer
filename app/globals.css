@@ -296,16 +296,6 @@ body {
   white-space: nowrap;
 }
 
-.state-morph-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid #ffffff;
-  border-right-color: transparent;
-  border-radius: 999px;
-  animation: spin 0.72s linear infinite;
-  flex: 0 0 auto;
-}
-
 /* ========== 开关 Toggle ========== */
 .nd-toggle {
   width: 38px;
@@ -827,10 +817,31 @@ input, textarea {
 }
 
 .reasoning-stream-card {
+  --reasoning-archive-bg: #faf9fd;
+  --reasoning-archive-summary-text: #8a889c;
+  --reasoning-archive-check: #a8c9b4;
+  --reasoning-archive-body-text: #7a788c;
+  --reasoning-archive-quote: #e2dff0;
+  --reasoning-archive-divider: #eeecf6;
+  --reasoning-archive-heading: #9a97aa;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--bg);
+}
+
+.dark .reasoning-stream-card {
+  --reasoning-archive-bg: color-mix(in oklab, var(--bg-2) 72%, var(--bg));
+  --reasoning-archive-summary-text: color-mix(in oklab, var(--ink-3) 86%, var(--bg-2));
+  --reasoning-archive-check: color-mix(in oklab, var(--pos-v) 38%, var(--ink-3));
+  --reasoning-archive-body-text: color-mix(in oklab, var(--ink-3) 92%, var(--ink-2));
+  --reasoning-archive-quote: var(--line-2);
+  --reasoning-archive-divider: var(--line);
+  --reasoning-archive-heading: var(--ink-3);
+}
+
+.reasoning-stream-card.is-review-expanded {
+  background: var(--reasoning-archive-bg);
 }
 
 .reasoning-stream-header {
@@ -907,27 +918,51 @@ input, textarea {
 
 .reasoning-stream-expanded-content {
   display: grid;
-  gap: 10px;
+  gap: 0;
+  background: transparent;
+}
+
+.reasoning-archive-section {
+  min-width: 0;
+}
+
+.reasoning-archive-summary {
+  padding: 10px 15px 11px;
+}
+
+.reasoning-archive-process.is-review {
+  padding: 10px 15px 14px;
+}
+
+.reasoning-stream-expanded-content.has-summary-history .reasoning-archive-process.is-review {
+  border-top: 1px solid var(--reasoning-archive-divider);
+}
+
+.reasoning-archive-heading {
+  margin: 0 0 6px;
+  color: var(--reasoning-archive-heading);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
 }
 
 .reasoning-summary-history {
   display: flex;
-  max-height: 180px;
-  margin: 0 10px;
-  padding: 10px 14px;
-  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
   flex-direction: column;
-  gap: 7px;
-  border-left: 2px solid var(--line-2);
-  border-radius: 8px;
-  background: var(--bg-2);
-  color: var(--ink-3);
+  gap: 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--reasoning-archive-summary-text);
   font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 400;
-  line-height: 1.55;
-  scrollbar-color: var(--line-2) var(--bg-2);
-  scrollbar-width: thin;
+  line-height: 1.6;
+  list-style: none;
 }
 
 .reasoning-summary-history-item {
@@ -938,9 +973,10 @@ input, textarea {
 }
 
 .reasoning-summary-history-check {
-  color: var(--primary);
-  font-size: 10px;
-  font-weight: 650;
+  color: var(--reasoning-archive-check);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.89;
 }
 
 .reasoning-stream-window {
@@ -957,9 +993,31 @@ input, textarea {
 }
 
 .reasoning-stream-window.is-review {
-  height: min(42vh, 360px);
+  height: auto;
+  max-height: 320px;
+  margin: 0;
+  padding-left: 12px;
+  overflow-y: auto;
+  border-left: 2px solid var(--reasoning-archive-quote);
+  border-radius: 0;
+  background: transparent;
+  scrollbar-color: color-mix(in oklab, var(--reasoning-archive-quote) 82%, transparent) transparent;
+  scrollbar-width: thin;
   -webkit-mask-image: none;
   mask-image: none;
+}
+
+.reasoning-stream-window.is-review::-webkit-scrollbar {
+  width: 6px;
+}
+
+.reasoning-stream-window.is-review::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reasoning-stream-window.is-review::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--reasoning-archive-quote) 82%, transparent);
 }
 
 .reasoning-stream-tail,
@@ -1016,6 +1074,18 @@ input, textarea {
   width: 100%;
   padding: 4px 16px 4px 22px;
   border-left: 2px solid var(--line-2);
+}
+
+.reasoning-stream-window.is-review .reasoning-stream-virtual-row {
+  padding: 0 8px 0 0;
+  border-left: 0;
+  color: var(--reasoning-archive-body-text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.reasoning-stream-window.is-review .reasoning-stream-virtual-row.is-paragraph-end {
+  padding-bottom: 0.6em;
 }
 
 @keyframes reasoning-cursor-blink {

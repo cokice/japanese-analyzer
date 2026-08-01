@@ -3,6 +3,11 @@ import { stripReasoningBoldMarkdown } from './markdown';
 export const REASONING_TAIL_CHAR_LIMIT = 1500;
 export const REASONING_VIRTUAL_LINE_CHAR_LIMIT = 220;
 
+export interface ReasoningReviewBlock {
+  text: string;
+  paragraphEnd: boolean;
+}
+
 type StoreListener = () => void;
 
 function cleanReasoningText(text: string): string {
@@ -36,6 +41,37 @@ function appendVirtualLines(lines: string[], text: string): void {
   if (buffer) lines.push(buffer);
 }
 
+function buildReviewBlocks(text: string): ReasoningReviewBlock[] {
+  const blocks: ReasoningReviewBlock[] = [];
+  const paragraphs = text
+    .split(/\n+/u)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  paragraphs.forEach((paragraph) => {
+    let blockText = '';
+    let characterCount = 0;
+
+    for (const character of paragraph) {
+      blockText += character;
+      characterCount += 1;
+      if (characterCount >= REASONING_VIRTUAL_LINE_CHAR_LIMIT) {
+        blocks.push({ text: blockText, paragraphEnd: false });
+        blockText = '';
+        characterCount = 0;
+      }
+    }
+
+    if (blockText) {
+      blocks.push({ text: blockText, paragraphEnd: true });
+    } else if (blocks.length > 0) {
+      blocks[blocks.length - 1].paragraphEnd = true;
+    }
+  });
+
+  return blocks;
+}
+
 /**
  * 思维链全文保存在 React state 外，组件只通过递增版本号订阅更新。
  * 虚拟行按增量维护，避免每次流事件重新扫描全部历史文本。
@@ -46,6 +82,8 @@ export class ReasoningTextStore {
   private readonly virtualLinesRef = { current: [] as string[] };
   private readonly listeners = new Set<StoreListener>();
   private version = 0;
+  private reviewBlocksCacheVersion = -1;
+  private reviewBlocksCache: ReasoningReviewBlock[] = [];
 
   readonly subscribe = (listener: StoreListener): (() => void) => {
     this.listeners.add(listener);
@@ -90,6 +128,14 @@ export class ReasoningTextStore {
 
   getVirtualLines(): readonly string[] {
     return this.virtualLinesRef.current;
+  }
+
+  getReviewBlocks(): readonly ReasoningReviewBlock[] {
+    if (this.reviewBlocksCacheVersion !== this.version) {
+      this.reviewBlocksCache = buildReviewBlocks(this.fullTextRef.current);
+      this.reviewBlocksCacheVersion = this.version;
+    }
+    return this.reviewBlocksCache;
   }
 
   getTextLength(): number {

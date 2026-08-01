@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import type { ReasoningTextStore } from '../utils/reasoningTextStore';
+import { formatCompletedReasoningSummaries } from '../utils/reasoningSummary';
 import ReasoningSummaryStatus from './ReasoningSummaryStatus';
 
 interface ReasoningStreamProps {
@@ -39,11 +40,16 @@ export default function ReasoningStream({
   const startedAtRef = useRef<number | null>(null);
   const previousDoneRef = useRef(done);
   const virtualLines = store.getVirtualLines();
+  const reviewBlocks = done ? store.getReviewBlocks() : [];
   const tailText = store.getTail();
-  const lineCount = virtualLines.length;
+  const reviewMode = done && expanded;
+  const rowCount = reviewMode ? reviewBlocks.length : virtualLines.length;
+  const archivedSummaries = done
+    ? formatCompletedReasoningSummaries(summaryHistory)
+    : [];
 
   const rowVirtualizer = useVirtualizer({
-    count: expanded ? lineCount : 0,
+    count: expanded ? rowCount : 0,
     getScrollElement: () => scrollWindowRef.current,
     estimateSize: () => VIRTUAL_ROW_ESTIMATE_PX,
     overscan: VIRTUAL_OVERSCAN,
@@ -87,15 +93,15 @@ export default function ReasoningStream({
   }, [expanded, rowVirtualizer]);
 
   useEffect(() => {
-    if (!expanded || lineCount === 0) return;
+    if (!expanded || rowCount === 0) return;
 
     const frame = window.requestAnimationFrame(() => {
       if (followTailRef.current) {
-        rowVirtualizer.scrollToIndex(lineCount - 1, { align: 'end' });
+        rowVirtualizer.scrollToIndex(rowCount - 1, { align: 'end' });
       }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [expanded, lineCount, revision, rowVirtualizer]);
+  }, [expanded, rowCount, revision, rowVirtualizer]);
 
   const handleToggle = () => {
     setExpanded((current) => {
@@ -114,12 +120,14 @@ export default function ReasoningStream({
     followTailRef.current = distanceFromBottom < SCROLL_BOTTOM_THRESHOLD;
   };
 
-  const reviewMode = done && expanded;
   const doneText = `${completionLabel}（用时 ${elapsedSeconds} 秒）`;
   const virtualItems = rowVirtualizer.getVirtualItems();
 
   return (
-    <section className="reasoning-stream-card" data-testid="reasoning-stream">
+    <section
+      className={`reasoning-stream-card${reviewMode ? ' is-review-expanded' : ''}`}
+      data-testid="reasoning-stream"
+    >
       <button
         type="button"
         className="reasoning-stream-header"
@@ -157,43 +165,64 @@ export default function ReasoningStream({
       >
         <div className="reasoning-stream-collapse-inner">
           {expanded ? (
-            <div id="deepseek-reasoning-content" className="reasoning-stream-expanded-content">
-              {done && summaryHistory.length > 0 && (
-                <ol className="reasoning-summary-history" aria-label="完整思考摘要历史">
-                  {summaryHistory.map((historyItem, index) => (
-                    <li key={`${index}-${historyItem}`} className="reasoning-summary-history-item">
-                      <span className="reasoning-summary-history-check" aria-hidden="true">✓</span>
-                      <span>{historyItem}</span>
-                    </li>
-                  ))}
-                </ol>
+            <div
+              id="deepseek-reasoning-content"
+              className={`reasoning-stream-expanded-content${archivedSummaries.length > 0 ? ' has-summary-history' : ''}`}
+            >
+              {done && archivedSummaries.length > 0 && (
+                <section className="reasoning-archive-section reasoning-archive-summary">
+                  <h3 className="reasoning-archive-heading">思考摘要</h3>
+                  <ol className="reasoning-summary-history" aria-label="完整思考摘要历史">
+                    {archivedSummaries.map((historyItem, index) => (
+                      <li key={`${index}-${historyItem}`} className="reasoning-summary-history-item">
+                        <span className="reasoning-summary-history-check" aria-hidden="true">✓</span>
+                        <span>{historyItem}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
               )}
-              <div
-                ref={scrollWindowRef}
-                lang="zh-CN"
-                className={`reasoning-stream-window${reviewMode ? ' is-review' : ''}`}
-                onScroll={handleScroll}
-              >
+              <section className={`reasoning-archive-section reasoning-archive-process${reviewMode ? ' is-review' : ''}`}>
+                {reviewMode && (
+                  <h3 className="reasoning-archive-heading">完整思考过程</h3>
+                )}
                 <div
-                  className="reasoning-stream-virtual-space"
-                  style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                  ref={scrollWindowRef}
+                  lang="zh-CN"
+                  className={`reasoning-stream-window${reviewMode ? ' is-review' : ''}`}
+                  onScroll={handleScroll}
                 >
-                  {virtualItems.map((virtualItem) => {
-                    const isLastLine = virtualItem.index === lineCount - 1;
-                    return (
-                      <div
-                        key={virtualItem.key}
-                        ref={rowVirtualizer.measureElement}
-                        data-index={virtualItem.index}
-                        className={`reasoning-stream-virtual-row${!done && isLastLine ? ' is-streaming' : ''}`}
-                        style={{ transform: `translateY(${virtualItem.start}px)` }}
-                      >
-                        {virtualLines[virtualItem.index]}
-                      </div>
-                    );
-                  })}
+                  <div
+                    className="reasoning-stream-virtual-space"
+                    style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                  >
+                    {virtualItems.map((virtualItem) => {
+                      const isLastRow = virtualItem.index === rowCount - 1;
+                      const reviewBlock = reviewMode
+                        ? reviewBlocks[virtualItem.index]
+                        : null;
+                      const rowText = reviewBlock?.text ?? virtualLines[virtualItem.index];
+                      const rowClassName = [
+                        'reasoning-stream-virtual-row',
+                        !done && isLastRow ? 'is-streaming' : '',
+                        reviewBlock?.paragraphEnd && !isLastRow ? 'is-paragraph-end' : '',
+                      ].filter(Boolean).join(' ');
+
+                      return (
+                        <div
+                          key={virtualItem.key}
+                          ref={rowVirtualizer.measureElement}
+                          data-index={virtualItem.index}
+                          className={rowClassName}
+                          style={{ transform: `translateY(${virtualItem.start}px)` }}
+                        >
+                          {rowText}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </section>
             </div>
           ) : (
             <div

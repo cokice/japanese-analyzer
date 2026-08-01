@@ -66,12 +66,17 @@ export interface AnalyzeRequestOptions {
   deepseekThinkingEnabled?: boolean;
   onReasoning?: (text: string, done: boolean) => void;
   onContentStart?: () => void;
+  signal?: AbortSignal;
 }
 
 export interface ReasoningSummaryRequestOptions {
   reasoningSnippet: string;
   userApiKey?: string;
   signal?: AbortSignal;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
 }
 
 const ANALYSIS_CHUNK_CONCURRENCY = 3;
@@ -776,6 +781,7 @@ async function analyzeSingleSentence(
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
+      signal: options.signal,
       body: JSON.stringify({ 
         prompt: buildAnalyzePrompt(sentence),
         ...getRequestProviderPayload(provider, model),
@@ -808,6 +814,7 @@ async function analyzeSingleSentence(
       throw new Error('解析结果格式错误，请重试');
     }
   } catch (error) {
+    if (options.signal?.aborted || isAbortError(error)) throw error;
     console.error('Error analyzing sentence:', error);
     throw error;
   }
@@ -891,6 +898,7 @@ async function streamAnalyzeSingleSentence(
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
+      signal: options.signal,
       body: JSON.stringify({ 
         prompt: buildAnalyzePrompt(sentence),
         ...getRequestProviderPayload(provider, model),
@@ -916,6 +924,7 @@ async function streamAnalyzeSingleSentence(
       onContentStart: options.onContentStart,
     });
   } catch (error) {
+    if (options.signal?.aborted || isAbortError(error)) return;
     console.error('Error in stream analyzing sentence:', error);
     onError(error instanceof Error ? error : new Error('未知错误'));
   }

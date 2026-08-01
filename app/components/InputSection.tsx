@@ -17,6 +17,7 @@ import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-m
 
 interface InputSectionProps {
   onAnalyze: (text: string, usage?: AnalyzeUsageMetadata) => void;
+  onCancelAnalyze: () => void;
   userApiKey?: string;
   aiProvider: AIProvider;
   geminiApiKey?: string;
@@ -61,6 +62,7 @@ const FIRST_VISIT_EXAMPLE = '天気がいいから、散歩しましょう';
 
 export default function InputSection({
   onAnalyze,
+  onCancelAnalyze,
   userApiKey,
   aiProvider,
   geminiApiKey,
@@ -233,6 +235,17 @@ export default function InputSection({
   const handleAnalyze = () => {
     setShowFirstVisitExample(false);
     startAnalysis(inputText, getCurrentUsageMetadata());
+  };
+
+  const handleCancelAnalyze = () => {
+    if (submitResetTimerRef.current) {
+      clearTimeout(submitResetTimerRef.current);
+      submitResetTimerRef.current = null;
+    }
+    submitStartedRef.current = false;
+    wasAnalyzingRef.current = false;
+    setSubmitState('idle');
+    onCancelAnalyze();
   };
 
   const handleSpeak = async () => {
@@ -709,8 +722,8 @@ export default function InputSection({
           {/* 解析按钮 */}
           <StateMorphButton
             id="analyzeButton"
-            onClick={handleAnalyze}
-            disabled={isLoading}
+            onClick={isLoading ? handleCancelAnalyze : handleAnalyze}
+            disabled={!isLoading && !inputText.trim()}
             state={submitState}
             className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
           />

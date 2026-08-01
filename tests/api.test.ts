@@ -61,6 +61,7 @@ import {
 } from '../app/utils/japaneseChunking';
 import {
   areReasoningSummariesSimilar,
+  formatCompletedReasoningSummaries,
   ReasoningSummaryController,
   sanitizeReasoningSummary
 } from '../app/utils/reasoningSummary';
@@ -83,6 +84,15 @@ assert.strictEqual(
   sanitizeReasoningSummary('123456789', 5),
   '12345'
 );
+assert.deepStrictEqual(
+  formatCompletedReasoningSummaries([
+    '正在连接模型…',
+    '正在辨析复合助词的切分标准',
+    '正在等待模型响应…',
+    '核对最终结果',
+  ]),
+  ['辨析复合助词的切分标准', '核对最终结果']
+);
 
 const longReasoningStore = new ReasoningTextStore();
 const fiftyThousandCharacterReasoning = '思考'.repeat(25_000);
@@ -100,6 +110,18 @@ assert.ok(
 );
 longReasoningStore.setText(`${fiftyThousandCharacterReasoning}追加`);
 assert.strictEqual(longReasoningStore.getTextLength(), 50_002);
+
+const paragraphReasoningStore = new ReasoningTextStore();
+paragraphReasoningStore.setText('第一段\n\n\n第二段\n\n第三段');
+assert.deepStrictEqual(
+  paragraphReasoningStore.getReviewBlocks(),
+  [
+    { text: '第一段', paragraphEnd: true },
+    { text: '第二段', paragraphEnd: true },
+    { text: '第三段', paragraphEnd: true },
+  ],
+  '完成态应合并连续空行并按段落生成虚拟块'
+);
 
 assert.strictEqual(DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
