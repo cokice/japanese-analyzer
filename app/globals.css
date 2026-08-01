@@ -678,6 +678,186 @@ input, textarea {
   font-size: 13px;
 }
 
+/* DeepSeek 动态思考摘要与完整思维流 */
+
+.reasoning-summary-viewport {
+  position: relative;
+  display: block;
+  min-width: 0;
+  height: 19px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.reasoning-summary-copy {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 19px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reasoning-summary-copy.is-thinking {
+  color: transparent;
+  background: linear-gradient(
+    100deg,
+    var(--ink-3) 8%,
+    var(--ink-3) 38%,
+    var(--primary) 50%,
+    var(--ink-3) 62%,
+    var(--ink-3) 92%
+  );
+  background-size: 235% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: reasoning-summary-shimmer 2.1s linear infinite;
+}
+
+@keyframes reasoning-summary-shimmer {
+  from { background-position: 160% 0; }
+  to { background-position: -120% 0; }
+}
+
+.reasoning-stream-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.reasoning-stream-header {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 13px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reasoning-stream-header:hover .reasoning-stream-title {
+  color: var(--ink-2);
+}
+
+.reasoning-stream-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  transition: color 0.18s ease;
+}
+
+.reasoning-stream-elapsed {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.reasoning-stream-chevron {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  color: var(--primary);
+  transition: transform 0.18s ease;
+}
+
+.reasoning-stream-chevron.is-expanded {
+  transform: rotate(180deg);
+}
+
+.reasoning-stream-window {
+  max-height: 150px;
+  margin: 0 10px 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 9px;
+  background: var(--bg-2);
+  scrollbar-color: var(--line-2) var(--bg-2);
+  scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, var(--ink) 24px, var(--ink) 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, var(--ink) 24px, var(--ink) 100%);
+  transition: max-height 0.22s ease;
+}
+
+.reasoning-stream-window.is-review {
+  max-height: min(42vh, 360px);
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.reasoning-stream-copy {
+  min-height: 54px;
+  margin: 12px 12px 12px 10px;
+  padding: 2px 2px 2px 12px;
+  border-left: 2px solid var(--line-2);
+  color: var(--ink-3);
+  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.reasoning-stream-char {
+  color: var(--ink);
+  font-weight: inherit;
+  transition: color 1.2s ease-out;
+}
+
+.reasoning-stream-char.is-cooling {
+  color: var(--ink-3);
+}
+
+.reasoning-stream-cursor {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.05em;
+  margin-left: 2px;
+  border-radius: 1px;
+  background: var(--primary);
+  vertical-align: -0.14em;
+  animation: reasoning-cursor-blink 0.82s steps(2, jump-none) infinite;
+}
+
+@keyframes reasoning-cursor-blink {
+  50% { opacity: 0.18; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reasoning-summary-copy.is-thinking {
+    animation: none;
+  }
+
+  .reasoning-stream-cursor {
+    animation: none;
+  }
+
+  .reasoning-stream-char {
+    transition-duration: 0.01ms;
+  }
+}
+
 .ai-thinking-text {
   display: inline-block;
   font-weight: 650;

@@ -496,7 +496,7 @@ export default function InputSection({
               <TextShimmer
                 as="div"
                 className="input-text-shimmer-layer jp"
-                duration={1.35}
+                duration={2.2}
                 spread={1.4}
               >
                 {inputText}

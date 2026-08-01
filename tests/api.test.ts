@@ -23,6 +23,7 @@ import {
   resolveProviderConfig,
   withProviderControls
 } from '../app/api/_utils/providerConfig';
+import { wrapStreamingResponseWithIdleTimeout } from '../app/api/_utils/openaiProxy';
 import {
   buildUmamiLoaderScript,
   resolveUmamiConfig
@@ -51,12 +52,31 @@ import {
 } from '../app/utils/helpers';
 import {
   highlightMarkedTextForMarkdown,
-  normalizeEscapedLineBreaks
+  normalizeEscapedLineBreaks,
+  stripReasoningBoldMarkdown
 } from '../app/utils/markdown';
+import {
+  reconstructJapaneseChunks,
+  splitJapaneseText
+} from '../app/utils/japaneseChunking';
+import {
+  ReasoningSummaryController,
+  sanitizeReasoningSummary
+} from '../app/utils/reasoningSummary';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
 assert.strictEqual(getApiEndpoint('chat'), '/api/chat');
+assert.strictEqual(getApiEndpoint('reasoning-summary'), '/api/reasoning-summary');
+
+assert.strictEqual(
+  sanitizeReasoningSummary('**当前进度：** “正在核对句子结构。”'),
+  '正在核对句子结构。'
+);
+assert.strictEqual(
+  sanitizeReasoningSummary('123456789', 5),
+  '12345'
+);
 
 assert.strictEqual(DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
@@ -251,6 +271,45 @@ assert.strictEqual(
 );
 assert.strictEqual(normalizeEscapedLineBreaks('第一行\\n\\n第二行'), '第一行\n\n第二行');
 assert.strictEqual(normalizeEscapedLineBreaks('第一行\\\\n第二行'), '第一行\n第二行');
+assert.strictEqual(
+  stripReasoningBoldMarkdown('先判断**学校文法**，再确认__词性__。'),
+  '先判断学校文法，再确认词性。'
+);
+
+const chunkingArticle = '政府は「年内に実施する。問題はない」と説明した。\n\n'
+  + '一方、自治体からは慎重な対応を求める声も上がっている。'
+  + '政府は専門家会議の結論を踏まえ、最終的な方針を決める。';
+const semanticChunks = splitJapaneseText(chunkingArticle, {
+  targetChars: 36,
+  maxChars: 52,
+  minChars: 12,
+});
+assert.strictEqual(reconstructJapaneseChunks(semanticChunks), chunkingArticle);
+assert.ok(semanticChunks.length >= 2);
+assert.ok(semanticChunks[0].text.includes('「年内に実施する。問題はない」と説明した。'));
+assert.ok(semanticChunks.every((chunk, index) => (
+  index === semanticChunks.length - 1
+  || /[。！？!?\n]\s*$/u.test(chunk.text)
+)));
+
+const oneLongSentence = 'これは、'.repeat(80) + '文の意味を保つために途中で切断しない非常に長い一文です。';
+const longSentenceChunks = splitJapaneseText(oneLongSentence, {
+  targetChars: 80,
+  maxChars: 120,
+  minChars: 40,
+});
+assert.strictEqual(longSentenceChunks.length, 1);
+assert.strictEqual(longSentenceChunks[0].text, oneLongSentence);
+assert.strictEqual(longSentenceChunks[0].overLimit, true);
+
+const smallTailArticle = `${'长'.repeat(26)}。\n\n${'尾'.repeat(8)}。`;
+const smallTailChunks = splitJapaneseText(smallTailArticle, {
+  targetChars: 32,
+  maxChars: 48,
+  minChars: 16,
+});
+assert.strictEqual(smallTailChunks.length, 1);
+assert.strictEqual(reconstructJapaneseChunks(smallTailChunks), smallTailArticle);
 
 assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
   provider: 'gemini',
@@ -297,6 +356,16 @@ assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-v4-pr
   thinking: { type: 'disabled' },
 });
 
+assert.deepStrictEqual(withProviderControls(
+  'deepseek',
+  { model: 'deepseek-v4-flash' },
+  { enableThinking: true }
+), {
+  model: 'deepseek-v4-flash',
+  thinking: { type: 'enabled' },
+  reasoning_effort: 'high',
+});
+
 assert.deepStrictEqual(getStructuredResponseFormat('deepseek', 'analysisTokens'), {
   type: 'json_object',
 });
@@ -335,7 +404,11 @@ function streamData(payload: unknown): string {
 async function collectOpenAIContentStream(
   chunks: string[],
   options: Parameters<typeof readOpenAIContentStream>[3] = {}
-): Promise<{ events: Array<{ chunk: string; isDone: boolean }>; error: Error | null }> {
+): Promise<{
+  events: Array<{ chunk: string; isDone: boolean }>;
+  reasoningEvents: Array<{ text: string; done: boolean }>;
+  error: Error | null;
+}> {
   const encoder = new TextEncoder();
   const response = new Response(new ReadableStream<Uint8Array>({
     start(controller) {
@@ -344,7 +417,9 @@ async function collectOpenAIContentStream(
     },
   }));
   const events: Array<{ chunk: string; isDone: boolean }> = [];
+  const reasoningEvents: Array<{ text: string; done: boolean }> = [];
   let error: Error | null = null;
+  const suppliedReasoningHandler = options.onReasoning;
 
   await readOpenAIContentStream(
     response,
@@ -352,10 +427,18 @@ async function collectOpenAIContentStream(
     (streamError) => {
       error = streamError;
     },
-    { debounceMs: 0, ...options }
+    {
+      debounceMs: 0,
+      reasoningDebounceMs: 0,
+      ...options,
+      onReasoning: (text, done) => {
+        reasoningEvents.push({ text, done });
+        suppliedReasoningHandler?.(text, done);
+      },
+    }
   );
 
-  return { events, error };
+  return { events, reasoningEvents, error };
 }
 
 const completeWordDetailJson = JSON.stringify({
@@ -385,6 +468,8 @@ assert.ok(looseWordDetail.explanation.includes('\n例句'));
 async function runOpenAIContentStreamTests() {
   const completeStream = await collectOpenAIContentStream(
     [
+      streamData({ choices: [{ delta: { reasoning_content: '先确认' }, finish_reason: null }] }),
+      streamData({ choices: [{ delta: { reasoning_content: '句子结构。' }, finish_reason: null }] }),
       streamData({ choices: [{ delta: { content: completeWordDetailJson.slice(0, 40) }, finish_reason: null }] }),
       streamData({ choices: [{ delta: { content: completeWordDetailJson.slice(40) }, finish_reason: null }] }),
       streamData({ choices: [{ delta: {}, finish_reason: 'stop' }] }),
@@ -401,6 +486,25 @@ async function runOpenAIContentStreamTests() {
     chunk: completeWordDetailJson,
     isDone: true,
   });
+  assert.deepStrictEqual(completeStream.reasoningEvents, [
+    { text: '先确认', done: false },
+    { text: '先确认句子结构。', done: false },
+    { text: '先确认句子结构。', done: true },
+  ]);
+
+  const throttledReasoningStream = await collectOpenAIContentStream(
+    [
+      streamData({ choices: [{ delta: { reasoning_content: '第一段' }, finish_reason: null }] }),
+      streamData({ choices: [{ delta: { reasoning_content: '第二段' }, finish_reason: null }] }),
+      streamData({ choices: [{ delta: { content: '{}' }, finish_reason: null }] }),
+      streamData({ choices: [{ delta: {}, finish_reason: 'stop' }] }),
+      'data: [DONE]\n\n',
+    ],
+    { reasoningDebounceMs: 100 }
+  );
+  assert.deepStrictEqual(throttledReasoningStream.reasoningEvents, [
+    { text: '第一段第二段', done: true },
+  ]);
 
   const lengthStream = await collectOpenAIContentStream(
     [
@@ -444,6 +548,39 @@ async function runOpenAIContentStreamTests() {
     chunk: looseWordDetailJson,
     isDone: true,
   });
+
+  const keepAliveEncoder = new TextEncoder();
+  const keepAliveResponse = new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(keepAliveEncoder.encode('第一段'));
+      setTimeout(() => {
+        controller.enqueue(keepAliveEncoder.encode('第二段'));
+        controller.close();
+      }, 15);
+    },
+  }));
+  const keepAliveController = new AbortController();
+  const keptAliveText = await wrapStreamingResponseWithIdleTimeout(
+    keepAliveResponse,
+    keepAliveController,
+    30
+  ).text();
+  assert.strictEqual(keptAliveText, '第一段第二段');
+  assert.strictEqual(keepAliveController.signal.aborted, false);
+
+  const stalledResponse = new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(keepAliveEncoder.encode('data: first\n\n'));
+    },
+  }));
+  const stalledController = new AbortController();
+  const stalledText = await wrapStreamingResponseWithIdleTimeout(
+    stalledResponse,
+    stalledController,
+    10
+  ).text();
+  assert.ok(stalledText.includes('上游流式响应空闲超时'));
+  assert.strictEqual(stalledController.signal.aborted, true);
 }
 
 const oldGeminiApiKey = process.env.GEMINI_API_KEY;
@@ -537,6 +674,7 @@ const migratedStorage = new MemoryStorage({
   aiProvider: 'deepseek',
   aiModel: 'deepseek-v4-pro',
   deepseekApiKey: 'deepseek-key',
+  deepseekThinkingEnabled: 'true',
 });
 const migratedSettings = loadAISettingsFromStorage(migratedStorage);
 assert.deepStrictEqual(migratedSettings, {
@@ -544,6 +682,7 @@ assert.deepStrictEqual(migratedSettings, {
   aiModel: 'deepseek-v4-pro',
   geminiApiKey: 'legacy-gemini-key',
   deepseekApiKey: 'deepseek-key',
+  deepseekThinkingEnabled: true,
 });
 assert.strictEqual(migratedStorage.getItem('geminiApiKey'), 'legacy-gemini-key');
 assert.strictEqual(migratedStorage.getItem('geminiApiUrl'), null);
@@ -556,6 +695,7 @@ assert.strictEqual(defaultSettings.aiProvider, 'deepseek');
 assert.strictEqual(defaultSettings.aiModel, 'deepseek-v4-flash');
 assert.strictEqual(defaultSettings.geminiApiKey, '');
 assert.strictEqual(defaultSettings.deepseekApiKey, '');
+assert.strictEqual(defaultSettings.deepseekThinkingEnabled, false);
 
 const geminiLiteStorage = new MemoryStorage({
   aiProvider: 'gemini',
@@ -563,7 +703,46 @@ const geminiLiteStorage = new MemoryStorage({
 });
 assert.strictEqual(loadAISettingsFromStorage(geminiLiteStorage).aiModel, 'gemini-3.5-flash-lite');
 
-runOpenAIContentStreamTests()
+async function runReasoningSummaryControllerTests() {
+  const requestDeltas: string[] = [];
+  const summaries: string[] = [];
+  let activeRequests = 0;
+  let maxActiveRequests = 0;
+
+  const controller = new ReasoningSummaryController({
+    intervalMs: 0,
+    requestSummary: async ({ reasoningDelta }) => {
+      requestDeltas.push(reasoningDelta);
+      activeRequests += 1;
+      maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      activeRequests -= 1;
+      return `正在总结${requestDeltas.length}`;
+    },
+    onSummary: (summary) => summaries.push(summary),
+  });
+
+  controller.start();
+  controller.ingest('第一段思考');
+  await new Promise((resolve) => setTimeout(resolve, 1));
+  controller.ingest('第一段思考，第二段思考');
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  controller.finish();
+
+  assert.strictEqual(maxActiveRequests, 1);
+  assert.deepStrictEqual(requestDeltas, ['第一段思考', '，第二段思考']);
+  assert.deepStrictEqual(summaries, [
+    '正在理解原文并规划分析步骤',
+    '正在总结1',
+    '正在总结2',
+  ]);
+  controller.cancel();
+}
+
+Promise.all([
+  runOpenAIContentStreamTests(),
+  runReasoningSummaryControllerTests(),
+])
   .then(() => {
     console.log('All tests passed');
   })
