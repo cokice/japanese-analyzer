@@ -2206,6 +2206,258 @@ html.safari input::placeholder {
 }
 
 /* ========== Paper Edition · 辞书词条 ========== */
+.translation-section {
+  margin-top: 12px;
+}
+
+.analysis-thinking-strip {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 9px 0;
+}
+
+.paper-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 10px 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+.paper-notice.is-error {
+  border-color: color-mix(in oklab, var(--shu) 42%, var(--rule));
+}
+
+.paper-notice-mark {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--shu);
+  font-family: var(--font-display);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--shu);
+}
+
+.settings-modal-content {
+  border-color: var(--rule);
+  border-radius: 0;
+  background: var(--paper);
+}
+
+.settings-modal-close-button {
+  border: 0;
+  padding: 0 4px;
+  background: transparent;
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.settings-sheet-heading {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 14px;
+}
+
+.settings-sheet-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-sheet-title h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+.settings-sheet-heading p {
+  margin: 7px 0 0;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--ink-3);
+}
+
+.settings-sheet-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--shu);
+  color: var(--shu);
+}
+
+.settings-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.settings-provider-option {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  padding: 8px 12px;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.settings-provider-option + .settings-provider-option {
+  border-left: 1px solid var(--rule);
+}
+
+.settings-provider-option.is-active {
+  background: var(--shu-soft);
+  color: var(--shu);
+}
+
+.settings-provider-notice {
+  margin: 8px 0 0;
+}
+
+.settings-option-row {
+  margin-bottom: 20px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 11px 0;
+}
+
+.login-paper-sheet {
+  width: 100%;
+  max-width: 448px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 26px;
+  background: var(--paper);
+}
+
+.login-paper-heading {
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 18px;
+  text-align: center;
+}
+
+.login-paper-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  place-items: center;
+  border: 1px solid var(--shu);
+  color: var(--shu);
+}
+
+.login-paper-heading h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+
+.login-paper-heading p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.login-loading-spinner {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border-left-color: var(--paper);
+}
+
+@media (max-width: 640px) {
+  .settings-provider-option {
+    min-height: 44px;
+  }
+
+  .login-paper-sheet {
+    padding: 22px 18px;
+  }
+}
+
+.translation-heading {
+  margin-bottom: 0;
+}
+
+.translation-body {
+  min-height: 30px;
+  padding-top: 10px;
+}
+
+.translation-copy {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 2;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+
+.translation-copy.is-placeholder {
+  color: var(--ink-3);
+}
+
+.translation-footer {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.translation-action-link {
+  min-height: 30px;
+  border: 0;
+  border-bottom: 1px dashed transparent;
+  padding: 0;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.translation-action-link:hover:not(:disabled),
+.translation-action-link:focus-visible {
+  border-bottom-color: var(--ink-3);
+  color: var(--ink-2);
+}
+
+.translation-action-link:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+@media (max-width: 640px) {
+  .translation-action-link {
+    min-height: 44px;
+  }
+}
+
 .dictionary-bar {
   display: flex;
   align-items: center;

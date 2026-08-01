@@ -41,24 +41,15 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'color-mix(in oklab, var(--ink) 50%, transparent)' }}
     >
-      <div
-        className="w-full max-w-md rounded-[3px] p-6"
-        style={{
-          background: 'var(--bg-2)',
-          border: '1px solid var(--line)',
-        }}
-      >
-        <div className="mb-6 text-center">
-          <div
-            className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full"
-            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
-          >
+      <div className="login-paper-sheet">
+        <div className="login-paper-heading">
+          <div className="login-paper-mark">
             {Icon.lock}
           </div>
-          <h2 className="mb-2 text-2xl font-semibold" style={{ color: 'var(--ink)' }}>
+          <h2>
             访问验证
           </h2>
-          <p className="m-0 text-sm" style={{ color: 'var(--ink-3)' }}>
+          <p>
             请输入访问密码以继续使用
           </p>
         </div>
@@ -77,7 +68,7 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-[8px] transition-colors hover:text-[var(--primary)]"
+              className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center border-0 bg-transparent transition-colors hover:text-[var(--primary)]"
               style={{ color: 'var(--ink-3)' }}
               disabled={isLoading}
               aria-label={showPassword ? '隐藏密码' : '显示密码'}
@@ -87,20 +78,8 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
           </div>
 
           {error && (
-            <div
-              className="flex items-start gap-2 rounded-[10px] p-3 text-sm"
-              style={{
-                background: 'color-mix(in oklab, var(--pos-p) 10%, transparent)',
-                color: 'var(--ink-2)',
-              }}
-            >
-              <span
-                className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[12px] font-bold leading-none"
-                style={{ background: 'var(--pos-p)', color: '#fff' }}
-                aria-hidden="true"
-              >
-                !
-              </span>
+            <div className="paper-notice is-error" role="alert">
+              <span className="paper-notice-mark" aria-hidden="true">!</span>
               <span>{error}</span>
             </div>
           )}
@@ -112,7 +91,7 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
           >
             {isLoading ? (
               <>
-                <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0, borderLeftColor: '#fff' }} />
+                <span className="loading-spinner login-loading-spinner" />
                 <span>验证中...</span>
               </>
             ) : (

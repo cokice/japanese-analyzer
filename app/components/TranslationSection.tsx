@@ -4,8 +4,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { translateText, streamTranslateText } from '../services/api';
 import type { AIModelName, AIProvider } from '../services/api';
 import ThinkingIndicator from './ThinkingIndicator';
-import { Icon } from './Icons';
-import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { FlowAnimatedMarkdown } from '@/components/ui/flow-animated-markdown';
 import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/markdown';
 
@@ -115,30 +113,26 @@ export default function TranslationSection({
   }, [isLoading, translation]);
 
   return (
-    <section id="fullTranslationCard" className="nd-card" lang="zh-CN">
-      <div className="mb-3 flex items-center">
-        <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>全文翻译（中）</h2>
-        <div className="flex-1" />
+    <section id="fullTranslationCard" className="translation-section" lang="zh-CN">
+      <div className="section-label translation-heading">
+        <span>全文訳(中)</span>
+        <i className="section-label-rule" aria-hidden="true" />
         <button
           id="translateSentenceButton"
-          className="nd-soft-btn"
+          className="translation-action-link"
           onClick={handleTranslate}
           disabled={isLoading}
         >
-          {Icon.globe}
-          <span>{isLoading ? '翻译中' : '翻译'}</span>
+          {isLoading ? '翻訳中' : '再 訳'}
         </button>
       </div>
 
-      <AutoAnimateHeight duration={300}>
-        {isVisible ? (
-          isLoading && !translation ? (
-            <ThinkingIndicator label="翻译中" />
+      {isVisible && (
+        <div className="translation-body">
+          {isLoading && !translation ? (
+            <ThinkingIndicator label="翻訳中" />
           ) : translation ? (
-            <div
-              className="flow-markdown full-translation-markdown mb-3.5 mt-1 text-[16px] leading-7"
-              style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
-            >
+            <div className="flow-markdown full-translation-markdown translation-copy">
               {canAnimateTranslation ? (
                 <FlowAnimatedMarkdown
                   content={animatedTranslation}
@@ -152,32 +146,28 @@ export default function TranslationSection({
               )}
             </div>
           ) : (
-            <p
-              className="mb-3.5 mt-1 whitespace-pre-wrap text-[16px] leading-7"
-              style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
-            >
-              {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译。</span>}
+            <p className="translation-copy is-placeholder">
+              解析后将自动翻译。
             </p>
-          )
-        ) : null}
-      </AutoAnimateHeight>
+          )}
+        </div>
+      )}
 
-      <div className="flex items-center">
-        <div className="flex-1" />
+      <div className="translation-footer">
         <button
           onClick={handleCopy}
-          className="nd-ghost-btn"
+          className="translation-action-link"
           style={copied ? { color: 'var(--primary)' } : undefined}
           disabled={!translation}
         >
-          {Icon.copy}<span>{copied ? '已复制' : '复制'}</span>
+          {copied ? '已複製' : '複 製'}
         </button>
         <button
           id="toggleFullTranslationButton"
-          className="nd-ghost-btn"
+          className="translation-action-link"
           onClick={toggleVisibility}
         >
-          <span>{isVisible ? '隐藏' : '显示'}</span>
+          {isVisible ? '隱 藏' : '顯 示'}
         </button>
       </div>
     </section>

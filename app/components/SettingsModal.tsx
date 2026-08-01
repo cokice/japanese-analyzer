@@ -104,14 +104,14 @@ export default function SettingsModal({
           &times;
         </button>
 
-        <div className="mb-5">
-          <div className="mb-1 flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+        <div className="settings-sheet-heading">
+          <div className="settings-sheet-title">
+            <span className="settings-sheet-icon">
               {Icon.gear}
             </span>
-            <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>自定义 API 设置</h3>
+            <h3>自定义 API 设置</h3>
           </div>
-          <p className="m-0 text-sm leading-6" style={{ color: 'var(--ink-3)' }}>
+          <p>
             应用默认使用服务器端密钥，也可以为 Gemini 和 DeepSeek 分别配置浏览器本地密钥。上游端点由服务器配置。
           </p>
         </div>
@@ -120,18 +120,14 @@ export default function SettingsModal({
           <label className="mb-2 block text-xs font-semibold uppercase tracking-[.08em]" style={{ color: 'var(--ink-3)' }}>
             文本模型服务商
           </label>
-          <div className="grid grid-cols-2 gap-2 rounded-[3px] p-1" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
+          <div className="settings-provider-grid">
             {(['gemini', 'deepseek'] as AIProvider[]).map((provider) => {
               const active = selectedProvider === provider;
               return (
                 <button
                   key={provider}
                   type="button"
-                  className="inline-flex items-center justify-center gap-2 rounded-[3px] px-3 py-2 text-sm font-semibold transition-colors"
-                  style={{
-                    background: active ? 'var(--bg-2)' : 'transparent',
-                    color: active ? 'var(--primary)' : 'var(--ink-3)',
-                  }}
+                  className={`settings-provider-option ${active ? 'is-active' : ''}`}
                   onClick={() => setSelectedProvider(provider)}
                 >
                   <ProviderLogo provider={provider} />
@@ -141,20 +137,8 @@ export default function SettingsModal({
             })}
           </div>
           {selectedProvider === 'deepseek' && (
-            <p
-              className="mt-2 flex items-start gap-2 rounded-[3px] p-2 text-xs leading-5"
-              style={{
-                background: 'color-mix(in oklab, var(--pos-adj) 12%, transparent)',
-                color: 'var(--ink-2)',
-              }}
-            >
-              <span
-                className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full text-[11px] font-bold leading-none"
-                style={{ background: 'var(--pos-adj)', color: '#fff' }}
-                aria-hidden="true"
-              >
-                !
-              </span>
+            <p className="paper-notice settings-provider-notice">
+              <span className="paper-notice-mark" aria-hidden="true">!</span>
               <span>DeepSeek 当前不支持图片识别；选择后上传图片和粘贴图片识别会自动关闭。</span>
             </p>
           )}
@@ -194,7 +178,7 @@ export default function SettingsModal({
           />
         </div>
 
-        <div className="mb-5 rounded-[3px] p-3" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
+        <div className="settings-option-row">
           <div className="flex items-center justify-between gap-4">
             <div>
               <label htmlFor="useStreamToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>
@@ -217,7 +201,7 @@ export default function SettingsModal({
         </div>
 
         {selectedProvider === 'deepseek' && (
-          <div className="mb-5 rounded-[3px] p-3" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
+          <div className="settings-option-row">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <label htmlFor="deepseekThinkingToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>
