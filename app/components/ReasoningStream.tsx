@@ -1,119 +1,60 @@
 'use client';
 
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
-  useCallback,
   useEffect,
-  useLayoutEffect,
-  useMemo,
   useRef,
   useState,
-  type TransitionEvent,
+  useSyncExternalStore,
 } from 'react';
-import { stripReasoningBoldMarkdown } from '../utils/markdown';
+import type { ReasoningTextStore } from '../utils/reasoningTextStore';
 import ReasoningSummaryStatus from './ReasoningSummaryStatus';
 
 interface ReasoningStreamProps {
-  text: string;
+  store: ReasoningTextStore;
   done: boolean;
-  summary?: string;
-}
-
-interface CoolingCharacter {
-  id: number;
-  value: string;
-}
-
-interface RenderState {
-  cooledText: string;
-  activeCharacters: CoolingCharacter[];
+  summaryHistory: readonly string[];
+  completionLabel?: string;
 }
 
 const SCROLL_BOTTOM_THRESHOLD = 8;
-const COMPACTION_BATCH_MS = 80;
+const VIRTUAL_ROW_ESTIMATE_PX = 42;
+const VIRTUAL_OVERSCAN = 6;
 
-export default function ReasoningStream({ text, done, summary = '' }: ReasoningStreamProps) {
-  const cleanText = useMemo(() => stripReasoningBoldMarkdown(text), [text]);
+export default function ReasoningStream({
+  store,
+  done,
+  summaryHistory,
+  completionLabel = '已深度思考',
+}: ReasoningStreamProps) {
+  const revision = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot
+  );
   const [expanded, setExpanded] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(1);
-  const [renderState, setRenderState] = useState<RenderState>({
-    cooledText: '',
-    activeCharacters: [],
-  });
-  const nextCharacterIdRef = useRef(0);
-  const processedTextRef = useRef('');
-  const pendingCoolingIdsRef = useRef(new Set<number>());
-  const settledIdsRef = useRef(new Set<number>());
-  const characterElementsRef = useRef(new Map<number, HTMLSpanElement>());
-  const firstFrameRef = useRef<number | null>(null);
-  const coolingFrameRef = useRef<number | null>(null);
-  const compactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollWindowRef = useRef<HTMLDivElement>(null);
   const followTailRef = useRef(true);
   const startedAtRef = useRef<number | null>(null);
   const previousDoneRef = useRef(done);
+  const virtualLines = store.getVirtualLines();
+  const tailText = store.getTail();
+  const lineCount = virtualLines.length;
 
-  const scheduleCooling = useCallback((ids: number[]) => {
-    ids.forEach((id) => pendingCoolingIdsRef.current.add(id));
-
-    const requestCoolingBatch = () => {
-      if (
-        firstFrameRef.current !== null
-        || coolingFrameRef.current !== null
-        || pendingCoolingIdsRef.current.size === 0
-      ) {
-        return;
-      }
-
-      firstFrameRef.current = window.requestAnimationFrame(() => {
-        firstFrameRef.current = null;
-        const idsReadyToCool = Array.from(pendingCoolingIdsRef.current);
-        pendingCoolingIdsRef.current.clear();
-
-        coolingFrameRef.current = window.requestAnimationFrame(() => {
-          coolingFrameRef.current = null;
-          idsReadyToCool.forEach((id) => {
-            characterElementsRef.current.get(id)?.classList.add('is-cooling');
-          });
-          requestCoolingBatch();
-        });
-      });
-    };
-
-    requestCoolingBatch();
-  }, []);
-
-  useEffect(() => {
-    const previousText = processedTextRef.current;
-    if (cleanText === previousText) return;
-
-    const appending = cleanText.startsWith(previousText);
-    const addedText = appending ? cleanText.slice(previousText.length) : cleanText;
-    const addedCharacters = Array.from(addedText, (value) => ({
-      id: nextCharacterIdRef.current++,
-      value,
-    }));
-
-    processedTextRef.current = cleanText;
-    if (!appending) {
-      settledIdsRef.current.clear();
-      pendingCoolingIdsRef.current.clear();
-      setRenderState({ cooledText: '', activeCharacters: addedCharacters });
-    } else if (addedCharacters.length > 0) {
-      setRenderState((current) => ({
-        ...current,
-        activeCharacters: [...current.activeCharacters, ...addedCharacters],
-      }));
-    }
-
-    if (addedCharacters.length > 0) {
-      scheduleCooling(addedCharacters.map((character) => character.id));
-    }
-  }, [cleanText, scheduleCooling]);
+  const rowVirtualizer = useVirtualizer({
+    count: expanded ? lineCount : 0,
+    getScrollElement: () => scrollWindowRef.current,
+    estimateSize: () => VIRTUAL_ROW_ESTIMATE_PX,
+    overscan: VIRTUAL_OVERSCAN,
+    useFlushSync: false,
+  });
 
   useEffect(() => {
     if (!done) {
       if (previousDoneRef.current || startedAtRef.current === null) {
         startedAtRef.current = performance.now();
+        followTailRef.current = true;
         setExpanded(false);
       }
     } else if (!previousDoneRef.current) {
@@ -140,69 +81,27 @@ export default function ReasoningStream({ text, done, summary = '' }: ReasoningS
   }, [done]);
 
   useEffect(() => {
-    if (!done) return;
+    if (!expanded) return;
 
-    pendingCoolingIdsRef.current.clear();
-    settledIdsRef.current.clear();
-    if (compactTimerRef.current) {
-      clearTimeout(compactTimerRef.current);
-      compactTimerRef.current = null;
-    }
-    setRenderState((current) => (
-      current.cooledText === cleanText && current.activeCharacters.length === 0
-        ? current
-        : { cooledText: cleanText, activeCharacters: [] }
-    ));
-  }, [cleanText, done]);
+    rowVirtualizer.measure();
+  }, [expanded, rowVirtualizer]);
 
-  useLayoutEffect(() => {
-    if (!expanded || !followTailRef.current) return;
-    const scrollWindow = scrollWindowRef.current;
-    if (scrollWindow) {
-      scrollWindow.scrollTop = scrollWindow.scrollHeight;
-    }
-  }, [expanded, renderState.activeCharacters.length, renderState.cooledText]);
+  useEffect(() => {
+    if (!expanded || lineCount === 0) return;
 
-  useEffect(() => () => {
-    if (firstFrameRef.current !== null) window.cancelAnimationFrame(firstFrameRef.current);
-    if (coolingFrameRef.current !== null) window.cancelAnimationFrame(coolingFrameRef.current);
-    if (compactTimerRef.current) clearTimeout(compactTimerRef.current);
-  }, []);
+    const frame = window.requestAnimationFrame(() => {
+      if (followTailRef.current) {
+        rowVirtualizer.scrollToIndex(lineCount - 1, { align: 'end' });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [expanded, lineCount, revision, rowVirtualizer]);
 
-  const compactSettledCharacters = useCallback(() => {
-    if (compactTimerRef.current) return;
-
-    compactTimerRef.current = setTimeout(() => {
-      compactTimerRef.current = null;
-      setRenderState((current) => {
-        let settledPrefixLength = 0;
-        while (
-          settledPrefixLength < current.activeCharacters.length
-          && settledIdsRef.current.has(current.activeCharacters[settledPrefixLength].id)
-        ) {
-          settledPrefixLength += 1;
-        }
-
-        if (settledPrefixLength === 0) return current;
-
-        const settledPrefix = current.activeCharacters.slice(0, settledPrefixLength);
-        settledPrefix.forEach((character) => settledIdsRef.current.delete(character.id));
-
-        return {
-          cooledText: current.cooledText + settledPrefix.map((character) => character.value).join(''),
-          activeCharacters: current.activeCharacters.slice(settledPrefixLength),
-        };
-      });
-    }, COMPACTION_BATCH_MS);
-  }, []);
-
-  const handleCharacterTransitionEnd = (
-    event: TransitionEvent<HTMLSpanElement>,
-    characterId: number
-  ) => {
-    if (event.propertyName !== 'color') return;
-    settledIdsRef.current.add(characterId);
-    compactSettledCharacters();
+  const handleToggle = () => {
+    setExpanded((current) => {
+      if (!current) followTailRef.current = true;
+      return !current;
+    });
   };
 
   const handleScroll = () => {
@@ -216,7 +115,8 @@ export default function ReasoningStream({ text, done, summary = '' }: ReasoningS
   };
 
   const reviewMode = done && expanded;
-  const title = summary || (done ? '思考完成' : '正在分析…');
+  const doneText = `${completionLabel}（用时 ${elapsedSeconds} 秒）`;
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   return (
     <section className="reasoning-stream-card" data-testid="reasoning-stream">
@@ -225,14 +125,23 @@ export default function ReasoningStream({ text, done, summary = '' }: ReasoningS
         className="reasoning-stream-header"
         aria-expanded={expanded}
         aria-controls="deepseek-reasoning-content"
-        onClick={() => setExpanded((current) => !current)}
+        onClick={handleToggle}
       >
-        <span className="reasoning-stream-title">
-          <ReasoningSummaryStatus text={title} done={done} />
-        </span>
-        <span className="reasoning-stream-elapsed" aria-label={done ? `用时 ${elapsedSeconds} 秒` : `已思考 ${elapsedSeconds} 秒`}>
-          {done ? `用时 ${elapsedSeconds} 秒` : `${elapsedSeconds} 秒`}
-        </span>
+        <div className="reasoning-stream-title">
+          <ReasoningSummaryStatus
+            summaries={summaryHistory}
+            done={done}
+            doneText={doneText}
+          />
+        </div>
+        {!done && (
+          <span
+            className="reasoning-stream-elapsed"
+            aria-label={`已思考 ${elapsedSeconds} 秒`}
+          >
+            {elapsedSeconds} 秒
+          </span>
+        )}
         <svg
           className={`reasoning-stream-chevron${expanded ? ' is-expanded' : ''}`}
           viewBox="0 0 16 16"
@@ -242,36 +151,61 @@ export default function ReasoningStream({ text, done, summary = '' }: ReasoningS
         </svg>
       </button>
 
-      {expanded && (
-        <div
-          id="deepseek-reasoning-content"
-          ref={scrollWindowRef}
-          lang="zh-CN"
-          className={`reasoning-stream-window${reviewMode ? ' is-review' : ''}`}
-          onScroll={handleScroll}
-        >
-          <div className="reasoning-stream-copy">
-            {renderState.cooledText}
-            {renderState.activeCharacters.map((character) => (
-              <span
-                key={character.id}
-                ref={(element) => {
-                  if (element) {
-                    characterElementsRef.current.set(character.id, element);
-                  } else {
-                    characterElementsRef.current.delete(character.id);
-                  }
-                }}
-                className="reasoning-stream-char"
-                onTransitionEnd={(event) => handleCharacterTransitionEnd(event, character.id)}
+      <div
+        className={`reasoning-stream-collapse${expanded ? ' is-expanded' : ''}`}
+        aria-hidden={!expanded}
+      >
+        <div className="reasoning-stream-collapse-inner">
+          {expanded ? (
+            <div id="deepseek-reasoning-content" className="reasoning-stream-expanded-content">
+              {done && summaryHistory.length > 0 && (
+                <ol className="reasoning-summary-history" aria-label="完整思考摘要历史">
+                  {summaryHistory.map((historyItem, index) => (
+                    <li key={`${index}-${historyItem}`} className="reasoning-summary-history-item">
+                      <span className="reasoning-summary-history-check" aria-hidden="true">✓</span>
+                      <span>{historyItem}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <div
+                ref={scrollWindowRef}
+                lang="zh-CN"
+                className={`reasoning-stream-window${reviewMode ? ' is-review' : ''}`}
+                onScroll={handleScroll}
               >
-                {character.value}
-              </span>
-            ))}
-            {!done && <span className="reasoning-stream-cursor" aria-hidden="true" />}
-          </div>
+                <div
+                  className="reasoning-stream-virtual-space"
+                  style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                >
+                  {virtualItems.map((virtualItem) => {
+                    const isLastLine = virtualItem.index === lineCount - 1;
+                    return (
+                      <div
+                        key={virtualItem.key}
+                        ref={rowVirtualizer.measureElement}
+                        data-index={virtualItem.index}
+                        className={`reasoning-stream-virtual-row${!done && isLastLine ? ' is-streaming' : ''}`}
+                        style={{ transform: `translateY(${virtualItem.start}px)` }}
+                      >
+                        {virtualLines[virtualItem.index]}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              id="deepseek-reasoning-content"
+              lang="zh-CN"
+              className={`reasoning-stream-window reasoning-stream-tail${!done ? ' is-streaming' : ''}`}
+            >
+              {tailText}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 }

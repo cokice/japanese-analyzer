@@ -65,11 +65,11 @@ export interface StoredAISettings {
 export interface AnalyzeRequestOptions {
   deepseekThinkingEnabled?: boolean;
   onReasoning?: (text: string, done: boolean) => void;
+  onContentStart?: () => void;
 }
 
 export interface ReasoningSummaryRequestOptions {
-  previousSummary: string;
-  reasoningDelta: string;
+  reasoningSnippet: string;
   userApiKey?: string;
   signal?: AbortSignal;
 }
@@ -227,10 +227,7 @@ export async function summarizeDeepSeekReasoningProgress(
     method: 'POST',
     headers: getHeaders(options.userApiKey),
     body: JSON.stringify({
-      previousSummary: options.previousSummary,
-      reasoningDelta: options.reasoningDelta,
-      provider: 'deepseek',
-      model: getModelName('deepseek'),
+      reasoningSnippet: options.reasoningSnippet,
     }),
     signal: options.signal,
   });
@@ -569,6 +566,7 @@ export async function readOpenAIContentStream(
     invalidContentMessage?: string;
     completionLabel?: string;
     onReasoning?: (text: string, done: boolean) => void;
+    onContentStart?: () => void;
     reasoningDebounceMs?: number;
   } = {}
 ): Promise<void> {
@@ -588,6 +586,7 @@ export async function readOpenAIContentStream(
   let rawReasoningContent = '';
   let terminalError: Error | null = null;
   let hasTerminalSignal = false;
+  let hasContentStarted = false;
   let updateTimeout: ReturnType<typeof setTimeout> | null = null;
   let reasoningUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -697,6 +696,10 @@ export async function readOpenAIContentStream(
     }
 
     if (content) {
+      if (!hasContentStarted) {
+        hasContentStarted = true;
+        options.onContentStart?.();
+      }
       rawContent += content;
       emit(rawContent, false);
     }
@@ -910,6 +913,7 @@ async function streamAnalyzeSingleSentence(
       invalidContentMessage: '句子解析结果没有完整生成，请重新解析。',
       completionLabel: '句子解析',
       onReasoning: options.onReasoning,
+      onContentStart: options.onContentStart,
     });
   } catch (error) {
     console.error('Error in stream analyzing sentence:', error);

@@ -684,40 +684,141 @@ input, textarea {
   position: relative;
   display: block;
   min-width: 0;
-  height: 19px;
-  flex: 1;
+  width: 100%;
+  max-height: 90px;
   overflow: hidden;
 }
 
-.reasoning-summary-copy {
-  position: absolute;
-  inset: 0;
+.reasoning-summary-viewport.is-done {
+  max-height: 19px;
+}
+
+.reasoning-summary-stack {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  padding-bottom: 6px;
+  grid-auto-rows: 20px;
+  gap: 4px;
+}
+
+.reasoning-summary-entry {
+  position: relative;
+  height: 20px;
+  min-width: 0;
+}
+
+.reasoning-summary-entry-visual {
+  display: grid;
+  height: 20px;
+  min-width: 0;
+  align-items: center;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 4px;
+  color: var(--ink-2);
+  transition: color 300ms ease-out;
+  will-change: transform, color;
+}
+
+.reasoning-summary-entry.is-previous .reasoning-summary-entry-visual {
+  color: color-mix(in oklab, var(--ink-3) 58%, var(--bg-2));
+}
+
+.reasoning-summary-icon-slot {
+  position: relative;
+  display: grid;
+  width: 14px;
+  height: 20px;
+  place-items: center;
+}
+
+.reasoning-summary-check {
+  display: grid;
+  width: 14px;
+  height: 20px;
+  place-items: center;
+  color: color-mix(in oklab, var(--pos-v) 36%, var(--ink-3));
+  font-size: 11px;
+  font-weight: 450;
+  line-height: 20px;
+}
+
+.reasoning-summary-current-indicator {
+  display: grid;
+  width: 14px;
+  height: 20px;
+  place-items: center;
+}
+
+.reasoning-summary-current-indicator::before {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid color-mix(in oklab, var(--primary) 24%, var(--line-2));
+  border-top-color: var(--primary);
+  border-radius: 999px;
+  content: "";
+  animation: reasoning-summary-loader-spin 0.9s linear infinite;
+}
+
+.reasoning-summary-copy-motion {
   display: block;
+  min-width: 0;
   overflow: hidden;
-  color: var(--ink-3);
+  transform-origin: left center;
+  will-change: transform, opacity, filter;
+}
+
+.reasoning-summary-copy {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: inherit;
   font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-  font-size: 12.5px;
-  font-weight: 500;
-  line-height: 19px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.reasoning-summary-entry.is-previous .reasoning-summary-copy {
+  color: inherit;
 }
 
 .reasoning-summary-copy.is-thinking {
   color: transparent;
   background: linear-gradient(
     100deg,
-    var(--ink-3) 8%,
-    var(--ink-3) 38%,
+    var(--ink-2) 5%,
+    var(--ink-2) 30%,
+    color-mix(in oklab, var(--primary) 58%, var(--ink)) 43%,
     var(--primary) 50%,
-    var(--ink-3) 62%,
-    var(--ink-3) 92%
+    color-mix(in oklab, var(--primary) 58%, var(--ink)) 57%,
+    var(--ink-2) 70%,
+    var(--ink-2) 95%
   );
-  background-size: 235% 100%;
+  background-size: 260% 100%;
   -webkit-background-clip: text;
   background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: reasoning-summary-shimmer 2.1s linear infinite;
+  -webkit-text-fill-color: transparent !important;
+  animation: reasoning-summary-shimmer 1.9s linear infinite;
+}
+
+@keyframes reasoning-summary-loader-spin {
+  to { transform: rotate(360deg); }
+}
+
+.reasoning-summary-done {
+  display: block;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 19px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @keyframes reasoning-summary-shimmer {
@@ -736,9 +837,9 @@ input, textarea {
   display: flex;
   width: 100%;
   min-height: 42px;
-  align-items: center;
+  align-items: flex-end;
   gap: 9px;
-  padding: 0 13px;
+  padding: 14px 15px;
   border: 0;
   background: transparent;
   color: var(--ink-3);
@@ -759,7 +860,10 @@ input, textarea {
 }
 
 .reasoning-stream-elapsed {
+  display: flex;
+  height: 20px;
   flex: 0 0 auto;
+  align-items: center;
   color: var(--ink-3);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
@@ -778,6 +882,7 @@ input, textarea {
   stroke-linejoin: round;
   stroke-width: 1.5;
   color: var(--primary);
+  margin-bottom: 2px;
   transition: transform 0.18s ease;
 }
 
@@ -785,8 +890,61 @@ input, textarea {
   transform: rotate(180deg);
 }
 
+.reasoning-stream-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reasoning-stream-collapse.is-expanded {
+  grid-template-rows: 1fr;
+}
+
+.reasoning-stream-collapse-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.reasoning-stream-expanded-content {
+  display: grid;
+  gap: 10px;
+}
+
+.reasoning-summary-history {
+  display: flex;
+  max-height: 180px;
+  margin: 0 10px;
+  padding: 10px 14px;
+  overflow-y: auto;
+  flex-direction: column;
+  gap: 7px;
+  border-left: 2px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--bg-2);
+  color: var(--ink-3);
+  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.55;
+  scrollbar-color: var(--line-2) var(--bg-2);
+  scrollbar-width: thin;
+}
+
+.reasoning-summary-history-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 3px;
+}
+
+.reasoning-summary-history-check {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 650;
+}
+
 .reasoning-stream-window {
-  max-height: 150px;
+  height: 150px;
   margin: 0 10px 10px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -796,20 +954,16 @@ input, textarea {
   scrollbar-width: thin;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, var(--ink) 24px, var(--ink) 100%);
   mask-image: linear-gradient(to bottom, transparent 0, var(--ink) 24px, var(--ink) 100%);
-  transition: max-height 0.22s ease;
 }
 
 .reasoning-stream-window.is-review {
-  max-height: min(42vh, 360px);
+  height: min(42vh, 360px);
   -webkit-mask-image: none;
   mask-image: none;
 }
 
-.reasoning-stream-copy {
-  min-height: 54px;
-  margin: 12px 12px 12px 10px;
-  padding: 2px 2px 2px 12px;
-  border-left: 2px solid var(--line-2);
+.reasoning-stream-tail,
+.reasoning-stream-virtual-row {
   color: var(--ink-3);
   font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   font-size: 11.5px;
@@ -819,17 +973,27 @@ input, textarea {
   white-space: pre-wrap;
 }
 
-.reasoning-stream-char {
-  color: var(--ink);
-  font-weight: inherit;
-  transition: color 1.2s ease-out;
+.reasoning-stream-tail {
+  padding: 24px 14px 14px 22px;
+  border-left: 2px solid var(--line-2);
+  color: transparent;
+  background:
+    linear-gradient(
+      to bottom,
+      var(--ink-3) 0%,
+      var(--ink-3) 48%,
+      var(--ink-2) 76%,
+      var(--ink) 100%
+    ),
+    linear-gradient(var(--bg-2), var(--bg-2));
+  background-clip: text, padding-box;
+  -webkit-background-clip: text, padding-box;
+  -webkit-text-fill-color: transparent;
 }
 
-.reasoning-stream-char.is-cooling {
-  color: var(--ink-3);
-}
-
-.reasoning-stream-cursor {
+.reasoning-stream-tail.is-streaming::after,
+.reasoning-stream-virtual-row.is-streaming::after {
+  content: "";
   display: inline-block;
   width: 1.5px;
   height: 1.05em;
@@ -838,6 +1002,20 @@ input, textarea {
   background: var(--primary);
   vertical-align: -0.14em;
   animation: reasoning-cursor-blink 0.82s steps(2, jump-none) infinite;
+}
+
+.reasoning-stream-virtual-space {
+  position: relative;
+  width: 100%;
+}
+
+.reasoning-stream-virtual-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 4px 16px 4px 22px;
+  border-left: 2px solid var(--line-2);
 }
 
 @keyframes reasoning-cursor-blink {
@@ -849,12 +1027,13 @@ input, textarea {
     animation: none;
   }
 
-  .reasoning-stream-cursor {
+  .reasoning-summary-current-indicator::before {
     animation: none;
   }
 
-  .reasoning-stream-char {
-    transition-duration: 0.01ms;
+  .reasoning-stream-tail.is-streaming::after,
+  .reasoning-stream-virtual-row.is-streaming::after {
+    animation: none;
   }
 }
 
@@ -870,6 +1049,8 @@ input, textarea {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .input-text-shimmer-layer-frame {

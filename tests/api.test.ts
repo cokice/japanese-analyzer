@@ -60,9 +60,15 @@ import {
   splitJapaneseText
 } from '../app/utils/japaneseChunking';
 import {
+  areReasoningSummariesSimilar,
   ReasoningSummaryController,
   sanitizeReasoningSummary
 } from '../app/utils/reasoningSummary';
+import {
+  REASONING_TAIL_CHAR_LIMIT,
+  REASONING_VIRTUAL_LINE_CHAR_LIMIT,
+  ReasoningTextStore
+} from '../app/utils/reasoningTextStore';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
@@ -71,12 +77,29 @@ assert.strictEqual(getApiEndpoint('reasoning-summary'), '/api/reasoning-summary'
 
 assert.strictEqual(
   sanitizeReasoningSummary('**当前进度：** “正在核对句子结构。”'),
-  '正在核对句子结构。'
+  '正在核对句子结构'
 );
 assert.strictEqual(
   sanitizeReasoningSummary('123456789', 5),
   '12345'
 );
+
+const longReasoningStore = new ReasoningTextStore();
+const fiftyThousandCharacterReasoning = '思考'.repeat(25_000);
+longReasoningStore.setText(fiftyThousandCharacterReasoning);
+assert.strictEqual(longReasoningStore.getTextLength(), 50_000);
+assert.strictEqual(longReasoningStore.getTail().length, REASONING_TAIL_CHAR_LIMIT);
+assert.strictEqual(
+  longReasoningStore.getVirtualLines().join(''),
+  fiftyThousandCharacterReasoning
+);
+assert.ok(
+  longReasoningStore.getVirtualLines().every(
+    (line) => line.length <= REASONING_VIRTUAL_LINE_CHAR_LIMIT
+  )
+);
+longReasoningStore.setText(`${fiftyThousandCharacterReasoning}追加`);
+assert.strictEqual(longReasoningStore.getTextLength(), 50_002);
 
 assert.strictEqual(DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
@@ -407,6 +430,7 @@ async function collectOpenAIContentStream(
 ): Promise<{
   events: Array<{ chunk: string; isDone: boolean }>;
   reasoningEvents: Array<{ text: string; done: boolean }>;
+  contentStartCount: number;
   error: Error | null;
 }> {
   const encoder = new TextEncoder();
@@ -419,7 +443,9 @@ async function collectOpenAIContentStream(
   const events: Array<{ chunk: string; isDone: boolean }> = [];
   const reasoningEvents: Array<{ text: string; done: boolean }> = [];
   let error: Error | null = null;
+  let contentStartCount = 0;
   const suppliedReasoningHandler = options.onReasoning;
+  const suppliedContentStartHandler = options.onContentStart;
 
   await readOpenAIContentStream(
     response,
@@ -435,10 +461,14 @@ async function collectOpenAIContentStream(
         reasoningEvents.push({ text, done });
         suppliedReasoningHandler?.(text, done);
       },
+      onContentStart: () => {
+        contentStartCount += 1;
+        suppliedContentStartHandler?.();
+      },
     }
   );
 
-  return { events, reasoningEvents, error };
+  return { events, reasoningEvents, contentStartCount, error };
 }
 
 const completeWordDetailJson = JSON.stringify({
@@ -491,6 +521,7 @@ async function runOpenAIContentStreamTests() {
     { text: '先确认句子结构。', done: false },
     { text: '先确认句子结构。', done: true },
   ]);
+  assert.strictEqual(completeStream.contentStartCount, 1);
 
   const throttledReasoningStream = await collectOpenAIContentStream(
     [
@@ -505,6 +536,7 @@ async function runOpenAIContentStreamTests() {
   assert.deepStrictEqual(throttledReasoningStream.reasoningEvents, [
     { text: '第一段第二段', done: true },
   ]);
+  assert.strictEqual(throttledReasoningStream.contentStartCount, 1);
 
   const lengthStream = await collectOpenAIContentStream(
     [
@@ -704,38 +736,95 @@ const geminiLiteStorage = new MemoryStorage({
 assert.strictEqual(loadAISettingsFromStorage(geminiLiteStorage).aiModel, 'gemini-3.5-flash-lite');
 
 async function runReasoningSummaryControllerTests() {
-  const requestDeltas: string[] = [];
+  const requestSnippets: string[] = [];
   const summaries: string[] = [];
   let activeRequests = 0;
   let maxActiveRequests = 0;
+  const pendingRequests: Array<{
+    signal: AbortSignal;
+    resolve: (summary: string) => void;
+  }> = [];
+
+  const waitFor = async (predicate: () => boolean) => {
+    for (let attempt = 0; attempt < 100 && !predicate(); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+    assert.ok(predicate(), '等待摘要控制器状态超时');
+  };
 
   const controller = new ReasoningSummaryController({
-    intervalMs: 0,
-    requestSummary: async ({ reasoningDelta }) => {
-      requestDeltas.push(reasoningDelta);
+    fallbackMs: 15,
+    requestSummary: ({ reasoningSnippet, signal }) => new Promise((resolve, reject) => {
+      requestSnippets.push(reasoningSnippet);
       activeRequests += 1;
       maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      activeRequests -= 1;
-      return `正在总结${requestDeltas.length}`;
-    },
+      let settled = false;
+      const settle = (callback: () => void) => {
+        if (settled) return;
+        settled = true;
+        activeRequests -= 1;
+        callback();
+      };
+      signal.addEventListener('abort', () => {
+        settle(() => {
+          const error = new Error('aborted');
+          error.name = 'AbortError';
+          reject(error);
+        });
+      }, { once: true });
+      pendingRequests.push({
+        signal,
+        resolve: (summary) => settle(() => resolve(summary)),
+      });
+    }),
     onSummary: (summary) => summaries.push(summary),
   });
 
   controller.start();
   controller.ingest('第一段思考');
-  await new Promise((resolve) => setTimeout(resolve, 1));
-  controller.ingest('第一段思考，第二段思考');
-  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.strictEqual(requestSnippets.length, 1, '首个 reasoning delta 应立即触发');
+
+  controller.ingest('第一段思考\n接下来检查句子结构');
+  assert.strictEqual(requestSnippets.length, 1, '在途请求期间只能标记 pending');
+  pendingRequests[0].resolve('正在核对句子结构');
+  await waitFor(() => requestSnippets.length === 2);
+  assert.ok(requestSnippets[1].endsWith('接下来检查句子结构'));
+  pendingRequests[1].resolve('正在核对句子结构');
+  await waitFor(() => activeRequests === 0);
+
+  const sixHundredCharacters = '甲'.repeat(600);
+  controller.ingest(`第一段思考\n接下来检查句子结构${sixHundredCharacters}`);
+  assert.strictEqual(requestSnippets.length, 3, '新增 600 字应立即触发');
+  assert.ok(Array.from(requestSnippets[2]).length <= 800);
+  assert.ok(requestSnippets[2].endsWith(sixHundredCharacters));
+  pendingRequests[2].resolve('正在检查长段落中的细节');
+  await waitFor(() => activeRequests === 0);
+
+  controller.ingest(`第一段思考\n接下来检查句子结构${sixHundredCharacters}继续核对`);
+  await waitFor(() => requestSnippets.length === 4);
+  pendingRequests[3].resolve('正在继续核对剩余细节');
+  await waitFor(() => activeRequests === 0);
+
+  controller.ingest(`第一段思考\n接下来检查句子结构${sixHundredCharacters}继续核对\n另外校验读音`);
+  assert.strictEqual(requestSnippets.length, 5);
+  pendingRequests[4].resolve('正在核对句子结构');
+  await waitFor(() => activeRequests === 0);
+  assert.strictEqual(summaries.length, 4, '与屏幕内较早摘要相似时不应入列');
+
+  controller.ingest(`第一段思考\n接下来检查句子结构${sixHundredCharacters}继续核对\n另外校验读音\n然后确认最终输出`);
+  assert.strictEqual(requestSnippets.length, 6);
   controller.finish();
 
   assert.strictEqual(maxActiveRequests, 1);
-  assert.deepStrictEqual(requestDeltas, ['第一段思考', '，第二段思考']);
+  assert.strictEqual(pendingRequests[5].signal.aborted, true, '结束时应中止在途摘要请求');
   assert.deepStrictEqual(summaries, [
-    '正在理解原文并规划分析步骤',
-    '正在总结1',
-    '正在总结2',
+    '正在连接模型…',
+    '正在核对句子结构',
+    '正在检查长段落中的细节',
+    '正在继续核对剩余细节',
   ]);
+  assert.ok(areReasoningSummariesSimilar('正在核对句子结构', '正在核对句子的结构'));
+  assert.ok(!areReasoningSummariesSimilar('正在核对句子结构', '正在检查假名读音'));
   controller.cancel();
 }
 

@@ -84,6 +84,8 @@ export default function InputSection({
   const [submitState, setSubmitState] = useState<StateMorphButtonState>('idle');
   const [showFirstVisitExample, setShowFirstVisitExample] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const japaneseInputRef = useRef<HTMLTextAreaElement>(null);
+  const inputShimmerFrameRef = useRef<HTMLDivElement>(null);
   const submitStartedRef = useRef(false);
   const wasAnalyzingRef = useRef(false);
   const submitResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -461,6 +463,17 @@ export default function InputSection({
   };
   const showInputShimmer = isLoading && inputText.trim().length > 0;
 
+  useEffect(() => {
+    if (!showInputShimmer) return;
+
+    const input = japaneseInputRef.current;
+    const shimmerFrame = inputShimmerFrameRef.current;
+    if (!input || !shimmerFrame) return;
+
+    shimmerFrame.scrollTop = input.scrollTop;
+    shimmerFrame.scrollLeft = input.scrollLeft;
+  }, [inputText, showInputShimmer]);
+
   return (
     <div className="w-full">
       <section className="nd-card">
@@ -472,12 +485,19 @@ export default function InputSection({
           )}
           <textarea
             id="japaneseInput"
+            ref={japaneseInputRef}
             lang="ja"
             className={`jp w-full resize-none border-none bg-transparent outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''} ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
             rows={5}
             placeholder="输入日语句子"
             value={inputText}
             onChange={(e) => handleInputTextChange(e.target.value)}
+            onScroll={(event) => {
+              const shimmerFrame = inputShimmerFrameRef.current;
+              if (!shimmerFrame) return;
+              shimmerFrame.scrollTop = event.currentTarget.scrollTop;
+              shimmerFrame.scrollLeft = event.currentTarget.scrollLeft;
+            }}
             onPaste={handlePaste}
             style={inputTextStyle}
             aria-describedby={showFirstVisitExample ? 'firstVisitExampleHint' : undefined}
@@ -492,7 +512,12 @@ export default function InputSection({
             </div>
           )}
           {showInputShimmer && (
-            <div className="input-text-shimmer-layer-frame" aria-hidden="true" lang="ja">
+            <div
+              ref={inputShimmerFrameRef}
+              className="input-text-shimmer-layer-frame"
+              aria-hidden="true"
+              lang="ja"
+            >
               <TextShimmer
                 as="div"
                 className="input-text-shimmer-layer jp"

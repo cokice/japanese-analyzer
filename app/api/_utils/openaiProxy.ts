@@ -133,6 +133,7 @@ export async function proxyOpenAICompatibleRequest(options: {
   url: string;
   apiKey: string;
   payload: Record<string, unknown>;
+  signal?: AbortSignal;
 }): Promise<
   | { ok: true; response: Response }
   | { ok: false; status: number; error: ParsedUpstreamError }
@@ -145,6 +146,10 @@ export async function proxyOpenAICompatibleRequest(options: {
   const streamConnectionTimeout = isStreamingRequest
     ? createUpstreamTimeoutController()
     : null;
+  const timeoutSignal = streamConnectionTimeout?.controller.signal ?? createUpstreamSignal();
+  const upstreamSignal = options.signal && timeoutSignal
+    ? AbortSignal.any([options.signal, timeoutSignal])
+    : options.signal ?? timeoutSignal;
 
   let response: Response;
   try {
@@ -152,7 +157,7 @@ export async function proxyOpenAICompatibleRequest(options: {
       method: 'POST',
       headers,
       body: JSON.stringify(options.payload),
-      signal: streamConnectionTimeout?.controller.signal ?? createUpstreamSignal(),
+      signal: upstreamSignal,
     });
   } catch (error) {
     if (isUpstreamTimeoutError(error)) {
