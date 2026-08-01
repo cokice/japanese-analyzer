@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日本語文章解析 · 紙面版 · 完整流程</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700;800&family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f9f6ef;
+    --ink: #26231e;
+    --ink2: #57534a;
+    --ink3: #8a8477;
+    --rule: #d9d3c4;
+    --rule-strong: #26231e;
+    --shu: #c3402f;
+    --shu-soft: #f5e2dc;
+    --green-ok: #8fa58f;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { background: #e8e4da; }
+  body {
+    font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+    background: var(--paper);
+    background-image: radial-gradient(rgba(0,0,0,.012) 1px, transparent 1px);
+    background-size: 4px 4px;
+    max-width: 900px;
+    margin: 0 auto;
+    min-height: 100vh;
+    color: var(--ink);
+    padding: 0 54px 70px;
+  }
+
+  /* ============ 报头 ============ */
+  .masthead {
+    padding: 30px 0 15px;
+    border-bottom: 3px double var(--rule-strong);
+    display: flex; align-items: flex-end; gap: 16px;
+    margin-bottom: 34px;
+  }
+  .seal {
+    width: 40px; height: 40px;
+    border: 2.5px solid var(--shu); border-radius: 7px;
+    color: var(--shu);
+    font-family: "Shippori Mincho", serif;
+    font-size: 17px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    transform: rotate(-3deg); margin-bottom: 2px;
+  }
+  h1 { font-family: "Shippori Mincho", serif; font-size: 27px; font-weight: 800; letter-spacing: .06em; line-height: 1; }
+  .mast-right { margin-left: auto; font-size: 12.5px; color: var(--ink3); padding-bottom: 4px; }
+  .mast-right b { color: var(--ink2); font-weight: 500; }
+
+  .section-label {
+    font-family: "Shippori Mincho", serif;
+    font-size: 13px; font-weight: 600;
+    letter-spacing: .22em; color: var(--ink2);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+  .label-act {
+    font-family: "Noto Sans SC", sans-serif;
+    font-size: 12px; font-weight: 400; letter-spacing: .04em;
+    color: var(--ink3); cursor: pointer; flex: none;
+    border-bottom: 1px dashed transparent;
+  }
+  .label-act:hover { border-bottom-color: var(--ink3); color: var(--ink2); }
+
+  /* ============ 原文区:双态 ============ */
+  .stage { position: relative; margin-top: 4px; transition: opacity .25s ease; }
+  .stage.fading { opacity: 0; }
+
+  /* --- 编辑态 --- */
+  .edit-state textarea {
+    width: 100%;
+    border: none; outline: none; resize: none; background: transparent;
+    font-family: "Noto Serif SC", serif;
+    font-size: 20px; line-height: 2.5;
+    color: var(--ink);
+    min-height: 170px;
+    background-image: linear-gradient(transparent calc(2.5em - 1px), var(--rule) calc(2.5em - 1px), var(--rule) 2.5em, transparent 2.5em);
+    background-size: 100% 2.5em;
+    background-attachment: local;
+    padding-top: 8px;
+  }
+  .edit-state textarea::placeholder { color: #b9b2a2; }
+  .edit-foot { display: flex; align-items: center; gap: 16px; padding: 14px 0 0; }
+  .tool-link { font-size: 13px; color: var(--ink2); cursor: pointer; border-bottom: 1px dashed transparent; }
+  .tool-link:hover { border-bottom-color: var(--ink3); }
+  .go {
+    margin-left: auto;
+    font-family: "Shippori Mincho", serif;
+    font-size: 14px; font-weight: 600; letter-spacing: .3em; text-indent: .3em;
+    background: var(--ink); color: var(--paper);
+    border: none; padding: 10px 28px; border-radius: 3px;
+    cursor: pointer; transition: background .15s, opacity .2s;
+  }
+  .go:hover { background: var(--shu); }
+  .go:disabled { opacity: .35; cursor: default; }
+  .go:disabled:hover { background: var(--ink); }
+
+  /* --- 批注态 --- */
+  .annotated {
+    font-family: "Noto Serif SC", serif;
+    font-size: 20px;
+    line-height: 3.05;
+    color: var(--ink);
+    position: relative;
+    padding-top: 8px;
+    transition: line-height .35s ease, padding-bottom .35s ease;
+  }
+  .tok {
+    display: inline-block; position: relative;
+    margin: 0 2px; cursor: pointer; text-align: center;
+    padding: 0 1px 2px;
+    color: #a39c8c;
+  }
+  .tok.ink { color: var(--ink); transition: color .5s ease; }
+  .tok .uline {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 1.6px; background: #c9c2b2;
+    transform: scaleX(0); transform-origin: left center;
+    transition: background .15s;
+  }
+  .tok.ink .uline { animation: drawLine .38s cubic-bezier(.3,.7,.4,1) .12s forwards; }
+  @keyframes drawLine { to { transform: scaleX(1); } }
+  .tok .furi {
+    display: block;
+    font-family: "Noto Sans SC", sans-serif;
+    font-size: 10px; line-height: 1;
+    color: var(--ink3);
+    position: absolute; top: -3px; left: 0; right: 0;
+    opacity: 0;
+  }
+  .tok.ink .furi { animation: floatUp .4s ease .3s forwards; }
+  .tok .pos-mark {
+    font-family: "Shippori Mincho", serif;
+    font-size: 9.5px; color: var(--ink3);
+    vertical-align: -6px; margin-left: 1px;
+    opacity: 0;
+  }
+  .tok.ink .pos-mark { animation: floatUp .4s ease .4s forwards; }
+  @keyframes floatUp { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+  .tok:hover .uline { background: var(--shu); transform: scaleX(1); }
+  .tok.active { background: var(--shu-soft); }
+  .tok.active .uline { background: var(--shu); }
+  .punct { cursor: default; margin: 0; }
+  .punct .uline { display: none; }
+
+  .brush {
+    position: absolute;
+    width: 2.2px; height: 1.15em;
+    background: var(--shu);
+    border-radius: 2px;
+    transition: left .34s cubic-bezier(.35,.8,.35,1), top .34s ease;
+    box-shadow: 0 0 6px rgba(195,64,47,.35);
+    pointer-events: none;
+  }
+  .brush.gone { opacity: 0; transition: opacity .4s; }
+
+  /* --- 词下注 --- */
+  .gloss {
+    position: absolute;
+    font-family: "Noto Sans SC", sans-serif;
+    font-size: 13px; line-height: 1.9;
+    color: var(--ink2);
+    max-width: 430px;
+    opacity: 0; transform: translateY(-4px);
+    transition: opacity .3s ease, transform .3s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .gloss.open { opacity: 1; transform: none; pointer-events: auto; }
+  .gloss::before {
+    content: "";
+    position: absolute; left: 2px; top: -9px;
+    width: 1.5px; height: 8px;
+    background: var(--shu); opacity: .55;
+  }
+  .g-line1 { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 1px; }
+  .g-kana { font-size: 12px; color: var(--shu); letter-spacing: .04em; }
+  .g-pos { font-size: 11px; color: var(--ink3); }
+  .g-more {
+    font-size: 11.5px; color: var(--ink3);
+    cursor: pointer; border-bottom: 1px dashed var(--ink3);
+    margin-left: 6px; white-space: nowrap;
+  }
+  .g-more:hover { color: var(--shu); border-bottom-color: var(--shu); }
+
+  /* ============ 思考条:活跃态 / 归档态 ============ */
+  .think {
+    margin-top: 30px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    display: none;
+  }
+  .think.visible { display: block; }
+  .think-row {
+    display: flex; align-items: flex-end; gap: 10px;
+    padding: 9px 0;
+    font-size: 12.5px; color: var(--ink3);
+  }
+  .think.archived .think-row { align-items: center; cursor: pointer; user-select: none; }
+
+  /* 图标位:spinner ↔ 打勾,同一个 SVG */
+  .t-icon { width: 15px; height: 15px; flex: none; margin-bottom: 2px; }
+  .think.archived .t-icon { margin-bottom: 0; }
+  .t-icon svg { width: 100%; height: 100%; display: block; }
+  .t-ring {
+    fill: none; stroke: var(--shu);
+    stroke-width: 2.6; stroke-linecap: round;
+    stroke-dasharray: 42 14.5;
+    transform-origin: center;
+    animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .t-tick {
+    fill: none; stroke: var(--shu);
+    stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 17; stroke-dashoffset: 17;
+  }
+  .think.finishing .t-ring {
+    animation: lastSpin .45s cubic-bezier(.4,0,.2,1) forwards,
+               closeRing .35s ease-out .3s forwards;
+  }
+  @keyframes lastSpin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  @keyframes closeRing { to { stroke-dasharray: 56.6 0; } }
+  .think.finishing .t-tick { animation: drawTick .32s cubic-bezier(.3,1.2,.5,1) .62s forwards; }
+  @keyframes drawTick { to { stroke-dashoffset: 0; } }
+  .think.finishing .t-icon { animation: pop .3s cubic-bezier(.3,1.6,.5,1) .78s; }
+  @keyframes pop { 40% { transform: scale(1.22); } }
+
+  /* 摘要堆叠 */
+  .t-stack {
+    flex: 1;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    min-height: 58px;
+    overflow: hidden;
+    transition: min-height .3s ease;
+  }
+  .think.archived .t-stack { min-height: 18px; }
+  .t-item {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12.5px; line-height: 19px; height: 19px;
+    transform-origin: left center;
+    white-space: nowrap; overflow: hidden;
+  }
+  .t-item + .t-item { margin-top: 2px; }
+  .t-item.cur { margin-top: 7px; }
+  .think.archived .t-item.cur { margin-top: 0; }
+  .t-item.old {
+    transform: scale(.88);
+    color: #b5b0a3;
+    transition: transform .3s ease-out, color .3s ease-out, opacity .3s ease-out;
+  }
+  .t-item.old .mini-tick {
+    width: 11px; height: 11px; flex: none;
+  }
+  .t-item.old .mini-tick path {
+    fill: none; stroke: var(--green-ok);
+    stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 17; stroke-dashoffset: 17;
+    animation: drawTick .3s ease-out .05s forwards;
+  }
+  .t-item.exiting { opacity: 0; transform: scale(.88) translateY(-8px); }
+  .think.archived .t-item.old { display: none; }
+
+  /* 当前摘要:shimmer(墨色系)+ 模糊入场 */
+  .t-item.cur .t-txt {
+    font-weight: 500;
+    background: linear-gradient(90deg, var(--ink2) 35%, #b8ab90 50%, var(--ink2) 65%);
+    background-size: 250% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    animation: shimmer 2.2s linear infinite;
+  }
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -50% 0; } }
+  .t-item.cur.entering { animation: blurIn .4s ease both; }
+  @keyframes blurIn { from { opacity: 0; filter: blur(5px); } to { opacity: 1; filter: blur(0); } }
+  .think.archived .t-item.cur .t-txt {
+    animation: none; background: none;
+    -webkit-background-clip: unset; background-clip: unset;
+    color: var(--ink3); font-weight: 400;
+  }
+  .t-item.cur .t-dot {
+    width: 11px; height: 11px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .t-item.cur .t-dot::after {
+    content: ""; width: 4.5px; height: 4.5px; border-radius: 50%;
+    background: var(--shu);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; } }
+  .think.archived .t-dot { display: none; }
+
+  .t-meta {
+    flex: none; display: flex; align-items: center; gap: 8px;
+    margin-bottom: 2px;
+  }
+  .think.archived .t-meta { margin-bottom: 0; }
+  .t-chev { font-size: 10px; transition: transform .25s; display: none; }
+  .think.archived .t-chev { display: inline; }
+  .think.archived.open .t-chev { transform: rotate(180deg); }
+
+  .think-detail {
+    display: none;
+    padding: 4px 0 12px 22px;
+    border-top: 1px dashed var(--rule);
+    margin-top: -1px;
+  }
+  .think.archived.open ~ .think-detail { display: block; }
+  .think-detail .st {
+    display: flex; gap: 8px;
+    font-size: 12.5px; line-height: 2; color: var(--ink3);
+  }
+  .think-detail .st::before { content: "✓"; color: var(--green-ok); }
+
+  /* ============ 全文译 ============ */
+  .trans-block { margin-top: 34px; opacity: 0; transition: opacity .5s .1s; display: none; }
+  .trans-block.show { display: block; opacity: 1; }
+  .trans { font-size: 15px; line-height: 2; color: var(--ink2); padding-top: 10px; min-height: 30px; }
+  .trans-foot { display: flex; gap: 16px; margin-top: 6px; font-size: 12px; color: var(--ink3); }
+  .trans-foot span { cursor: pointer; border-bottom: 1px dashed transparent; }
+  .trans-foot span:hover { border-bottom-color: var(--ink3); }
+
+  footer {
+    margin-top: 64px; padding-top: 13px;
+    border-top: 1px solid var(--rule);
+    display: flex; font-size: 11.5px; color: var(--ink3); letter-spacing: .05em;
+  }
+  footer .colophon { margin-left: auto; }
+</style>
+</head>
+<body>
+  <div class="masthead">
+    <div class="seal">語</div>
+    <h1>日本語文章解析</h1>
+    <div class="mast-right">engine · <b>DeepSeek V4</b></div>
+  </div>
+
+  <div class="section-label">原 文
+    <span class="label-act" id="actEdit" style="display:none">✎ 編集</span>
+    <span class="label-act" id="actNew" style="display:none">＋ 新規</span>
+  </div>
+
+  <div class="stage" id="stage">
+    <!-- 编辑态 -->
+    <div class="edit-state" id="editState">
+      <textarea id="ta" placeholder="輸入或粘贴日语句子……">疲れていたので、彼が来ないとは思わなかった。</textarea>
+      <div class="edit-foot">
+        <span class="tool-link">📷 图片识别</span>
+        <span class="tool-link">🔊 朗読</span>
+        <button class="go" id="goBtn">解 析</button>
+      </div>
+    </div>
+    <!-- 批注态 -->
+    <div id="annoState" style="display:none">
+      <div class="annotated" id="annotated"></div>
+    </div>
+  </div>
+
+  <!-- 思考条:同一元素,活跃态 ↔ 归档态 -->
+  <div class="think" id="think">
+    <div class="think-row" id="thinkRow">
+      <div class="t-icon" id="tIcon">
+        <svg viewBox="0 0 24 24">
+          <circle class="t-ring" cx="12" cy="12" r="9"/>
+          <path class="t-tick" d="M7.5 12.4 L10.8 15.6 L16.5 9.2"/>
+        </svg>
+      </div>
+      <div class="t-stack" id="tStack"></div>
+      <div class="t-meta"><span id="tSecs">0 秒</span><span class="t-chev">▼</span></div>
+    </div>
+  </div>
+  <div class="think-detail" id="thinkDetail"></div>
+
+  <div class="trans-block" id="transBlock">
+    <div class="section-label">全文訳(中)</div>
+    <div class="trans" id="transText"></div>
+    <div class="trans-foot"><span>複製</span><span>隱藏</span></div>
+  </div>
+
+  <footer>
+    <span>解析由 AI 生成,細節請以詞典為準</span>
+    <span class="colophon">日本語文章解析</span>
+  </footer>
+
+<script>
+/* ================= 数据 ================= */
+const tokens = [
+  { s: "疲れて",   furi: "つか", pos: "動",  kana: "つかれて", mean: "累。「疲れる」的て形,表原因:因为累。" },
+  { s: "いた",     pos: "補動", kana: "いた", mean: "补助动词「いる」的过去形,表持续状态。" },
+  { s: "ので",     pos: "助",   kana: "ので", mean: "接续助词,表客观原因:因为、由于。" },
+  { s: "、",       punct: true },
+  { s: "彼",       furi: "かれ", pos: "名",  kana: "かれ",   mean: "他。第三人称代词,指男性。" },
+  { s: "が",       pos: "助",   kana: "が",   mean: "格助词,提示主语。" },
+  { s: "来",       furi: "こ",  pos: "動",   kana: "こ(ない)", mean: "来。「来る」的未然形,后接否定。" },
+  { s: "ない",     pos: "助動", kana: "ない", mean: "否定助动词:不、没有。" },
+  { s: "とは",     pos: "助",   kana: "とは", mean: "格助词と+係助词は,表\"竟然……\",带惊讶语气。" },
+  { s: "思わ",     furi: "おも", pos: "動",  kana: "おもわ", mean: "想。「思う」的未然形。" },
+  { s: "なかった", pos: "助動", kana: "なかった", mean: "否定助动词ない的过去形。与思わ结合意为\"没想到\"。" },
+  { s: "。",       punct: true },
+];
+const summaries = [
+  "正在切分接續助詞與主句邊界",
+  "正在辨析「とは」的助詞組合",
+  "正在核對「なかった」的活用鏈",
+  "正在整理詞法標注輸出",
+];
+const TRANSLATION = "因为太累了,没想到他竟然没来。";
+
+/* ================= 元素 ================= */
+const $ = id => document.getElementById(id);
+const stage = $("stage"), editState = $("editState"), annoState = $("annoState");
+const annotated = $("annotated"), ta = $("ta"), goBtn = $("goBtn");
+const actEdit = $("actEdit"), actNew = $("actNew");
+const think = $("think"), tStack = $("tStack"), tSecs = $("tSecs"), tIcon = $("tIcon");
+const thinkDetail = $("thinkDetail"), transBlock = $("transBlock"), transText = $("transText");
+
+let timers = [], aborted = false, secTimer, startTime;
+let brush, gloss, openFor = null;
+let phase = "edit";   // edit | working | done
+
+/* ================= 状态切换辅助 ================= */
+const sleep = ms => new Promise(r => { timers.push(setTimeout(r, ms)); });
+function crossFade(cb) {
+  stage.classList.add("fading");
+  timers.push(setTimeout(() => { cb(); stage.classList.remove("fading"); }, 250));
+}
+
+/* ================= 提交 → 解析流程 ================= */
+goBtn.addEventListener("click", startParse);
+
+async function startParse() {
+  if (phase === "working") return;
+  phase = "working";
+  aborted = false;
+  actEdit.style.display = "none";
+  actNew.style.display = "none";
+
+  crossFade(() => {
+    editState.style.display = "none";
+    annoState.style.display = "";
+    buildAnnotated();
+  });
+  await sleep(300);
+
+  startThinkBar();
+  await sleep(900);          // 模拟首个 delta 前的连接时间
+  if (aborted) return;
+  runSummaries();            // 摘要堆叠开始滚动
+  await annotateAll();       // 朱笔批注(与摘要并行进行)
+  if (aborted) return;
+  await finishThink();       // 打勾收尾 → 归档
+  if (aborted) return;
+  streamTranslation();       // 译文流式出现
+  phase = "done";
+  actEdit.style.display = "";
+  actNew.style.display = "";
+}
+
+/* ================= 批注 ================= */
+function buildAnnotated() {
+  annotated.innerHTML = "";
+  annotated.style.lineHeight = "3.05";
+  annotated.style.paddingBottom = "0";
+  tokens.forEach((t, i) => {
+    const el = document.createElement("span");
+    el.className = "tok" + (t.punct ? " punct" : "");
+    el.dataset.i = i;
+    el.innerHTML =
+      (t.furi ? `<span class="furi">${t.furi}</span>` : "") +
+      t.s +
+      (t.pos ? `<span class="pos-mark">〔${t.pos}〕</span>` : "") +
+      `<span class="uline"></span>`;
+    annotated.appendChild(el);
+  });
+  brush = document.createElement("span");
+  brush.className = "brush";
+  annotated.appendChild(brush);
+  gloss = document.createElement("div");
+  gloss.className = "gloss";
+  annotated.appendChild(gloss);
+  bindTokClicks();
+}
+
+function moveBrushTo(el) {
+  const r = el.getBoundingClientRect(), cr = annotated.getBoundingClientRect();
+  brush.style.left = (r.right - cr.left + 1) + "px";
+  brush.style.top = (r.top - cr.top + r.height * 0.28) + "px";
+}
+
+async function annotateAll() {
+  const toks = [...annotated.querySelectorAll(".tok")];
+  const first = toks[0].getBoundingClientRect(), cr = annotated.getBoundingClientRect();
+  brush.style.left = (first.left - cr.left - 2) + "px";
+  brush.style.top = (first.top - cr.top + first.height * 0.28) + "px";
+  await sleep(500);
+  for (const el of toks) {
+    if (aborted) return;
+    el.classList.add("ink");
+    moveBrushTo(el);
+    const t = tokens[el.dataset.i];
+    const base = t.punct ? 160 : 230 + t.s.length * 100;
+    await sleep(base * (0.85 + Math.random() * 0.3));
+  }
+  brush.classList.add("gone");
+}
+
+/* ================= 思考条 ================= */
+function startThinkBar() {
+  think.className = "think visible";
+  tIcon.querySelector(".t-ring").style.animation = "";
+  tStack.innerHTML = "";
+  thinkDetail.innerHTML = "";
+  pushSummary("正在連接模型…", true);
+  startTime = Date.now();
+  tSecs.textContent = "0 秒";
+  secTimer = setInterval(() => {
+    tSecs.textContent = Math.round((Date.now() - startTime) / 1000) + " 秒";
+  }, 1000);
+}
+
+function pushSummary(text, isPlaceholder) {
+  const prev = tStack.querySelector(".cur");
+  if (prev) {
+    if (prev.dataset.ph) { prev.remove(); }   // 占位条不留历史
+    else {
+      prev.classList.remove("cur", "entering");
+      prev.classList.add("old");
+      const svgNS = "http://www.w3.org/2000/svg";
+      const sv = document.createElementNS(svgNS, "svg");
+      sv.setAttribute("viewBox", "0 0 24 24");
+      sv.classList.add("mini-tick");
+      const p = document.createElementNS(svgNS, "path");
+      p.setAttribute("d", "M7.5 12.4 L10.8 15.6 L16.5 9.2");
+      sv.appendChild(p);
+      prev.querySelector(".t-dot")?.replaceWith(sv);
+    }
+  }
+  const olds = tStack.querySelectorAll(".t-item.old");
+  if (olds.length > 2) {
+    const oldest = olds[0];
+    oldest.classList.add("exiting");
+    timers.push(setTimeout(() => oldest.remove(), 300));
+  }
+  const el = document.createElement("div");
+  el.className = "t-item cur entering";
+  if (isPlaceholder) el.dataset.ph = "1";
+  el.innerHTML = `<span class="t-dot"></span><span class="t-txt"></span>`;
+  el.querySelector(".t-txt").textContent = text;
+  tStack.appendChild(el);
+}
+
+function runSummaries() {
+  summaries.forEach((s, i) => {
+    timers.push(setTimeout(() => { if (!aborted) pushSummary(s); }, i * 2100));
+  });
+}
+
+async function finishThink() {
+  clearInterval(secTimer);
+  const secs = Math.round((Date.now() - startTime) / 1000);
+  think.classList.add("finishing");
+  await sleep(1080);   // 等打勾+弹跳演完
+  if (aborted) return;
+  // 归档
+  think.classList.remove("finishing");
+  think.classList.add("archived");
+  tIcon.querySelector(".t-ring").style.animation = "none";
+  tIcon.querySelector(".t-ring").style.strokeDasharray = "56.6 0";
+  tIcon.querySelector(".t-tick").style.strokeDashoffset = "0";
+  const cur = tStack.querySelector(".cur .t-txt");
+  if (cur) cur.textContent = "已深度思考";
+  tSecs.textContent = `用時 ${secs} 秒`;
+  // 归档态摘要历史(去"正在"前缀)写入 detail
+  thinkDetail.innerHTML = summaries
+    .map(s => `<div class="st">${s.replace(/^正在/, "")}</div>`).join("");
+  $("thinkRow").onclick = () => { if (phase === "done" || phase === "working") think.classList.toggle("open"); };
+}
+
+/* ================= 译文流式 ================= */
+async function streamTranslation() {
+  transBlock.classList.add("show");
+  transText.textContent = "";
+  for (const ch of TRANSLATION) {
+    if (aborted) return;
+    transText.textContent += ch;
+    await sleep(45);
+  }
+}
+
+/* ================= 词下注 ================= */
+function placeGloss(el) {
+  const r = el.getBoundingClientRect(), cr = annotated.getBoundingClientRect();
+  let left = r.left - cr.left + 1;
+  const maxLeft = cr.width - 430;
+  if (left > maxLeft) left = Math.max(0, maxLeft);
+  gloss.style.left = left + "px";
+  gloss.style.top = (r.bottom - cr.top + 6) + "px";
+}
+
+function showGloss(el) {
+  const t = tokens[el.dataset.i];
+  gloss.innerHTML = `
+    <div class="g-line1">
+      <span class="g-kana">${t.kana}</span>
+      <span class="g-pos">〔${t.pos}詞〕</span>
+    </div>
+    <span class="g-mean">${t.mean}</span><span class="g-more">詳細 →</span>`;
+  openFor = el;
+  const r = el.getBoundingClientRect();
+  const isLastLine = r.bottom > annotated.getBoundingClientRect().bottom - r.height * 1.2;
+  if (isLastLine) {
+    annotated.style.paddingBottom = "66px";
+    placeGloss(el);
+    gloss.classList.add("open");
+  } else {
+    annotated.style.paddingBottom = "0";
+    annotated.style.lineHeight = "4.5";
+    const onDone = (e) => {
+      if (e.propertyName !== "line-height") return;
+      annotated.removeEventListener("transitionend", onDone);
+      if (openFor !== el) return;
+      placeGloss(el);
+      gloss.classList.add("open");
+    };
+    annotated.addEventListener("transitionend", onDone);
+  }
+}
+
+function hideGloss() {
+  if (!gloss) return;
+  gloss.classList.remove("open");
+  if (openFor) openFor.classList.remove("active");
+  openFor = null;
+  annotated.style.paddingBottom = "0";
+  annotated.style.lineHeight = "3.05";
+}
+
+function bindTokClicks() {
+  annotated.querySelectorAll(".tok:not(.punct)").forEach(el => {
+    el.addEventListener("click", () => {
+      if (phase !== "done") return;   // 批注中不响应词注
+      if (openFor === el) { hideGloss(); return; }
+      if (openFor) openFor.classList.remove("active");
+      el.classList.add("active");
+      showGloss(el);
+    });
+  });
+  // 双击进入编辑
+  annotated.addEventListener("dblclick", () => { if (phase === "done") toEdit(); });
+}
+
+/* ================= 新規 / 編集 ================= */
+actNew.addEventListener("click", () => resetAll(true));
+actEdit.addEventListener("click", toEdit);
+
+function toEdit() {
+  hideGloss();
+  crossFade(() => {
+    annoState.style.display = "none";
+    editState.style.display = "";
+    // 文本已在 ta 中,保留
+    ta.focus();
+  });
+  hideResults();
+  phase = "edit";
+  actEdit.style.display = "none";
+  actNew.style.display = "none";
+}
+
+function resetAll(clearText) {
+  aborted = true;
+  timers.forEach(clearTimeout); timers = [];
+  clearInterval(secTimer);
+  hideGloss();
+  crossFade(() => {
+    annoState.style.display = "none";
+    editState.style.display = "";
+    if (clearText) ta.value = "";
+    ta.focus();
+  });
+  hideResults();
+  phase = "edit";
+  actEdit.style.display = "none";
+  actNew.style.display = "none";
+}
+
+function hideResults() {
+  think.className = "think";
+  think.classList.remove("visible", "archived", "finishing", "open");
+  transBlock.classList.remove("show");
+  transText.textContent = "";
+  thinkDetail.innerHTML = "";
+}
+</script>
+</body>
+</html>
