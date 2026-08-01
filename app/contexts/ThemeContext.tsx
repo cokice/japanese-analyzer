@@ -15,16 +15,25 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('system');
   const [actualTheme, setActualTheme] = useState<'light' | 'dark'>('light');
+  const [isThemeReady, setIsThemeReady] = useState(false);
 
   useEffect(() => {
     // 从本地存储加载主题设置
     const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
-      setTheme(savedTheme);
-    }
+    const nextTheme = savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system'
+      ? savedTheme
+      : 'system';
+    const nextActualTheme = nextTheme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : nextTheme;
+    setTheme(nextTheme);
+    setActualTheme(nextActualTheme);
+    setIsThemeReady(true);
   }, []);
 
   useEffect(() => {
+    if (!isThemeReady) return;
+
     const updateActualTheme = () => {
       if (theme === 'system') {
         const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -46,17 +55,28 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     mediaQuery.addEventListener('change', handler);
     return () => mediaQuery.removeEventListener('change', handler);
-  }, [theme]);
+  }, [isThemeReady, theme]);
 
   useEffect(() => {
+    if (!isThemeReady) return;
+
     // 应用主题到document
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(actualTheme);
-  }, [actualTheme]);
+    root.dataset.themePreference = theme;
+  }, [actualTheme, isThemeReady, theme]);
 
   const handleSetTheme = (newTheme: Theme) => {
+    const nextActualTheme = newTheme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : newTheme;
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(nextActualTheme);
+    root.dataset.themePreference = newTheme;
     setTheme(newTheme);
+    setActualTheme(nextActualTheme);
     localStorage.setItem('theme', newTheme);
   };
 
@@ -73,4 +93,4 @@ export function useTheme() {
     throw new Error('useTheme必须在ThemeProvider内部使用');
   }
   return context;
-} 
+}

@@ -523,7 +523,6 @@ export default function Home() {
   const hasWordDetail = selectedIndex !== null
     && (isWordDetailLoading || isWordDetailStreaming || wordDetail !== null || !!wordDetailStreamError);
   const showDesktopWordDetail = isDesktop && isWordDetailPanelOpen && hasWordDetail;
-  const reserveDesktopWordDetailColumn = isDesktop && selectedIndex !== null;
 
   const wordDetailPanel = (
     <WordDetailPanel
@@ -569,7 +568,7 @@ export default function Home() {
           onSettingsClick={() => setIsSettingsModalOpen(true)}
         />
 
-        <main className={`paper-main mx-auto grid w-full flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 ${reserveDesktopWordDetailColumn ? 'max-w-[1280px] lg:grid-cols-[minmax(0,1fr)_360px]' : 'max-w-[972px]'}`}>
+        <main className="paper-main mx-auto grid w-full max-w-[900px] flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-[54px]">
           {/* 主列 */}
           <div className="flex min-w-0 flex-col gap-[22px]">
             <InputSection
@@ -639,7 +638,7 @@ export default function Home() {
 
           {/* 侧栏：词汇详情（桌面端） */}
           {showDesktopWordDetail && (
-            <aside className="sticky top-4 hidden flex-col gap-4 self-start lg:flex">
+            <aside className="desktop-word-detail-drawer">
               {wordDetailPanel}
             </aside>
           )}

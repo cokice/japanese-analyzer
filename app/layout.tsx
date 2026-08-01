@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#f9f6ef' },
-    { media: '(prefers-color-scheme: dark)', color: '#f9f6ef' }
+    { media: '(prefers-color-scheme: dark)', color: '#211f1a' }
   ],
 };
 
@@ -38,14 +38,16 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <link rel="icon" href="/logo/logo.png" type="image/png" />
-        <link rel="icon" href="/logo/logo-dark.png" type="image/png" media="(prefers-color-scheme: dark)" />
         <link rel="apple-touch-icon" href="/logo/logo.png" />
         {/* 主题初始化脚本 - 防止闪烁 */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             function getThemePreference() {
-              if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
-                return localStorage.getItem('theme');
+              if (typeof localStorage !== 'undefined') {
+                const savedTheme = localStorage.getItem('theme');
+                if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
+                  return savedTheme;
+                }
               }
               return 'system';
             }
@@ -60,6 +62,7 @@ export default function RootLayout({
             const theme = getThemePreference();
             const actualTheme = getActualTheme(theme);
             document.documentElement.classList.add(actualTheme);
+            document.documentElement.dataset.themePreference = theme;
           })();
         `}} />
         {/* Safari输入修复脚本 */}
@@ -72,7 +75,7 @@ export default function RootLayout({
               document.addEventListener('DOMContentLoaded', function() {
                 var inputs = document.querySelectorAll('input, textarea');
                 inputs.forEach(function(input) {
-                    input.style.webkitTextFillColor = '#26231e';
+                  input.style.webkitTextFillColor = 'currentColor';
                   input.style.opacity = '1';
                 });
               });
