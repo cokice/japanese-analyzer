@@ -1,8 +1,9 @@
 'use client';
 
-import type { AIModelName } from '../services/api';
+import type { AIModelName, AIProvider } from '../services/api';
 import ThemeToggle from './ThemeToggle';
 import { Icon } from './Icons';
+import { ProviderLogo, PROVIDER_LABELS } from './ProviderLogo';
 
 interface HeaderProps {
   thinking: boolean;
@@ -19,6 +20,7 @@ const MODEL_LABELS: Record<AIModelName, string> = {
 
 export default function Header({ aiModel, onSettingsClick }: HeaderProps) {
   const modelLabel = MODEL_LABELS[aiModel];
+  const provider: AIProvider = aiModel.startsWith('deepseek') ? 'deepseek' : 'gemini';
 
   return (
     <header className="masthead">
@@ -29,11 +31,12 @@ export default function Header({ aiModel, onSettingsClick }: HeaderProps) {
       <div className="masthead-right">
         <span
           className="provider-indicator masthead-engine"
+          data-provider={provider}
           title={`当前模型：${modelLabel}`}
           aria-label={`当前模型：${modelLabel}`}
         >
-          <span>engine ·</span>
-          <b>{modelLabel}</b>
+          <ProviderLogo provider={provider} className="masthead-provider-logo" />
+          <b>{PROVIDER_LABELS[provider]}</b>
         </span>
         <div className="masthead-actions">
           <a

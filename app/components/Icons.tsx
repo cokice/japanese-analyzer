@@ -47,6 +47,7 @@ export const Icon = {
   expand: <I><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5" /><path d="M3 3l6 6M21 3l-6 6M21 21l-6-6M3 21l6-6" /></I>,
   compress: <I><path d="M9 3v6H3M15 3v6h6M15 21v-6h6M9 21v-6H3" /><path d="M3 9l6-6M21 9l-6-6M21 15l-6 6M3 15l6 6" /></I>,
   bulb: <I><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6V17h5.4v-1.5c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3z" /></I>,
+  atom: <I w={21} sw={1.45}><ellipse cx="12" cy="12" rx="9" ry="3.5" /><ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(60 12 12)" /><ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(-60 12 12)" /><circle cx="12" cy="12" r="1.45" fill="currentColor" stroke="none" /></I>,
   lock: <I><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></I>,
   eye: <I><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></I>,
   eyeOff: <I><path d="M3 3l18 18" /><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" /><path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c6.5 0 10 8 10 8a17.4 17.4 0 0 1-3.1 4.2" /><path d="M6.6 6.6C3.7 8.6 2 12 2 12s3.5 8 10 8a10.8 10.8 0 0 0 5.4-1.4" /></I>,

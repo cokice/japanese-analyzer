@@ -10,7 +10,6 @@ interface SettingsPayload {
   aiModel: AIModelName;
   geminiApiKey: string;
   deepseekApiKey: string;
-  deepseekThinkingEnabled: boolean;
   useStream: boolean;
 }
 
@@ -19,7 +18,6 @@ interface SettingsModalProps {
   aiModel: AIModelName;
   geminiApiKey: string;
   deepseekApiKey: string;
-  deepseekThinkingEnabled: boolean;
   useStream: boolean;
   onSaveSettings: (settings: SettingsPayload) => void;
   isModalOpen: boolean;
@@ -31,7 +29,6 @@ export default function SettingsModal({
   aiModel,
   geminiApiKey,
   deepseekApiKey,
-  deepseekThinkingEnabled,
   useStream,
   onSaveSettings,
   isModalOpen,
@@ -41,7 +38,6 @@ export default function SettingsModal({
   const [selectedModel, setSelectedModel] = useState<AIModelName>(getModelName(aiProvider, aiModel));
   const [geminiKey, setGeminiKey] = useState(geminiApiKey);
   const [deepseekKey, setDeepseekKey] = useState(deepseekApiKey);
-  const [thinkingEnabled, setThinkingEnabled] = useState(deepseekThinkingEnabled);
   const [streamEnabled, setStreamEnabled] = useState(useStream);
   const [status, setStatus] = useState('');
 
@@ -50,9 +46,8 @@ export default function SettingsModal({
     setSelectedModel(getModelName(aiProvider, aiModel));
     setGeminiKey(geminiApiKey);
     setDeepseekKey(deepseekApiKey);
-    setThinkingEnabled(deepseekThinkingEnabled);
     setStreamEnabled(useStream);
-  }, [aiProvider, aiModel, geminiApiKey, deepseekApiKey, deepseekThinkingEnabled, useStream]);
+  }, [aiProvider, aiModel, geminiApiKey, deepseekApiKey, useStream]);
 
   const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
@@ -78,7 +73,6 @@ export default function SettingsModal({
       aiModel: currentModelName,
       geminiApiKey: geminiKey.trim(),
       deepseekApiKey: deepseekKey.trim(),
-      deepseekThinkingEnabled: thinkingEnabled,
       useStream: streamEnabled,
     });
 
@@ -199,30 +193,6 @@ export default function SettingsModal({
             </button>
           </div>
         </div>
-
-        {selectedProvider === 'deepseek' && (
-          <div className="settings-option-row">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <label htmlFor="deepseekThinkingToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-                  启用深度思考
-                </label>
-                <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
-                  句子解析时使用 High 强度；开启流式输出可实时查看思考全文。
-                </p>
-              </div>
-              <button
-                id="deepseekThinkingToggle"
-                type="button"
-                className="nd-toggle"
-                aria-pressed={thinkingEnabled}
-                onClick={() => setThinkingEnabled(!thinkingEnabled)}
-              >
-                <span className="nd-toggle-knob" />
-              </button>
-            </div>
-          </div>
-        )}
 
         <button
           id="saveSettingsButton"

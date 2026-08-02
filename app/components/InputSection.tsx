@@ -13,6 +13,7 @@ import {
 } from '../utils/analytics';
 import { Icon } from './Icons';
 import AnalysisResult from './AnalysisResult';
+import type { AnnotationReadingMode } from '../types/annotation';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
 
 interface InputSectionProps {
@@ -22,14 +23,14 @@ interface InputSectionProps {
   aiProvider: AIProvider;
   geminiApiKey?: string;
   useStream?: boolean;
+  deepseekThinkingEnabled: boolean;
+  onDeepseekThinkingChange: (enabled: boolean) => void;
   ttsProvider: TTSProvider;
   onTtsProviderChange: (provider: TTSProvider) => void;
   isAnalyzing?: boolean;
   analyzedTokens: TokenData[];
-  showFurigana: boolean;
-  onShowFuriganaChange: (show: boolean) => void;
-  showRomaji: boolean;
-  onShowRomajiChange: (show: boolean) => void;
+  readingMode: AnnotationReadingMode;
+  onReadingModeChange: (mode: AnnotationReadingMode) => void;
   showPosColors: boolean;
   onShowPosColorsChange: (show: boolean) => void;
   onWordClick: (token: TokenData, index: number) => void;
@@ -82,14 +83,14 @@ export default function InputSection({
   aiProvider,
   geminiApiKey,
   useStream = true, // 默认启用流式输出
+  deepseekThinkingEnabled,
+  onDeepseekThinkingChange,
   ttsProvider,
   onTtsProviderChange,
   isAnalyzing = false,
   analyzedTokens,
-  showFurigana,
-  onShowFuriganaChange,
-  showRomaji,
-  onShowRomajiChange,
+  readingMode,
+  onReadingModeChange,
   showPosColors,
   onShowPosColorsChange,
   onWordClick,
@@ -590,10 +591,8 @@ export default function InputSection({
             tokens={analyzedTokens}
             fallbackText={inputText}
             phase={phase}
-            showFurigana={showFurigana}
-            onShowFuriganaChange={onShowFuriganaChange}
-            showRomaji={showRomaji}
-            onShowRomajiChange={onShowRomajiChange}
+            readingMode={readingMode}
+            onReadingModeChange={onReadingModeChange}
             showPosColors={showPosColors}
             onShowPosColorsChange={onShowPosColorsChange}
             onWordClick={onWordClick}
@@ -761,6 +760,20 @@ export default function InputSection({
                 </div>
               )}
             </div>
+
+            {aiProvider === 'deepseek' && (
+              <button
+                id="deepseekThinkingButton"
+                type="button"
+                className={`nd-icon-btn deep-thinking-button ${deepseekThinkingEnabled ? 'is-active' : ''}`}
+                aria-label={`深度思考：${deepseekThinkingEnabled ? '已开启' : '已关闭'}`}
+                aria-pressed={deepseekThinkingEnabled}
+                title={`深度思考：${deepseekThinkingEnabled ? '已开启' : '已关闭'}`}
+                onClick={() => onDeepseekThinkingChange(!deepseekThinkingEnabled)}
+              >
+                {Icon.atom}
+              </button>
+            )}
           </div>
 
           <div className="flex-1" />

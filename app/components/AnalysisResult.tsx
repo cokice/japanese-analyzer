@@ -12,6 +12,7 @@ import {
 } from '../utils/helpers';
 import { Switch } from '@/components/ui/switch';
 import InlineGloss from './InlineGloss';
+import type { AnnotationReadingMode } from '../types/annotation';
 
 export type AnnotationPhase = 'working' | 'done';
 
@@ -19,10 +20,8 @@ interface AnalysisResultProps {
   tokens: TokenData[];
   fallbackText: string;
   phase: AnnotationPhase;
-  showFurigana: boolean;
-  onShowFuriganaChange: (show: boolean) => void;
-  showRomaji: boolean;
-  onShowRomajiChange: (show: boolean) => void;
+  readingMode: AnnotationReadingMode;
+  onReadingModeChange: (mode: AnnotationReadingMode) => void;
   showPosColors: boolean;
   onShowPosColorsChange: (show: boolean) => void;
   onWordClick: (token: TokenData, index: number) => void;
@@ -48,6 +47,11 @@ function Toggle({
 }
 
 const PUNCTUATION_ONLY_RE = /^[\s。、，,.!?？！:：;；「」『』（）()[\]【】〈〉《》…・･〜～\-—―]+$/;
+const READING_MODE_OPTIONS: ReadonlyArray<{ value: AnnotationReadingMode; label: string }> = [
+  { value: 'none', label: '無' },
+  { value: 'furigana', label: '假名' },
+  { value: 'romaji', label: '罗马音' },
+];
 
 function isPunctuationToken(token: TokenData): boolean {
   const pos = token.pos || '';
@@ -83,10 +87,8 @@ export default function AnalysisResult({
   tokens,
   fallbackText,
   phase,
-  showFurigana,
-  onShowFuriganaChange,
-  showRomaji,
-  onShowRomajiChange,
+  readingMode,
+  onReadingModeChange,
   showPosColors,
   onShowPosColorsChange,
   onWordClick,
@@ -110,7 +112,8 @@ export default function AnalysisResult({
       const lastToken = [...tokenRefs.current].reverse().find(Boolean);
       if (!lastToken) return;
 
-      const tokenRect = lastToken.getBoundingClientRect();
+      const word = lastToken.querySelector<HTMLElement>('.annotation-word');
+      const tokenRect = (word || lastToken).getBoundingClientRect();
       const containerRect = annotated.getBoundingClientRect();
       const x = tokenRect.right - containerRect.left + 1;
       const y = tokenRect.top - containerRect.top + tokenRect.height * 0.28;
@@ -148,45 +151,51 @@ export default function AnalysisResult({
     const placeGloss = () => {
       if (settled) return;
       settled = true;
-      const tokenRect = token.getBoundingClientRect();
+      const word = token.querySelector<HTMLElement>('.annotation-word');
+      const wordRect = (word || token).getBoundingClientRect();
       const containerRect = annotated.getBoundingClientRect();
-      const glossWidth = Math.min(430, containerRect.width);
-      const desiredLeft = tokenRect.left - containerRect.left + 1;
-      const left = Math.max(0, Math.min(desiredLeft, containerRect.width - glossWidth));
-      const top = tokenRect.bottom - containerRect.top + 6;
+      const left = Math.max(0, wordRect.left - containerRect.left);
+      const glossWidth = Math.max(1, Math.min(300, containerRect.width - left));
+      const top = wordRect.bottom - containerRect.top + 10;
+      gloss.style.width = `${glossWidth}px`;
       annotated.style.setProperty('--gloss-x', `${left}px`);
       annotated.style.setProperty('--gloss-y', `${top}px`);
       gloss.classList.add('is-positioned');
     };
 
     const handleTransitionEnd = (event: TransitionEvent) => {
-      if (event.propertyName !== 'line-height') return;
+      if (event.target !== annotated || event.propertyName !== 'line-height') return;
       annotated.removeEventListener('transitionend', handleTransitionEnd);
       if (fallbackTimer) clearTimeout(fallbackTimer);
       frame = requestAnimationFrame(placeGloss);
     };
 
     gloss.classList.remove('is-positioned');
+    gloss.style.width = '';
     annotated.style.paddingBottom = '0';
     annotated.style.lineHeight = '3.05';
     void annotated.offsetHeight;
 
-    const tokenRect = token.getBoundingClientRect();
+    const tokenWord = token.querySelector<HTMLElement>('.annotation-word');
+    const tokenRect = (tokenWord || token).getBoundingClientRect();
+    const glossHeight = gloss.getBoundingClientRect().height;
+    const annotationFontSize = Number.parseFloat(window.getComputedStyle(annotated).fontSize) || 20;
     const maxTokenBottom = tokenRefs.current.reduce((maxBottom, currentToken) => {
       if (!currentToken) return maxBottom;
-      return Math.max(maxBottom, currentToken.getBoundingClientRect().bottom);
+      const currentWord = currentToken.querySelector<HTMLElement>('.annotation-word');
+      return Math.max(maxBottom, (currentWord || currentToken).getBoundingClientRect().bottom);
     }, tokenRect.bottom);
     const isLastLine = maxTokenBottom - tokenRect.bottom < tokenRect.height * 0.5;
 
     if (isLastLine) {
-      annotated.style.paddingBottom = '66px';
+      annotated.style.paddingBottom = `${Math.ceil(glossHeight + 24)}px`;
       frame = requestAnimationFrame(placeGloss);
     } else if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      annotated.style.lineHeight = '4.5';
+      annotated.style.lineHeight = `${Math.ceil(Math.max(annotationFontSize * 4.5, glossHeight + 44))}px`;
       frame = requestAnimationFrame(placeGloss);
     } else {
       annotated.addEventListener('transitionend', handleTransitionEnd);
-      annotated.style.lineHeight = '4.5';
+      annotated.style.lineHeight = `${Math.ceil(Math.max(annotationFontSize * 4.5, glossHeight + 44))}px`;
       fallbackTimer = setTimeout(() => {
         annotated.removeEventListener('transitionend', handleTransitionEnd);
         frame = requestAnimationFrame(placeGloss);
@@ -206,14 +215,14 @@ export default function AnalysisResult({
       cancelAnimationFrame(frame);
       gloss.classList.remove('is-positioned');
     };
-  }, [isDesktop, phase, selectedIndex, tokens]);
+  }, [isDesktop, phase, readingMode, selectedIndex, tokens]);
 
   return (
     <div className="annotation-state">
       <div
         ref={annotatedRef}
         id="analyzedSentenceOutput"
-        className={`annotated-text ${phase === 'working' ? 'is-working' : 'is-done'}`}
+        className={`annotated-text ${phase === 'working' ? 'is-working' : 'is-done'} ${readingMode === 'none' ? 'is-reading-hidden' : 'is-reading-visible'}`}
         lang="ja"
         onDoubleClick={phase === 'done' ? onEdit : undefined}
         aria-live={phase === 'working' ? 'polite' : undefined}
@@ -226,6 +235,10 @@ export default function AnalysisResult({
           }
 
           const isPunct = isPunctuationToken(token);
+          const previousToken = tokens[index - 1];
+          const nextToken = tokens[index + 1];
+          const isAfterPunct = Boolean(previousToken && previousToken.pos !== '改行' && isPunctuationToken(previousToken));
+          const isBeforePunct = Boolean(nextToken && nextToken.pos !== '改行' && isPunctuationToken(nextToken));
           const isActive = phase === 'done' && selectedIndex === index;
           const hasFurigana = Boolean(
             token.furigana
@@ -233,13 +246,23 @@ export default function AnalysisResult({
             && containsKanji(token.word)
             && !isPunct
           );
+          const hasRomaji = Boolean(
+            token.romaji
+            && token.romaji.toLocaleLowerCase() !== token.word.toLocaleLowerCase()
+            && !isPunct
+          );
+          const readingText = readingMode === 'furigana' && hasFurigana
+            ? token.furigana || ''
+            : readingMode === 'romaji' && hasRomaji
+              ? token.romaji || ''
+              : '';
           const tokenColorClass = showPosColors ? getPosClass(token.pos) : '';
 
           return (
             <span
               key={`${index}-${token.word}`}
               ref={(element) => { tokenRefs.current[index] = element; }}
-              className={`annotation-token is-inked ${isPunct ? 'is-punct' : ''} ${isActive ? 'is-active' : ''} ${tokenColorClass}`}
+              className={`annotation-token is-inked ${isPunct ? 'is-punct' : ''} ${isAfterPunct ? 'is-after-punct' : ''} ${isBeforePunct ? 'is-before-punct' : ''} ${isActive ? 'is-active' : ''} ${tokenColorClass}`}
               onClick={phase === 'done' && !isPunct ? () => onWordClick(token, index) : undefined}
               role={phase === 'done' && !isPunct ? 'button' : undefined}
               tabIndex={phase === 'done' && !isPunct ? 0 : undefined}
@@ -250,20 +273,24 @@ export default function AnalysisResult({
                 }
               } : undefined}
             >
-              {!isPunct && (
-                <span className={`annotation-furi ${showFurigana && hasFurigana ? '' : 'is-hidden'}`}>
-                  {hasFurigana ? token.furigana : '\u00a0'}
+              {readingText ? (
+                <ruby className="annotation-ruby">
+                  <span className="annotation-word">
+                    {token.word}
+                    <span className="annotation-underline" />
+                  </span>
+                  <rt className={`annotation-reading ${readingMode === 'romaji' ? 'is-romaji' : 'is-kana'}`}>
+                    {readingText}
+                  </rt>
+                </ruby>
+              ) : (
+                <span className="annotation-word">
+                  {token.word}
+                  {!isPunct && <span className="annotation-underline" />}
                 </span>
               )}
-              <span className="annotation-word">{token.word}</span>
               {!isPunct && (
-                <>
-                  <span className="annotation-pos">〔{getShortPos(token.pos)}〕</span>
-                  <span className="annotation-underline" />
-                  <span className={`annotation-romaji ${showRomaji ? '' : 'is-hidden'}`}>
-                    {token.romaji || '\u00a0'}
-                  </span>
-                </>
+                <span className="annotation-pos">〔{getShortPos(token.pos)}〕</span>
               )}
             </span>
           );
@@ -291,14 +318,22 @@ export default function AnalysisResult({
         <div className="annotation-options" lang="zh-CN">
           <span className="annotation-hint">点击词汇查看详细解释 · 双击原文重新编辑</span>
           <div className="annotation-toggles">
-            <label>
-              <Toggle on={showFurigana} onChange={onShowFuriganaChange} ariaLabel="显示假名" />
-              <span>假名</span>
-            </label>
-            <label>
-              <Toggle on={showRomaji} onChange={onShowRomajiChange} ariaLabel="显示罗马音" />
-              <span>罗马音</span>
-            </label>
+            <fieldset className="annotation-reading-control" aria-label="注音显示方式">
+              <legend>注音：</legend>
+              {READING_MODE_OPTIONS.map((option) => (
+                <label key={option.value} className="annotation-reading-choice">
+                  <input
+                    type="radio"
+                    name="annotation-reading-mode"
+                    value={option.value}
+                    checked={readingMode === option.value}
+                    onChange={() => onReadingModeChange(option.value)}
+                  />
+                  <span className="annotation-radio-mark" aria-hidden="true" />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </fieldset>
             <label>
               <Toggle on={showPosColors} onChange={onShowPosColorsChange} ariaLabel="词性着色" />
               <span>品詞着色</span>

@@ -11,6 +11,7 @@ import AIChat from './components/AIChat';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import ReasoningStream from './components/ReasoningStream';
 import WordDetailPanel from './components/WordDetailPanel';
+import type { AnnotationReadingMode } from './types/annotation';
 import { useWordDetail } from './hooks/useWordDetail';
 import { trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import {
@@ -37,8 +38,7 @@ export default function Home() {
   const [useStream, setUseStream] = useState<boolean>(true);
   const [streamContent, setStreamContent] = useState('');
   const [translationTrigger, setTranslationTrigger] = useState(0);
-  const [showFurigana, setShowFurigana] = useState(true);
-  const [showRomaji, setShowRomaji] = useState(false);
+  const [annotationReadingMode, setAnnotationReadingMode] = useState<AnnotationReadingMode>('furigana');
   const [showPosColors, setShowPosColors] = useState(false);
 
   // API设置相关状态
@@ -148,14 +148,12 @@ export default function Home() {
     aiModel: AIModelName;
     geminiApiKey: string;
     deepseekApiKey: string;
-    deepseekThinkingEnabled: boolean;
     useStream: boolean;
   }) => {
     localStorage.setItem('aiProvider', settings.aiProvider);
     localStorage.setItem('aiModel', settings.aiModel);
     localStorage.setItem('geminiApiKey', settings.geminiApiKey);
     localStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
-    localStorage.setItem('deepseekThinkingEnabled', settings.deepseekThinkingEnabled.toString());
     localStorage.setItem('useStream', settings.useStream.toString());
     localStorage.removeItem('geminiApiUrl');
     localStorage.removeItem('deepseekApiUrl');
@@ -168,8 +166,20 @@ export default function Home() {
     setAiModel(settings.aiModel);
     setGeminiApiKey(settings.geminiApiKey);
     setDeepseekApiKey(settings.deepseekApiKey);
-    setDeepseekThinkingEnabled(settings.deepseekThinkingEnabled);
     setUseStream(settings.useStream);
+    reasoningTextStore.reset();
+    hasDeepseekReasoningRef.current = false;
+    setHasDeepseekReasoning(false);
+    setDeepseekReasoningDone(true);
+    setDeepseekReasoningSummaryHistory([]);
+    setDeepseekReasoningCompletionLabel('已深度思考');
+    reasoningSummaryControllerRef.current?.cancel();
+    reasoningSummaryControllerRef.current = null;
+  };
+
+  const handleDeepseekThinkingChange = (enabled: boolean) => {
+    setDeepseekThinkingEnabled(enabled);
+    localStorage.setItem('deepseekThinkingEnabled', enabled.toString());
     reasoningTextStore.reset();
     hasDeepseekReasoningRef.current = false;
     setHasDeepseekReasoning(false);
@@ -578,14 +588,14 @@ export default function Home() {
               aiProvider={aiProvider}
               geminiApiKey={geminiApiKey}
               useStream={useStream}
+              deepseekThinkingEnabled={deepseekThinkingEnabled}
+              onDeepseekThinkingChange={handleDeepseekThinkingChange}
               ttsProvider={ttsProvider}
               onTtsProviderChange={handleTtsProviderChange}
               isAnalyzing={isAnalyzing}
               analyzedTokens={analyzedTokens}
-              showFurigana={showFurigana}
-              onShowFuriganaChange={setShowFurigana}
-              showRomaji={showRomaji}
-              onShowRomajiChange={setShowRomaji}
+              readingMode={annotationReadingMode}
+              onReadingModeChange={setAnnotationReadingMode}
               showPosColors={showPosColors}
               onShowPosColorsChange={setShowPosColors}
               onWordClick={handleWordClick}
@@ -655,7 +665,6 @@ export default function Home() {
           aiModel={aiModel}
           geminiApiKey={geminiApiKey}
           deepseekApiKey={deepseekApiKey}
-          deepseekThinkingEnabled={deepseekThinkingEnabled}
           useStream={useStream}
           onSaveSettings={handleSaveSettings}
           isModalOpen={isSettingsModalOpen}

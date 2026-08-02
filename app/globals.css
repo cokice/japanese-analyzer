@@ -194,16 +194,16 @@ html[lang="zh-CN"],
   display: flex;
   min-width: 0;
   flex: 1;
-  align-items: flex-end;
+  align-items: center;
   justify-content: flex-end;
   gap: 12px;
 }
 
 .masthead-engine.provider-indicator {
   width: auto;
-  height: auto;
-  gap: 4px;
-  padding: 0 0 4px;
+  height: 36px;
+  gap: 6px;
+  padding: 0;
   color: var(--ink3);
   font-size: 12.5px;
   font-weight: 400;
@@ -411,6 +411,34 @@ html[lang="zh-CN"],
 .nd-icon-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.deep-thinking-button {
+  position: relative;
+}
+
+.deep-thinking-button::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.34;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.deep-thinking-button.is-active {
+  border-color: color-mix(in srgb, var(--shu) 55%, var(--rule));
+  color: var(--shu);
+  background: var(--shu-soft);
+}
+
+.deep-thinking-button.is-active::after {
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 .provider-indicator {
@@ -1816,8 +1844,27 @@ html.safari input::placeholder {
   color: var(--ink);
 }
 
+.masthead-provider-logo {
+  width: 16px;
+  height: 16px;
+  opacity: 0.72;
+}
+
+.masthead-engine[data-provider="deepseek"] b {
+  color: color-mix(in srgb, #4d6bfe 58%, var(--ink2));
+}
+
+.masthead-engine[data-provider="gemini"] b {
+  color: color-mix(in srgb, #3186ff 52%, var(--ink2));
+}
+
+.annotated-text.is-reading-hidden {
+  line-height: 2.35;
+  padding-top: 15px;
+}
+
 .annotated-text.is-done {
-  transition: line-height 0.35s ease;
+  transition: line-height 0.35s ease, padding-top 0.35s ease;
 }
 
 .annotated-text.is-working {
@@ -1837,9 +1884,18 @@ html.safari input::placeholder {
   position: relative;
   display: inline-block;
   margin: 0 2px;
-  padding: 0 1px 2px;
+  padding: 0 0 2px;
+  vertical-align: baseline;
   text-align: center;
   color: var(--annotation-muted);
+}
+
+.annotation-token.is-before-punct {
+  margin-right: 0;
+}
+
+.annotation-token.is-after-punct {
+  margin-left: 0;
 }
 
 .annotated-text.is-done .annotation-token:not(.is-punct) {
@@ -1856,53 +1912,61 @@ html.safari input::placeholder {
 }
 
 .annotation-token.is-active {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.annotation-token.is-active .annotation-word {
   background: var(--shu-soft);
 }
 
-.annotation-furi,
-.annotation-romaji {
-  position: absolute;
-  right: 0;
-  left: 0;
-  display: block;
-  overflow: hidden;
-  font-family: var(--font-ui);
+.annotation-word {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+  vertical-align: baseline;
+}
+
+.annotation-ruby {
+  ruby-align: center;
+}
+
+.annotation-reading {
+  ruby-align: center;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 10px;
+  line-height: 10px;
+  white-space: nowrap;
+  color: var(--ink3);
+  opacity: 0;
+  transform: translateY(3px);
+}
+
+.annotation-reading.is-romaji {
+  font-family: "Noto Sans", "Noto Sans SC", "Helvetica Neue", sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.015em;
+}
+
+.annotation-token.is-inked .annotation-reading {
+  animation: annotationFloatUp 0.4s ease 0.3s forwards;
+}
+
+.annotation-pos {
+  display: none;
+  position: absolute;
+  right: -0.2em;
+  bottom: -0.9em;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: 9.5px;
   line-height: 1;
   white-space: nowrap;
   color: var(--ink-3);
   opacity: 0;
-}
-
-.annotation-furi {
-  top: -3px;
-}
-
-.annotation-romaji {
-  bottom: -12px;
-  font-size: 9px;
-}
-
-.annotation-token.is-inked .annotation-furi:not(.is-hidden) {
-  animation: annotationFloatUp 0.4s ease 0.3s forwards;
-}
-
-.annotation-token.is-inked .annotation-romaji:not(.is-hidden) {
-  animation: annotationFloatUp 0.4s ease 0.5s forwards;
-}
-
-.annotation-furi.is-hidden,
-.annotation-romaji.is-hidden {
-  visibility: hidden;
-}
-
-.annotation-pos {
-  margin-left: 1px;
-  font-family: var(--font-display);
-  font-size: 9.5px;
-  vertical-align: -6px;
-  color: var(--ink-3);
-  opacity: 0;
+  pointer-events: none;
 }
 
 .annotation-token.is-inked .annotation-pos {
@@ -1946,7 +2010,12 @@ html.safari input::placeholder {
 
 .annotation-token.is-punct {
   margin: 0;
+  padding-bottom: 2px;
   cursor: default;
+}
+
+.annotation-token:focus {
+  outline: none;
 }
 
 .annotation-brush {
@@ -1973,7 +2042,7 @@ html.safari input::placeholder {
   top: 0;
   left: 0;
   z-index: 2;
-  width: min(430px, 100%);
+  width: min(300px, 100%);
   opacity: 0;
   pointer-events: none;
   transform: translate3d(var(--gloss-x, 0), calc(var(--gloss-y, 0) - 4px), 0);
@@ -1988,7 +2057,10 @@ html.safari input::placeholder {
 
 .annotation-gloss {
   position: relative;
-  max-width: 430px;
+  box-sizing: border-box;
+  width: 100%;
+  padding-left: 8px;
+  text-align: left;
   font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.9;
@@ -1998,18 +2070,17 @@ html.safari input::placeholder {
 .annotation-gloss::before {
   content: "";
   position: absolute;
-  top: -9px;
-  left: 2px;
+  top: -10px;
+  left: 0;
   width: 1.5px;
-  height: 8px;
-  background: var(--shu);
-  opacity: 0.55;
+  height: calc(100% + 10px);
+  background: color-mix(in srgb, var(--shu) 55%, transparent);
 }
 
 .gloss-line-one {
   display: flex;
   align-items: baseline;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   margin-bottom: 1px;
 }
@@ -2034,6 +2105,9 @@ html.safari input::placeholder {
 
 .gloss-meaning {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .gloss-meaning.is-loading {
@@ -2092,6 +2166,74 @@ html.safari input::placeholder {
   cursor: pointer;
 }
 
+.annotation-reading-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.annotation-reading-control legend {
+  float: left;
+  margin: 0 1px 0 0;
+  padding: 0;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--ink-3);
+}
+
+.annotation-toggles .annotation-reading-choice {
+  position: relative;
+  gap: 5px;
+}
+
+.annotation-reading-choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.annotation-radio-mark {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: 1px solid var(--ink3);
+  border-radius: 50%;
+  background: transparent;
+}
+
+.annotation-radio-mark::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--shu);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.annotation-reading-choice input:checked + .annotation-radio-mark {
+  border-color: var(--shu);
+}
+
+.annotation-reading-choice input:checked + .annotation-radio-mark::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.annotation-reading-choice input:focus-visible + .annotation-radio-mark {
+  outline: 2px solid color-mix(in srgb, var(--shu) 30%, transparent);
+  outline-offset: 2px;
+}
+
 .annotation-legend {
   display: flex;
   flex-wrap: wrap;
@@ -2134,6 +2276,11 @@ html.safari input::placeholder {
 .annotation-token.pos-group-int .annotation-pos { color: var(--pos-int); }
 .annotation-token.pos-group-p .annotation-pos { color: var(--pos-p); }
 .annotation-token.pos-group-aux .annotation-pos { color: var(--pos-aux); }
+
+.annotated-text .annotation-token.is-active .annotation-underline,
+.annotated-text.is-done .annotation-token:focus-visible .annotation-underline {
+  background: var(--shu);
+}
 
 .annotation-working-foot {
   display: flex;
@@ -2179,6 +2326,11 @@ html.safari input::placeholder {
     margin-left: 0;
   }
 
+  .annotation-reading-control {
+    min-height: 44px;
+    flex-wrap: wrap;
+  }
+
   .annotation-toggles label {
     min-height: 44px;
   }
@@ -2198,8 +2350,7 @@ html.safari input::placeholder {
   }
 
   .annotation-token.is-inked,
-  .annotation-token.is-inked .annotation-furi:not(.is-hidden),
-  .annotation-token.is-inked .annotation-romaji:not(.is-hidden),
+  .annotation-token.is-inked .annotation-reading,
   .annotation-token.is-inked .annotation-pos,
   .annotation-token.is-inked .annotation-underline {
     animation: none;
@@ -2209,8 +2360,7 @@ html.safari input::placeholder {
     color: var(--ink);
   }
 
-  .annotation-token.is-inked .annotation-furi:not(.is-hidden),
-  .annotation-token.is-inked .annotation-romaji:not(.is-hidden),
+  .annotation-token.is-inked .annotation-reading,
   .annotation-token.is-inked .annotation-pos {
     opacity: 1;
   }
