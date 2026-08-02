@@ -9,6 +9,17 @@ import {
 } from '../lib/aiModels';
 import { splitJapaneseText, type JapaneseTextChunk } from '../utils/japaneseChunking';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
+import {
+  parseProofreadCorrections,
+  PROOFREAD_OVERALL_MIN_TIMEOUT_MS,
+  PROOFREAD_OVERALL_PER_SENTENCE_MS,
+  PROOFREAD_SENTENCE_CONCURRENCY,
+  PROOFREAD_SENTENCE_TIMEOUT_MS,
+  splitProofreadSentenceJobs,
+  type ProofreadCorrection,
+  type ProofreadField,
+  type ProofreadSentenceJob,
+} from '../utils/proofreading';
 
 export {
   DEFAULT_AI_PROVIDER,
@@ -30,6 +41,12 @@ export interface TokenData {
   pos: string;
   furigana?: string;
   romaji?: string;
+  proofreadSourceIndexes?: number[];
+  proofreadReview?: {
+    fields: ProofreadField[];
+    why: string;
+    revision: number;
+  };
 }
 
 export interface WordDetail {
@@ -75,11 +92,56 @@ export interface ReasoningSummaryRequestOptions {
   signal?: AbortSignal;
 }
 
+export interface ProofreadRequestOptions {
+  signal?: AbortSignal;
+  onReasoning?: (text: string, done: boolean) => void;
+  onUsage?: (usage: StreamTokenUsage, sentenceIndex: number) => void;
+  onStart?: (totalSentences: number) => void;
+  onProgress?: (
+    completedSentences: number,
+    totalSentences: number,
+    result: ProofreadSentenceResult
+  ) => void;
+  onSentenceComplete?: (result: ProofreadSentenceResult) => void;
+}
+
+export interface StreamTokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  reasoningTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+export interface ProofreadResult {
+  corrections: ProofreadCorrection[];
+  rawContent: string;
+  recoveredFromTruncation: boolean;
+  usage: StreamTokenUsage | null;
+  sentenceResults: ProofreadSentenceResult[];
+  totalSentences: number;
+  completedSentences: number;
+  failedSentences: number;
+}
+
+export interface ProofreadSentenceResult {
+  sentenceIndex: number;
+  source: string;
+  status: 'completed' | 'failed';
+  corrections: ProofreadCorrection[];
+  rawContent: string;
+  usage: StreamTokenUsage | null;
+  error?: string;
+}
+
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
 }
 
 const ANALYSIS_CHUNK_CONCURRENCY = 3;
+const ANALYSIS_CHUNK_MAX_ATTEMPTS = 3;
+const ANALYSIS_TRUNCATION_SPLIT_MAX_DEPTH = 3;
+const NON_LEXICAL_CHARACTER_PATTERN = /[\s\p{P}\p{S}]/u;
 
 // 默认API地址 - 使用本地API路由
 export const DEFAULT_API_URL = "/api";
@@ -256,8 +318,287 @@ export async function summarizeDeepSeekReasoningProgress(
   return data.summary.trim();
 }
 
+async function streamProofreadSentence(
+  job: ProofreadSentenceJob,
+  userApiKey: string | undefined,
+  model: string | null | undefined,
+  signal: AbortSignal,
+  onReasoning: (text: string) => void,
+  onUsage: (usage: StreamTokenUsage) => void
+): Promise<Omit<ProofreadSentenceResult, 'sentenceIndex' | 'source' | 'status'>> {
+  const timeoutController = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    timeoutController.abort(new DOMException('单句审校超时', 'TimeoutError'));
+  }, PROOFREAD_SENTENCE_TIMEOUT_MS);
+  const requestSignal = AbortSignal.any([signal, timeoutController.signal]);
+
+  try {
+    const response = await fetch(getApiEndpoint('/proofread'), {
+      method: 'POST',
+      headers: getHeaders(userApiKey),
+      body: JSON.stringify({
+        source: job.source,
+        tokens: job.tokens,
+        previousSource: job.previousSource,
+        nextSource: job.nextSource,
+        ...getRequestProviderPayload('deepseek', model),
+      }),
+      signal: requestSignal,
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null) as {
+        error?: { message?: unknown };
+      } | null;
+      const message = typeof data?.error?.message === 'string'
+        ? data.error.message
+        : response.statusText || '深度审校失败';
+      throw new Error(message);
+    }
+
+    let finalCorrections: ProofreadCorrection[] | null = null;
+    let rawContent = '';
+    let streamError: Error | null = null;
+    let usage: StreamTokenUsage | null = null;
+    await readOpenAIContentStream(
+      response,
+      (content, isDone) => {
+        rawContent = content;
+        if (isDone) {
+          finalCorrections = parseProofreadCorrections(content, job.tokens.length);
+        }
+      },
+      (error) => {
+        streamError = error;
+      },
+      {
+        debounceMs: 0,
+        parseWarning: 'Failed to parse proofreading JSON chunk:',
+        validateFinalContent: (content) => parseProofreadCorrections(content, job.tokens.length),
+        invalidContentMessage: '深度审校结果没有完整生成。',
+        completionLabel: '深度审校',
+        onReasoning: (text) => onReasoning(text),
+        onUsage: (streamUsage) => {
+          usage = streamUsage;
+          onUsage(streamUsage);
+        },
+      }
+    );
+
+    const resolvedStreamError = streamError as Error | null;
+    if (resolvedStreamError) throw resolvedStreamError;
+    if (!finalCorrections) throw new Error('深度审校没有返回完整结果');
+    return {
+      corrections: finalCorrections,
+      rawContent,
+      usage,
+    };
+  } catch (error) {
+    if (timedOut) throw new Error(`第 ${job.sentenceIndex + 1} 句超过 60 秒，已跳过`);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function addTokenUsage(
+  total: StreamTokenUsage | null,
+  usage: StreamTokenUsage | null
+): StreamTokenUsage | null {
+  if (!usage) return total;
+  if (!total) return { ...usage };
+  return {
+    promptTokens: total.promptTokens + usage.promptTokens,
+    completionTokens: total.completionTokens + usage.completionTokens,
+    reasoningTokens: total.reasoningTokens + usage.reasoningTokens,
+    outputTokens: total.outputTokens + usage.outputTokens,
+    totalTokens: total.totalTokens + usage.totalTokens,
+  };
+}
+
+export async function streamProofreadTokens(
+  source: string,
+  tokens: readonly TokenData[],
+  userApiKey?: string,
+  model?: string | null,
+  options: ProofreadRequestOptions = {}
+): Promise<ProofreadResult> {
+  if (!source || tokens.length === 0) {
+    throw new Error('缺少原文或完整分词底稿');
+  }
+
+  const jobs = splitProofreadSentenceJobs(source, tokens);
+  if (jobs.length === 0) throw new Error('审校分句结果为空');
+  options.onStart?.(jobs.length);
+
+  const overallTimeoutController = new AbortController();
+  const overallTimeoutMs = Math.max(
+    PROOFREAD_OVERALL_MIN_TIMEOUT_MS,
+    jobs.length * PROOFREAD_OVERALL_PER_SENTENCE_MS
+  );
+  let overallTimedOut = false;
+  const overallTimeout = setTimeout(() => {
+    overallTimedOut = true;
+    overallTimeoutController.abort(new DOMException('整体审校超时', 'TimeoutError'));
+  }, overallTimeoutMs);
+  const batchSignal = options.signal
+    ? AbortSignal.any([options.signal, overallTimeoutController.signal])
+    : overallTimeoutController.signal;
+  const results: Array<ProofreadSentenceResult | null> = Array(jobs.length).fill(null);
+  const reasoningBySentence = Array(jobs.length).fill('') as string[];
+  let aggregateReasoning = '';
+  let nextJobIndex = 0;
+  let completedSentences = 0;
+
+  const appendReasoning = (sentenceIndex: number, fullText: string) => {
+    const previousText = reasoningBySentence[sentenceIndex];
+    const delta = fullText.startsWith(previousText)
+      ? fullText.slice(previousText.length)
+      : fullText;
+    if (!delta) return;
+    reasoningBySentence[sentenceIndex] = fullText;
+    if (!previousText) {
+      aggregateReasoning += `${aggregateReasoning ? '\n' : ''}【第 ${sentenceIndex + 1} 句】\n`;
+    }
+    aggregateReasoning += delta;
+    options.onReasoning?.(aggregateReasoning, false);
+  };
+
+  const runJob = async (job: ProofreadSentenceJob): Promise<ProofreadSentenceResult> => {
+    let sentenceUsage: StreamTokenUsage | null = null;
+    try {
+      const localResult = await streamProofreadSentence(
+        job,
+        userApiKey,
+        model,
+        batchSignal,
+        (text) => appendReasoning(job.sentenceIndex, text),
+        (usage) => {
+          sentenceUsage = usage;
+          options.onUsage?.(usage, job.sentenceIndex);
+        }
+      );
+      const result: ProofreadSentenceResult = {
+        sentenceIndex: job.sentenceIndex,
+        source: job.source,
+        status: 'completed',
+        corrections: localResult.corrections.map((correction) => ({
+          ...correction,
+          indexes: correction.indexes.map((index) => job.tokenStart + index),
+        })),
+        rawContent: localResult.rawContent,
+        usage: localResult.usage,
+      };
+      completedSentences += 1;
+      options.onSentenceComplete?.(result);
+      return result;
+    } catch (error) {
+      const message = overallTimedOut
+        ? '整体审校到达时间上限，已跳过'
+        : error instanceof Error
+          ? error.message
+          : '单句审校失败';
+      return {
+        sentenceIndex: job.sentenceIndex,
+        source: job.source,
+        status: 'failed',
+        corrections: [],
+        rawContent: '',
+        usage: sentenceUsage,
+        error: message,
+      };
+    }
+  };
+
+  const worker = async () => {
+    while (!batchSignal.aborted) {
+      const jobIndex = nextJobIndex;
+      nextJobIndex += 1;
+      if (jobIndex >= jobs.length) return;
+      const result = await runJob(jobs[jobIndex]);
+      results[jobIndex] = result;
+      options.onProgress?.(completedSentences, jobs.length, result);
+    }
+  };
+
+  try {
+    await Promise.all(
+      Array.from(
+        { length: Math.min(PROOFREAD_SENTENCE_CONCURRENCY, jobs.length) },
+        () => worker()
+      )
+    );
+
+    if (options.signal?.aborted) {
+      throw options.signal.reason instanceof Error
+        ? options.signal.reason
+        : new DOMException('审校已取消', 'AbortError');
+    }
+
+    for (let index = 0; index < results.length; index += 1) {
+      if (results[index]) continue;
+      const skippedResult: ProofreadSentenceResult = {
+        sentenceIndex: index,
+        source: jobs[index].source,
+        status: 'failed',
+        corrections: [],
+        rawContent: '',
+        usage: null,
+        error: overallTimedOut ? '整体审校到达时间上限，已跳过' : '单句未执行',
+      };
+      results[index] = skippedResult;
+      options.onProgress?.(completedSentences, jobs.length, skippedResult);
+    }
+
+    const sentenceResults = results.filter(
+      (result): result is ProofreadSentenceResult => result !== null
+    );
+    const corrections = sentenceResults
+      .flatMap((result) => result.corrections)
+      .sort((left, right) => left.indexes[0] - right.indexes[0]);
+    const usage = sentenceResults.reduce<StreamTokenUsage | null>(
+      (total, result) => addTokenUsage(total, result.usage),
+      null
+    );
+    options.onReasoning?.(aggregateReasoning, true);
+
+    return {
+      corrections,
+      rawContent: JSON.stringify(sentenceResults.map((result) => ({
+        sentence: result.sentenceIndex + 1,
+        status: result.status,
+        content: result.rawContent,
+        error: result.error,
+      }))),
+      recoveredFromTruncation: false,
+      usage,
+      sentenceResults,
+      totalSentences: jobs.length,
+      completedSentences,
+      failedSentences: jobs.length - completedSentences,
+    };
+  } finally {
+    clearTimeout(overallTimeout);
+  }
+}
+
 function reconstructTokenText(tokens: TokenData[]): string {
   return tokens.map((token) => token.word).join('');
+}
+
+function isNonLexicalCharacter(character: string): boolean {
+  return NON_LEXICAL_CHARACTER_PATTERN.test(character);
+}
+
+function createSourceSeparatorToken(character: string): TokenData {
+  return {
+    word: character,
+    pos: character === '\n' || character === '\r' ? '改行' : '記号',
+    furigana: '',
+    romaji: '',
+  };
 }
 
 function alignTokenWhitespaceToSource(source: string, tokens: TokenData[]): TokenData[] | null {
@@ -273,12 +614,7 @@ function alignTokenWhitespaceToSource(source: string, tokens: TokenData[]): Toke
   const appendSourceWhitespace = () => {
     while (sourceIndex < source.length && /\s/u.test(source[sourceIndex])) {
       const character = source[sourceIndex];
-      alignedTokens.push({
-        word: character,
-        pos: character === '\n' || character === '\r' ? '改行' : '記号',
-        furigana: '',
-        romaji: '',
-      });
+      alignedTokens.push(createSourceSeparatorToken(character));
       sourceIndex += 1;
     }
   };
@@ -318,20 +654,359 @@ function alignTokenWhitespaceToSource(source: string, tokens: TokenData[]): Toke
   return sourceIndex === source.length ? alignedTokens : null;
 }
 
+export function reconcileTokenWhitespaceToSource(
+  source: string,
+  tokens: TokenData[]
+): TokenData[] | null {
+  if (reconstructTokenText(tokens) === source) return tokens;
+  return alignTokenWhitespaceToSource(source, tokens);
+}
+
+function alignTokenSeparatorsToSource(source: string, tokens: TokenData[]): TokenData[] | null {
+  const sourceCharacters = Array.from(source);
+  const sourceLexicalText = sourceCharacters
+    .filter((character) => !isNonLexicalCharacter(character))
+    .join('');
+  const tokenLexicalText = tokens
+    .flatMap((token) => Array.from(token.word))
+    .filter((character) => !isNonLexicalCharacter(character))
+    .join('');
+  if (sourceLexicalText !== tokenLexicalText) return null;
+
+  const alignedTokens: TokenData[] = [];
+  let sourceIndex = 0;
+
+  const appendSourceSeparators = () => {
+    while (
+      sourceIndex < sourceCharacters.length
+      && isNonLexicalCharacter(sourceCharacters[sourceIndex])
+    ) {
+      alignedTokens.push(createSourceSeparatorToken(sourceCharacters[sourceIndex]));
+      sourceIndex += 1;
+    }
+  };
+
+  for (const token of tokens) {
+    const lexicalCharacters = Array.from(token.word)
+      .filter((character) => !isNonLexicalCharacter(character));
+    if (lexicalCharacters.length === 0) continue;
+
+    let segment = '';
+    let emittedSegment = false;
+    const flushSegment = () => {
+      if (!segment) return;
+      alignedTokens.push({
+        ...token,
+        word: segment,
+        furigana: emittedSegment ? '' : token.furigana,
+        romaji: emittedSegment ? '' : token.romaji,
+      });
+      emittedSegment = true;
+      segment = '';
+    };
+
+    appendSourceSeparators();
+    for (const character of lexicalCharacters) {
+      if (isNonLexicalCharacter(sourceCharacters[sourceIndex] || '')) {
+        flushSegment();
+        appendSourceSeparators();
+      }
+      if (sourceCharacters[sourceIndex] !== character) return null;
+      segment += sourceCharacters[sourceIndex];
+      sourceIndex += 1;
+    }
+    flushSegment();
+  }
+
+  appendSourceSeparators();
+  return sourceIndex === sourceCharacters.length ? alignedTokens : null;
+}
+
+function normalizeHistoricalKana(value: string): string {
+  const voicedKana: Record<string, string> = {
+    か: 'が', き: 'ぎ', く: 'ぐ', け: 'げ', こ: 'ご',
+    さ: 'ざ', し: 'じ', す: 'ず', せ: 'ぜ', そ: 'ぞ',
+    た: 'だ', ち: 'ぢ', つ: 'づ', て: 'で', と: 'ど',
+    は: 'ば', ひ: 'び', ふ: 'ぶ', へ: 'べ', ほ: 'ぼ',
+  };
+  let expanded = '';
+  for (const character of Array.from(value)) {
+    if (character === 'ゝ' && expanded) {
+      expanded += Array.from(expanded).at(-1) ?? '';
+    } else if (character === 'ゞ' && expanded) {
+      const previous = Array.from(expanded).at(-1) ?? '';
+      expanded += voicedKana[previous] ?? previous;
+    } else {
+      expanded += character;
+    }
+  }
+
+  return expanded
+    .replace(/[ゐヰ]/gu, 'い')
+    .replace(/[ゑヱ]/gu, 'え')
+    .replace(/ぢ/gu, 'じ')
+    .replace(/づ/gu, 'ず')
+    .replace(/へ/gu, 'え')
+    .replace(/ひ/gu, 'い')
+    .replace(/ふ/gu, 'う');
+}
+
+function alignTokenOrthographyToSource(source: string, tokens: TokenData[]): TokenData[] | null {
+  const sourceCharacters = Array.from(source);
+  const alignedTokens: TokenData[] = [];
+  let sourceIndex = 0;
+
+  const appendSourceSeparators = () => {
+    while (
+      sourceIndex < sourceCharacters.length
+      && isNonLexicalCharacter(sourceCharacters[sourceIndex])
+    ) {
+      alignedTokens.push(createSourceSeparatorToken(sourceCharacters[sourceIndex]));
+      sourceIndex += 1;
+    }
+  };
+
+  const sourceStartsWith = (candidate: string): string | null => {
+    const candidateCharacters = Array.from(candidate);
+    const sourceSlice = sourceCharacters
+      .slice(sourceIndex, sourceIndex + candidateCharacters.length)
+      .join('');
+    return sourceSlice === candidate ? sourceSlice : null;
+  };
+
+  const sourceHistoricallyMatches = (candidate: string): string | null => {
+    const candidateCharacters = Array.from(candidate);
+    const sourceSlice = sourceCharacters
+      .slice(sourceIndex, sourceIndex + candidateCharacters.length)
+      .join('');
+    return normalizeHistoricalKana(sourceSlice) === normalizeHistoricalKana(candidate)
+      ? sourceSlice
+      : null;
+  };
+
+  for (const token of tokens) {
+    const lexicalWord = Array.from(token.word)
+      .filter((character) => !isNonLexicalCharacter(character))
+      .join('');
+    if (!lexicalWord) continue;
+
+    appendSourceSeparators();
+    const lexicalFurigana = Array.from(token.furigana || '')
+      .filter((character) => !isNonLexicalCharacter(character))
+      .join('');
+    const hasKanji = /[\p{Script=Han}々〆ヵヶ]/u.test(lexicalWord);
+    const wordWithReading = hasKanji && lexicalFurigana && lexicalFurigana !== lexicalWord
+      ? sourceStartsWith(`${lexicalWord}${lexicalFurigana}`)
+      : null;
+    const matchedSource = wordWithReading
+      ?? sourceStartsWith(lexicalWord)
+      ?? (hasKanji && lexicalFurigana ? sourceStartsWith(lexicalFurigana) : null)
+      ?? sourceHistoricallyMatches(lexicalWord)
+      ?? (hasKanji && lexicalFurigana ? sourceHistoricallyMatches(lexicalFurigana) : null);
+    if (!matchedSource) return null;
+
+    alignedTokens.push({ ...token, word: matchedSource });
+    sourceIndex += Array.from(matchedSource).length;
+  }
+
+  appendSourceSeparators();
+  return sourceIndex === sourceCharacters.length ? alignedTokens : null;
+}
+
+interface CharacterAlignmentOperation {
+  sourceCharacter: string | null;
+  returnedCharacter: string | null;
+  returnedIndex: number | null;
+  matches: boolean;
+}
+
+function alignMinorKanaEditsToSource(source: string, tokens: TokenData[]): TokenData[] | null {
+  const sourceCharacters = Array.from(source);
+  const returnedCharacters: string[] = [];
+  const returnedTokenIndexes: number[] = [];
+  tokens.forEach((token, tokenIndex) => {
+    Array.from(token.word).forEach((character) => {
+      returnedCharacters.push(character);
+      returnedTokenIndexes.push(tokenIndex);
+    });
+  });
+
+  const sourceLength = sourceCharacters.length;
+  const returnedLength = returnedCharacters.length;
+  const distances = Array.from(
+    { length: sourceLength + 1 },
+    () => new Uint16Array(returnedLength + 1)
+  );
+  for (let sourceIndex = 0; sourceIndex <= sourceLength; sourceIndex += 1) {
+    distances[sourceIndex][0] = sourceIndex;
+  }
+  for (let returnedIndex = 0; returnedIndex <= returnedLength; returnedIndex += 1) {
+    distances[0][returnedIndex] = returnedIndex;
+  }
+
+  for (let sourceIndex = 1; sourceIndex <= sourceLength; sourceIndex += 1) {
+    for (let returnedIndex = 1; returnedIndex <= returnedLength; returnedIndex += 1) {
+      const substitutionCost = sourceCharacters[sourceIndex - 1] === returnedCharacters[returnedIndex - 1]
+        ? 0
+        : 1;
+      distances[sourceIndex][returnedIndex] = Math.min(
+        distances[sourceIndex - 1][returnedIndex - 1] + substitutionCost,
+        distances[sourceIndex - 1][returnedIndex] + 1,
+        distances[sourceIndex][returnedIndex - 1] + 1
+      );
+    }
+  }
+
+  const editDistance = distances[sourceLength][returnedLength];
+  const maximumEdits = Math.max(12, Math.ceil(Math.max(sourceLength, returnedLength) * 0.08));
+  if (editDistance > maximumEdits) return null;
+
+  const operations: CharacterAlignmentOperation[] = [];
+  let sourceIndex = sourceLength;
+  let returnedIndex = returnedLength;
+  while (sourceIndex > 0 || returnedIndex > 0) {
+    const sourceCharacter = sourceIndex > 0 ? sourceCharacters[sourceIndex - 1] : null;
+    const returnedCharacter = returnedIndex > 0 ? returnedCharacters[returnedIndex - 1] : null;
+    const matches = sourceCharacter !== null && sourceCharacter === returnedCharacter;
+    if (
+      sourceIndex > 0
+      && returnedIndex > 0
+      && distances[sourceIndex][returnedIndex]
+        === distances[sourceIndex - 1][returnedIndex - 1] + (matches ? 0 : 1)
+    ) {
+      operations.push({
+        sourceCharacter,
+        returnedCharacter,
+        returnedIndex: returnedIndex - 1,
+        matches,
+      });
+      sourceIndex -= 1;
+      returnedIndex -= 1;
+    } else if (
+      sourceIndex > 0
+      && distances[sourceIndex][returnedIndex] === distances[sourceIndex - 1][returnedIndex] + 1
+    ) {
+      operations.push({
+        sourceCharacter,
+        returnedCharacter: null,
+        returnedIndex: null,
+        matches: false,
+      });
+      sourceIndex -= 1;
+    } else {
+      operations.push({
+        sourceCharacter: null,
+        returnedCharacter,
+        returnedIndex: returnedIndex - 1,
+        matches: false,
+      });
+      returnedIndex -= 1;
+    }
+  }
+  operations.reverse();
+
+  let matchingCharacters = 0;
+  let currentEditRun = 0;
+  let maximumEditRun = 0;
+  for (const operation of operations) {
+    if (operation.matches) {
+      matchingCharacters += 1;
+      currentEditRun = 0;
+      continue;
+    }
+    currentEditRun += 1;
+    maximumEditRun = Math.max(maximumEditRun, currentEditRun);
+    if (
+      (operation.sourceCharacter && /[\p{Script=Han}々〆ヵヶ]/u.test(operation.sourceCharacter))
+      || (operation.returnedCharacter && /[\p{Script=Han}々〆ヵヶ]/u.test(operation.returnedCharacter))
+    ) {
+      return null;
+    }
+  }
+  if (maximumEditRun > 12) return null;
+  if (matchingCharacters / Math.max(1, sourceLength, returnedLength) < 0.9) return null;
+
+  const nextTokenIndexes = Array<number | null>(operations.length).fill(null);
+  let nextTokenIndex: number | null = null;
+  for (let operationIndex = operations.length - 1; operationIndex >= 0; operationIndex -= 1) {
+    const operation = operations[operationIndex];
+    if (operation.returnedIndex !== null) {
+      nextTokenIndex = returnedTokenIndexes[operation.returnedIndex] ?? nextTokenIndex;
+    }
+    nextTokenIndexes[operationIndex] = nextTokenIndex;
+  }
+
+  const alignedTokens: TokenData[] = [];
+  const emittedTokenIndexes = new Set<number>();
+  let previousTokenIndex: number | null = null;
+  let activeTokenIndex: number | null = null;
+  let activeSegment = '';
+  const flushSegment = () => {
+    if (!activeSegment || activeTokenIndex === null) return;
+    const token = tokens[activeTokenIndex];
+    const emitted = emittedTokenIndexes.has(activeTokenIndex);
+    alignedTokens.push({
+      ...token,
+      word: activeSegment,
+      furigana: emitted ? '' : token.furigana,
+      romaji: emitted ? '' : token.romaji,
+    });
+    emittedTokenIndexes.add(activeTokenIndex);
+    activeSegment = '';
+  };
+
+  operations.forEach((operation, operationIndex) => {
+    if (!operation.sourceCharacter) return;
+    if (isNonLexicalCharacter(operation.sourceCharacter)) {
+      flushSegment();
+      activeTokenIndex = null;
+      alignedTokens.push(createSourceSeparatorToken(operation.sourceCharacter));
+      return;
+    }
+
+    const mappedTokenIndex = operation.returnedIndex !== null
+      ? returnedTokenIndexes[operation.returnedIndex]
+      : previousTokenIndex ?? nextTokenIndexes[operationIndex];
+    if (mappedTokenIndex === null || mappedTokenIndex === undefined) return;
+    if (activeTokenIndex !== mappedTokenIndex) {
+      flushSegment();
+      activeTokenIndex = mappedTokenIndex;
+    }
+    activeSegment += operation.sourceCharacter;
+    previousTokenIndex = mappedTokenIndex;
+  });
+  flushSegment();
+
+  return reconstructTokenText(alignedTokens) === source ? alignedTokens : null;
+}
+
+export function reconcileTokenTextToSource(
+  source: string,
+  tokens: TokenData[]
+): TokenData[] | null {
+  return reconcileTokenWhitespaceToSource(source, tokens)
+    ?? alignTokenSeparatorsToSource(source, tokens)
+    ?? alignTokenOrthographyToSource(source, tokens)
+    ?? alignMinorKanaEditsToSource(source, tokens);
+}
+
+class ChunkReconstructionError extends Error {
+  constructor(chunkIndex: number, chunkCount: number) {
+    super(`第 ${chunkIndex + 1}/${chunkCount} 段解析结果未能完整还原原文，请重试。`);
+    this.name = 'ChunkReconstructionError';
+  }
+}
+
 function reconcileChunkReconstruction(
   chunk: JapaneseTextChunk,
   tokens: TokenData[],
   chunkIndex: number,
   chunkCount: number
 ): TokenData[] {
-  if (reconstructTokenText(tokens) === chunk.text) return tokens;
+  const reconciledTokens = reconcileTokenTextToSource(chunk.text, tokens);
+  if (reconciledTokens) return reconciledTokens;
 
-  const whitespaceAlignedTokens = alignTokenWhitespaceToSource(chunk.text, tokens);
-  if (whitespaceAlignedTokens) return whitespaceAlignedTokens;
-
-  throw new Error(
-    `第 ${chunkIndex + 1}/${chunkCount} 段解析结果未能完整还原原文，请重试。`
-  );
+  throw new ChunkReconstructionError(chunkIndex, chunkCount);
 }
 
 function formatChunkReasoning(
@@ -512,6 +1187,44 @@ function getFinishReasonErrorMessage(finishReason: string, label: string): strin
   return `${label}未正常结束（finish_reason: ${finishReason}）。`;
 }
 
+class StreamFinishReasonError extends Error {
+  readonly finishReason: string;
+
+  constructor(finishReason: string, label: string) {
+    super(getFinishReasonErrorMessage(finishReason, label));
+    this.name = 'StreamFinishReasonError';
+    this.finishReason = finishReason;
+  }
+}
+
+function getStreamTokenUsage(value: unknown): StreamTokenUsage | null {
+  if (!isRecord(value) || !isRecord(value.usage)) return null;
+
+  const usage = value.usage;
+  const promptTokens = typeof usage.prompt_tokens === 'number' ? usage.prompt_tokens : 0;
+  const completionTokens = typeof usage.completion_tokens === 'number'
+    ? usage.completion_tokens
+    : 0;
+  const totalTokens = typeof usage.total_tokens === 'number'
+    ? usage.total_tokens
+    : promptTokens + completionTokens;
+  const details = isRecord(usage.completion_tokens_details)
+    ? usage.completion_tokens_details
+    : null;
+  const reasoningTokens = typeof details?.reasoning_tokens === 'number'
+    ? details.reasoning_tokens
+    : 0;
+
+  if (promptTokens === 0 && completionTokens === 0 && totalTokens === 0) return null;
+  return {
+    promptTokens,
+    completionTokens,
+    reasoningTokens,
+    outputTokens: Math.max(0, completionTokens - reasoningTokens),
+    totalTokens,
+  };
+}
+
 function getStreamEventFromData(
   data: string,
   parseWarning: string
@@ -519,22 +1232,24 @@ function getStreamEventFromData(
   content: string;
   reasoningContent: string;
   finishReason: string | null;
+  usage: StreamTokenUsage | null;
   errorMessage?: string;
 } {
   try {
     const parsed = JSON.parse(data) as unknown;
+    const usage = getStreamTokenUsage(parsed);
     const errorMessage = getMessageFromUnknownStreamError(parsed);
     if (errorMessage) {
-      return { content: '', reasoningContent: '', finishReason: null, errorMessage };
+      return { content: '', reasoningContent: '', finishReason: null, usage, errorMessage };
     }
 
     if (!isRecord(parsed) || !Array.isArray(parsed.choices)) {
-      return { content: '', reasoningContent: '', finishReason: null };
+      return { content: '', reasoningContent: '', finishReason: null, usage };
     }
 
     const firstChoice = parsed.choices[0];
     if (!isRecord(firstChoice)) {
-      return { content: '', reasoningContent: '', finishReason: null };
+      return { content: '', reasoningContent: '', finishReason: null, usage };
     }
 
     const delta = isRecord(firstChoice.delta) ? firstChoice.delta : null;
@@ -553,10 +1268,10 @@ function getStreamEventFromData(
       ? firstChoice.finish_reason
       : null;
 
-    return { content, reasoningContent, finishReason };
+    return { content, reasoningContent, finishReason, usage };
   } catch (error) {
     console.warn(parseWarning, error, data);
-    return { content: '', reasoningContent: '', finishReason: null };
+    return { content: '', reasoningContent: '', finishReason: null, usage: null };
   }
 }
 
@@ -572,6 +1287,7 @@ export async function readOpenAIContentStream(
     completionLabel?: string;
     onReasoning?: (text: string, done: boolean) => void;
     onContentStart?: () => void;
+    onUsage?: (usage: StreamTokenUsage) => void;
     reasoningDebounceMs?: number;
   } = {}
 ): Promise<void> {
@@ -694,8 +1410,10 @@ export async function readOpenAIContentStream(
       content,
       reasoningContent,
       finishReason,
+      usage,
       errorMessage,
     } = getStreamEventFromData(data, parseWarning);
+    if (usage) options.onUsage?.(usage);
     if (errorMessage) {
       return fail(new Error(errorMessage));
     }
@@ -717,8 +1435,7 @@ export async function readOpenAIContentStream(
     if (finishReason) {
       hasTerminalSignal = true;
       if (finishReason.toLowerCase() !== 'stop') {
-        terminalError = new Error(getFinishReasonErrorMessage(finishReason, completionLabel));
-        return fail(terminalError);
+        terminalError = new StreamFinishReasonError(finishReason, completionLabel);
       }
     }
 
@@ -834,7 +1551,12 @@ export async function analyzeSentence(
 
   const chunks = splitJapaneseText(sentence);
   if (chunks.length <= 1) {
-    return analyzeSingleSentence(sentence, userApiKey, provider, model, options);
+    const tokens = await analyzeSingleSentence(sentence, userApiKey, provider, model, options);
+    const reconciledTokens = reconcileTokenTextToSource(sentence, tokens);
+    if (!reconciledTokens) {
+      throw new Error('句子解析结果未能完整还原原文，请重新解析。');
+    }
+    return reconciledTokens;
   }
 
   const mergedTokens: TokenData[] = [];
@@ -842,30 +1564,50 @@ export async function analyzeSentence(
 
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index];
-    const chunkTokens = await analyzeSingleSentence(
-      chunk.text,
-      userApiKey,
-      provider,
-      model,
-      {
-        ...options,
-        onReasoning: options.onReasoning
-          ? (text) => {
-              reasoningByChunk[index] = text;
-              options.onReasoning?.(
-                formatChunkReasoning(reasoningByChunk, index),
-                false
-              );
-            }
-          : undefined,
+    let reconciledTokens: TokenData[] | null = null;
+
+    for (let attempt = 1; attempt <= ANALYSIS_CHUNK_MAX_ATTEMPTS; attempt += 1) {
+      const chunkTokens = await analyzeSingleSentence(
+        chunk.text,
+        userApiKey,
+        provider,
+        model,
+        {
+          ...options,
+          onReasoning: options.onReasoning
+            ? (text) => {
+                reasoningByChunk[index] = text;
+                options.onReasoning?.(
+                  formatChunkReasoning(reasoningByChunk, index),
+                  false
+                );
+              }
+            : undefined,
+        }
+      );
+
+      try {
+        reconciledTokens = reconcileChunkReconstruction(
+          chunk,
+          chunkTokens,
+          index,
+          chunks.length
+        );
+        break;
+      } catch (error) {
+        if (
+          !(error instanceof ChunkReconstructionError)
+          || attempt === ANALYSIS_CHUNK_MAX_ATTEMPTS
+        ) {
+          throw error;
+        }
+        console.warn(`第 ${index + 1}/${chunks.length} 段原文校验失败，正在单独重试。`);
       }
-    );
-    const reconciledTokens = reconcileChunkReconstruction(
-      chunk,
-      chunkTokens,
-      index,
-      chunks.length
-    );
+    }
+
+    if (!reconciledTokens) {
+      throw new ChunkReconstructionError(index, chunks.length);
+    }
     mergedTokens.push(...reconciledTokens);
   }
 
@@ -930,6 +1672,77 @@ async function streamAnalyzeSingleSentence(
   }
 }
 
+function splitTruncatedAnalysisChunk(chunk: JapaneseTextChunk): JapaneseTextChunk[] {
+  const textLength = chunk.text.length;
+  if (textLength < 2) return [chunk];
+
+  const targetChars = Math.max(48, Math.floor(textLength / 2));
+  const maxChars = Math.max(targetChars, Math.floor(textLength * 0.62));
+  const minChars = Math.max(24, Math.floor(targetChars * 0.5));
+  const semanticChunks = splitJapaneseText(chunk.text, {
+    targetChars,
+    maxChars,
+    minChars,
+  });
+
+  if (semanticChunks.length > 1) {
+    return semanticChunks.map((subchunk) => ({
+      ...subchunk,
+      start: chunk.start + subchunk.start,
+      end: chunk.start + subchunk.end,
+    }));
+  }
+
+  const characters = Array.from(chunk.text);
+  const midpoint = Math.floor(characters.length / 2);
+  const minimumSplit = Math.max(1, Math.floor(characters.length * 0.3));
+  const maximumSplit = Math.min(characters.length - 1, Math.ceil(characters.length * 0.7));
+  const safeBoundaries = new Set(['、', '，', ',', '；', ';', '：', ':', '\n']);
+  let splitIndex = midpoint;
+
+  for (let distance = 0; distance <= maximumSplit - minimumSplit; distance += 1) {
+    const leftCandidate = midpoint - distance;
+    const rightCandidate = midpoint + distance;
+    if (
+      leftCandidate >= minimumSplit
+      && safeBoundaries.has(characters[leftCandidate - 1])
+    ) {
+      splitIndex = leftCandidate;
+      break;
+    }
+    if (
+      rightCandidate <= maximumSplit
+      && safeBoundaries.has(characters[rightCandidate - 1])
+    ) {
+      splitIndex = rightCandidate;
+      break;
+    }
+  }
+
+  splitIndex = Math.min(maximumSplit, Math.max(minimumSplit, splitIndex));
+  const leftText = characters.slice(0, splitIndex).join('');
+  const rightText = characters.slice(splitIndex).join('');
+  if (!leftText || !rightText) return [chunk];
+
+  const leftEnd = chunk.start + leftText.length;
+  return [
+    {
+      text: leftText,
+      start: chunk.start,
+      end: leftEnd,
+      sentenceCount: 0,
+      overLimit: false,
+    },
+    {
+      text: rightText,
+      start: leftEnd,
+      end: chunk.end,
+      sentenceCount: 0,
+      overLimit: false,
+    },
+  ];
+}
+
 async function streamAnalyzeChunk(
   chunk: JapaneseTextChunk,
   chunkIndex: number,
@@ -938,34 +1751,96 @@ async function streamAnalyzeChunk(
   userApiKey: string | undefined,
   provider: AIProvider,
   model: string | null | undefined,
-  options: AnalyzeRequestOptions
+  options: AnalyzeRequestOptions,
+  truncationDepth = 0
 ): Promise<TokenData[]> {
-  let finalTokens: TokenData[] | null = null;
-  let streamError: Error | null = null;
+  for (let attempt = 1; attempt <= ANALYSIS_CHUNK_MAX_ATTEMPTS; attempt += 1) {
+    let finalTokens: TokenData[] | null = null;
+    let streamError: Error | null = null;
 
-  await streamAnalyzeSingleSentence(
-    chunk.text,
-    (content, isDone) => {
-      if (isDone) finalTokens = parseAnalyzeResponseContent(content);
-    },
-    (error) => {
-      streamError = error;
-    },
-    userApiKey,
-    provider,
-    model,
-    {
-      ...options,
-      onReasoning,
+    await streamAnalyzeSingleSentence(
+      chunk.text,
+      (content, isDone) => {
+        if (isDone) finalTokens = parseAnalyzeResponseContent(content);
+      },
+      (error) => {
+        streamError = error;
+      },
+      userApiKey,
+      provider,
+      model,
+      {
+        ...options,
+        onReasoning,
+      }
+    );
+
+    const resolvedStreamError = streamError as Error | null;
+    if (resolvedStreamError) {
+      if (
+        resolvedStreamError instanceof StreamFinishReasonError
+        && resolvedStreamError.finishReason.toLowerCase() === 'length'
+        && truncationDepth < ANALYSIS_TRUNCATION_SPLIT_MAX_DEPTH
+      ) {
+        const subchunks = splitTruncatedAnalysisChunk(chunk);
+        if (subchunks.length > 1) {
+          console.warn(
+            `第 ${chunkIndex + 1}/${chunkCount} 段输出被截断，已拆为 ${subchunks.length} 个更小片段重试。`
+          );
+          const subchunkReasoning = Array<string>(subchunks.length).fill('');
+          const mergedTokens: TokenData[] = [];
+
+          for (let subchunkIndex = 0; subchunkIndex < subchunks.length; subchunkIndex += 1) {
+            const subchunkTokens = await streamAnalyzeChunk(
+              subchunks[subchunkIndex],
+              chunkIndex,
+              chunkCount,
+              onReasoning
+                ? (text, done) => {
+                    subchunkReasoning[subchunkIndex] = text;
+                    onReasoning(
+                      subchunkReasoning.filter(Boolean).join('\n\n'),
+                      subchunkIndex === subchunks.length - 1 && done
+                    );
+                  }
+                : undefined,
+              userApiKey,
+              provider,
+              model,
+              options,
+              truncationDepth + 1
+            );
+            mergedTokens.push(...subchunkTokens);
+          }
+
+          return reconcileChunkReconstruction(
+            chunk,
+            mergedTokens,
+            chunkIndex,
+            chunkCount
+          );
+        }
+      }
+      throw resolvedStreamError;
     }
-  );
+    if (!finalTokens) {
+      throw new Error(`第 ${chunkIndex + 1}/${chunkCount} 段没有返回完整解析结果，请重试。`);
+    }
 
-  if (streamError) throw streamError;
-  if (!finalTokens) {
-    throw new Error(`第 ${chunkIndex + 1}/${chunkCount} 段没有返回完整解析结果，请重试。`);
+    try {
+      return reconcileChunkReconstruction(chunk, finalTokens, chunkIndex, chunkCount);
+    } catch (error) {
+      if (
+        !(error instanceof ChunkReconstructionError)
+        || attempt === ANALYSIS_CHUNK_MAX_ATTEMPTS
+      ) {
+        throw error;
+      }
+      console.warn(`第 ${chunkIndex + 1}/${chunkCount} 段原文校验失败，正在单独重试。`);
+    }
   }
 
-  return reconcileChunkReconstruction(chunk, finalTokens, chunkIndex, chunkCount);
+  throw new ChunkReconstructionError(chunkIndex, chunkCount);
 }
 
 // 流式分析日语文本；长文本保持完整句界，最多并行处理三个语义块
@@ -987,7 +1862,22 @@ export async function streamAnalyzeSentence(
   if (chunks.length <= 1) {
     await streamAnalyzeSingleSentence(
       sentence,
-      onChunk,
+      (content, isDone) => {
+        if (!isDone) {
+          onChunk(content, false);
+          return;
+        }
+        try {
+          const tokens = parseAnalyzeResponseContent(content);
+          const reconciledTokens = reconcileTokenTextToSource(sentence, tokens);
+          if (!reconciledTokens) {
+            throw new Error('句子解析结果未能完整还原原文，请重新解析。');
+          }
+          onChunk(JSON.stringify({ tokens: reconciledTokens }), true);
+        } catch (error) {
+          onError(error instanceof Error ? error : new Error('句子解析结果校验失败'));
+        }
+      },
       onError,
       userApiKey,
       provider,

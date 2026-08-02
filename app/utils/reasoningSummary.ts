@@ -16,8 +16,8 @@ const DEFAULT_FALLBACK_MS = 10_000;
 const DEFAULT_MAX_SNIPPET_CHARS = 800;
 const DEFAULT_MAX_CHARS_BEFORE_SUMMARY = 600;
 const SUMMARY_TRIGGER_PATTERN = /\n|接下来|然后|现在|好[,，]|另外/u;
-export const INITIAL_REASONING_SUMMARY = '正在连接模型…';
-const NON_STEP_SUMMARY_PATTERN = /^(?:正在)?(?:连接模型|等待模型(?:响应)?|分析)(?:…|\.{3})?$/u;
+export const INITIAL_REASONING_SUMMARY = '深度校對中…';
+const NON_STEP_SUMMARY_PATTERN = /^(?:深度校對中(?:…| · \d+\/\d+ 句)?|思考中|(?:正在)?(?:连接模型|等待模型(?:响应)?|分析)(?:…|\.{3})?)$/u;
 
 export function formatCompletedReasoningSummaries(
   summaries: readonly string[]

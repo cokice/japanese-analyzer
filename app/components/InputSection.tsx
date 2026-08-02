@@ -12,6 +12,7 @@ import {
   type AnalyzeUsageMetadata
 } from '../utils/analytics';
 import { Icon } from './Icons';
+import AtomIcon from './AtomIcon';
 import AnalysisResult from './AnalysisResult';
 import type { AnnotationReadingMode } from '../types/annotation';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
@@ -771,7 +772,7 @@ export default function InputSection({
                 title={`深度思考：${deepseekThinkingEnabled ? '已开启' : '已关闭'}`}
                 onClick={() => onDeepseekThinkingChange(!deepseekThinkingEnabled)}
               >
-                {Icon.atom}
+                <AtomIcon state={deepseekThinkingEnabled ? 'on' : 'off'} />
               </button>
             )}
           </div>

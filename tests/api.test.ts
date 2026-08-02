@@ -11,7 +11,11 @@ import {
   normalizeAIModel,
   normalizeAIProvider,
   parseWordDetailResponseContent,
+  reconcileTokenTextToSource,
+  reconcileTokenWhitespaceToSource,
   readOpenAIContentStream,
+  streamAnalyzeSentence,
+  streamProofreadTokens,
   type StorageLike
 } from '../app/services/api';
 import {
@@ -70,11 +74,180 @@ import {
   REASONING_VIRTUAL_LINE_CHAR_LIMIT,
   ReasoningTextStore
 } from '../app/utils/reasoningTextStore';
+import {
+  buildProofreadPrompt,
+  parseProofreadCorrections,
+  PROOFREAD_MAX_OUTPUT_TOKENS,
+  PROOFREAD_SENTENCE_TIMEOUT_MS,
+  recoverTruncatedProofreadCorrections,
+  splitProofreadSentenceJobs
+} from '../app/utils/proofreading';
+import { applyProofreadCorrections } from '../app/utils/applyProofreadCorrections';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
 assert.strictEqual(getApiEndpoint('chat'), '/api/chat');
 assert.strictEqual(getApiEndpoint('reasoning-summary'), '/api/reasoning-summary');
+assert.strictEqual(getApiEndpoint('proofread'), '/api/proofread');
+
+const proofreadDraft = [
+  { word: '私', pos: '代名詞', furigana: 'わたし', romaji: 'watashi' },
+  { word: 'は', pos: '助詞', furigana: '', romaji: 'wa' },
+];
+const proofreadPrompt = buildProofreadPrompt('私は', proofreadDraft, {
+  previousSource: '前です。',
+  nextSource: '後です。',
+});
+assert.ok(proofreadPrompt.includes('快速抽查，不是详尽校对'));
+assert.ok(proofreadPrompt.includes('默认正确、无需逐词确认'));
+assert.ok(proofreadPrompt.includes('複合词或专有名词的切分边界'));
+assert.ok(proofreadPrompt.includes('动词与助动词活用形的归属'));
+assert.ok(proofreadPrompt.includes('多音汉字的注音选择'));
+assert.ok(proofreadPrompt.includes('其余类型不在检查范围'));
+assert.ok(proofreadPrompt.includes('不要为了找错而找错'));
+assert.ok(proofreadPrompt.includes('"index":0'));
+assert.ok(proofreadPrompt.includes('"私"\t"代名詞"\t"わたし"'));
+assert.ok(proofreadPrompt.includes('前です。'));
+assert.ok(proofreadPrompt.includes('仅供参考，不审校'));
+assert.ok(proofreadPrompt.includes('仅审校这一句'));
+assert.ok(proofreadPrompt.includes('"indexes":[27,28]'));
+assert.ok(proofreadPrompt.includes('没有错误时输出 []'));
+assert.strictEqual(PROOFREAD_MAX_OUTPUT_TOKENS, 6_144);
+assert.strictEqual(PROOFREAD_SENTENCE_TIMEOUT_MS, 60_000);
+assert.deepStrictEqual(
+  parseProofreadCorrections(`\`\`\`json
+[
+  {"index":0,"field":"pos","correct":"名詞","why":"词性判断错误超过十字符"},
+  {"index":1,"field":"kana","correct":"は","why":"语境读音"},
+  {"index":1,"field":"other","correct":"x","why":"非法字段"},
+  {"index":9,"field":"pos","correct":"名詞","why":"越界"},
+  {"index":0,"field":"pos","correct":"動詞","why":"重复"}
+]
+\`\`\``, 2),
+  [
+    { indexes: [0], field: 'pos', correct: '名詞', why: '词性判断错误超过十字' },
+    { indexes: [1], field: 'kana', correct: 'は', why: '语境读音' },
+  ]
+);
+assert.deepStrictEqual(parseProofreadCorrections('[]', 2), []);
+assert.throws(() => parseProofreadCorrections('{"corrections":[]}', 2));
+assert.deepStrictEqual(
+  recoverTruncatedProofreadCorrections(
+    '[{"index":0,"field":"pos","correct":"名詞","why":"词性错"},{"index":1,"field":"kana","correct":"',
+    2
+  ),
+  [{ indexes: [0], field: 'pos', correct: '名詞', why: '词性错' }]
+);
+assert.strictEqual(recoverTruncatedProofreadCorrections('[{"index":0', 2), null);
+
+assert.deepStrictEqual(
+  parseProofreadCorrections(`[
+    {"index":0,"field":"seg","correct":"東京|国際空港","why":"专名切分"},
+    {"index":1,"field":"seg","correct":"東京|国際空港","why":"重复报告"}
+  ]`, 2),
+  [{ indexes: [0, 1], field: 'seg', correct: '東京|国際空港', why: '专名切分' }]
+);
+
+const proofreadSentenceTokens = [
+  { word: '私', pos: '代名詞', furigana: 'わたし' },
+  { word: 'は', pos: '助詞', furigana: '' },
+  { word: '。', pos: '記号', furigana: '' },
+  { word: '君', pos: '代名詞', furigana: 'きみ' },
+  { word: 'も', pos: '助詞', furigana: '' },
+  { word: '？', pos: '記号', furigana: '' },
+  { word: '\n', pos: '改行', furigana: '' },
+  { word: 'はい', pos: '感動詞', furigana: '' },
+];
+const proofreadSentenceJobs = splitProofreadSentenceJobs(
+  '私は。君も？\nはい',
+  proofreadSentenceTokens
+);
+assert.strictEqual(proofreadSentenceJobs.length, 3);
+assert.strictEqual(proofreadSentenceJobs[0].source, '私は。');
+assert.strictEqual(proofreadSentenceJobs[1].source, '君も？');
+assert.strictEqual(proofreadSentenceJobs[1].previousSource, '私は。');
+assert.strictEqual(proofreadSentenceJobs[1].nextSource, '\nはい');
+assert.strictEqual(proofreadSentenceJobs[2].tokenStart, 6);
+
+const patchedTokens = applyProofreadCorrections(
+  [
+    { word: '東京国', pos: '固有名詞', furigana: 'とうきょうこく' },
+    { word: '際空港', pos: '固有名詞', furigana: 'さいくうこう' },
+    { word: 'へ', pos: '助詞', furigana: '' },
+  ],
+  [
+    { indexes: [0, 1], field: 'seg', correct: '東京国際空港', why: '专名切分' },
+    { indexes: [2], field: 'kana', correct: 'え', why: '语境读音' },
+  ]
+);
+assert.strictEqual(patchedTokens.map((token) => token.word).join(''), '東京国際空港へ');
+assert.strictEqual(patchedTokens.length, 2);
+assert.deepStrictEqual(patchedTokens[0].proofreadSourceIndexes, [0, 1]);
+assert.strictEqual(patchedTokens[1].furigana, 'え');
+assert.ok(patchedTokens.every((token) => token.proofreadReview));
+
+const separatorReconciledTokens = reconcileTokenTextToSource(
+  '「今日は、晴れ。」\n',
+  [
+    { word: '"今日は晴れ."', pos: '名詞', furigana: 'きょうははれ', romaji: 'kyou wa hare' },
+  ]
+);
+assert.ok(separatorReconciledTokens);
+assert.strictEqual(
+  separatorReconciledTokens?.map((token) => token.word).join(''),
+  '「今日は、晴れ。」\n'
+);
+assert.strictEqual(
+  reconcileTokenTextToSource(
+    '今日は晴れ。',
+    [{ word: '今日は雨。', pos: '名詞', furigana: '', romaji: '' }]
+  ),
+  null,
+  '实词被模型改写时不得静默回填'
+);
+assert.strictEqual(
+  reconcileTokenTextToSource(
+    '恰も琴の音に仰いで秣まぐさ喰はむ。',
+    [
+      { word: '恰も琴の音に仰いで', pos: '副詞', furigana: '', romaji: '' },
+      { word: '秣', pos: '名詞', furigana: 'まぐさ', romaji: 'magusa' },
+      { word: '喰はむ', pos: '動詞', furigana: 'くわむ', romaji: 'kuwamu' },
+      { word: '。', pos: '記号', furigana: '', romaji: '' },
+    ]
+  )?.map((token) => token.word).join(''),
+  '恰も琴の音に仰いで秣まぐさ喰はむ。'
+);
+assert.strictEqual(
+  reconcileTokenTextToSource(
+    '下験べをはじめて、答へる。',
+    [
+      { word: '下験べ', pos: '名詞', furigana: 'したしらべ', romaji: '' },
+      { word: 'を', pos: '助詞', furigana: '', romaji: '' },
+      { word: '始め', pos: '動詞', furigana: 'はじめ', romaji: '' },
+      { word: 'て', pos: '助詞', furigana: '', romaji: '' },
+      { word: '、', pos: '記号', furigana: '', romaji: '' },
+      { word: '答え', pos: '動詞', furigana: 'こたえ', romaji: '' },
+      { word: 'る', pos: '助動詞', furigana: '', romaji: '' },
+      { word: '。', pos: '記号', furigana: '', romaji: '' },
+    ]
+  )?.map((token) => token.word).join(''),
+  '下験べをはじめて、答へる。'
+);
+const kanaEditContext = '長い文章の原文を丁寧に保持する。'.repeat(8);
+assert.strictEqual(
+  reconcileTokenTextToSource(
+    `${kanaEditContext}誰はゞかることも必要なのである。呼べば応へがある。${kanaEditContext}`,
+    [
+      {
+        word: `${kanaEditContext}誰はゞかかることも必要であるのである。呼べば応がある。${kanaEditContext}`,
+        pos: '名詞',
+        furigana: '',
+        romaji: '',
+      },
+    ]
+  )?.map((token) => token.word).join(''),
+  `${kanaEditContext}誰はゞかることも必要なのである。呼べば応へがある。${kanaEditContext}`
+);
 
 assert.strictEqual(
   sanitizeReasoningSummary('**当前进度：** “正在核对句子结构。”'),
@@ -86,7 +259,7 @@ assert.strictEqual(
 );
 assert.deepStrictEqual(
   formatCompletedReasoningSummaries([
-    '正在连接模型…',
+    '深度校對中…',
     '正在辨析复合助词的切分标准',
     '正在等待模型响应…',
     '核对最终结果',
@@ -409,6 +582,16 @@ assert.deepStrictEqual(withProviderControls(
   model: 'deepseek-v4-flash',
   thinking: { type: 'enabled' },
   reasoning_effort: 'high',
+});
+
+assert.deepStrictEqual(withProviderControls(
+  'deepseek',
+  { model: 'deepseek-v4-flash' },
+  { enableThinking: true, reasoningEffort: 'low' }
+), {
+  model: 'deepseek-v4-flash',
+  thinking: { type: 'enabled' },
+  reasoning_effort: 'low',
 });
 
 assert.deepStrictEqual(getStructuredResponseFormat('deepseek', 'analysisTokens'), {
@@ -840,7 +1023,7 @@ async function runReasoningSummaryControllerTests() {
   assert.strictEqual(maxActiveRequests, 1);
   assert.strictEqual(pendingRequests[5].signal.aborted, true, '结束时应中止在途摘要请求');
   assert.deepStrictEqual(summaries, [
-    '正在连接模型…',
+    '深度校對中…',
     '正在核对句子结构',
     '正在检查长段落中的细节',
     '正在继续核对剩余细节',
@@ -850,10 +1033,308 @@ async function runReasoningSummaryControllerTests() {
   controller.cancel();
 }
 
+async function runChunkedAnalysisRetryTests() {
+  const article = Array.from(
+    { length: 150 },
+    (_, index) => `長文試験${index + 1}では解析結果を原文と照合し、語順と記号を丁寧に確認する。`
+  ).join('');
+  const chunks = splitJapaneseText(article);
+  assert.ok(chunks.length >= 16, '压力测试文本应拆成至少十六块');
+  const truncatedChunkText = chunks[1].text;
+  const retryChunkText = chunks[2].text;
+  const attemptsByText = new Map<string, number>();
+  const originalFetch = globalThis.fetch;
+  let activeRequests = 0;
+  let maxActiveRequests = 0;
+  let finalContent = '';
+  let streamError: Error | null = null;
+
+  globalThis.fetch = async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const requestBody = JSON.parse(String(init?.body)) as {
+      prompt: string;
+      thinkingEnabled?: boolean;
+    };
+    assert.strictEqual(requestBody.thinkingEnabled, false);
+    const marker = '待解析句子： "';
+    const markerIndex = requestBody.prompt.lastIndexOf(marker);
+    assert.ok(markerIndex >= 0);
+    const sourceText = requestBody.prompt.slice(markerIndex + marker.length, -1);
+    const attempt = (attemptsByText.get(sourceText) ?? 0) + 1;
+    attemptsByText.set(sourceText, attempt);
+
+    activeRequests += 1;
+    maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    activeRequests -= 1;
+
+    if (sourceText === truncatedChunkText && attempt === 1) {
+      const truncatedResponseBody = [
+        streamData({ choices: [{ delta: { content: '{"tokens":[' }, finish_reason: null }] }),
+        streamData({ choices: [{ delta: {}, finish_reason: 'length' }] }),
+      ].join('');
+      return new Response(truncatedResponseBody, {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+      });
+    }
+
+    const returnedText = sourceText === retryChunkText && attempt <= 2
+      ? sourceText.replace('解析結果', '解析結論')
+      : sourceText;
+    const content = JSON.stringify({
+      tokens: [{ word: returnedText, pos: '名詞', furigana: '', romaji: '' }],
+    });
+    const responseBody = [
+      streamData({ choices: [{ delta: { content }, finish_reason: null }] }),
+      streamData({ choices: [{ delta: {}, finish_reason: 'stop' }] }),
+    ].join('');
+    return new Response(responseBody, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    });
+  };
+
+  try {
+    await streamAnalyzeSentence(
+      article,
+      (content, done) => {
+        if (done) finalContent = content;
+      },
+      (error) => {
+        streamError = error;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.strictEqual(streamError, null);
+  assert.strictEqual(attemptsByText.get(truncatedChunkText), 1);
+  assert.ok(
+    [...attemptsByText.keys()].filter((text) => (
+      text !== truncatedChunkText && truncatedChunkText.includes(text)
+    )).length >= 2,
+    'length 截断后应只把失败块拆成更小子块'
+  );
+  assert.strictEqual(attemptsByText.get(retryChunkText), 3, '只应重试还原失败的分块');
+  assert.strictEqual(maxActiveRequests, 3, '长文流式分析应维持三个并发 worker');
+  const finalTokens = (JSON.parse(finalContent) as { tokens: Array<{ word: string }> }).tokens;
+  assert.strictEqual(finalTokens.map((token) => token.word).join(''), article);
+}
+
+async function runSingleChunkWhitespaceReconciliationTests() {
+  const source = '甲。\n\n乙。丙。\n\n丁。';
+  const returnedTokens = [
+    { word: '甲。', pos: '名詞', furigana: '', romaji: '' },
+    { word: '\n', pos: '改行', furigana: '', romaji: '' },
+    { word: '乙。', pos: '名詞', furigana: '', romaji: '' },
+    { word: '\n', pos: '改行', furigana: '', romaji: '' },
+    { word: '丙。', pos: '名詞', furigana: '', romaji: '' },
+    { word: '\n', pos: '改行', furigana: '', romaji: '' },
+    { word: '丁。', pos: '名詞', furigana: '', romaji: '' },
+  ];
+  const whitespaceReconciled = reconcileTokenWhitespaceToSource(source, returnedTokens);
+  assert.ok(whitespaceReconciled);
+  assert.strictEqual(
+    whitespaceReconciled?.map((token) => token.word).join(''),
+    source,
+    '审校兜底应只按原文恢复段落空白'
+  );
+  assert.strictEqual(
+    reconcileTokenWhitespaceToSource(
+      source,
+      [{ word: '甲。\n\n错。丙。\n\n丁。', pos: '名詞', furigana: '', romaji: '' }]
+    ),
+    null,
+    '正文字符不一致时不得用空白校正掩盖'
+  );
+
+  const originalFetch = globalThis.fetch;
+  let finalContent = '';
+  let streamError: Error | null = null;
+  globalThis.fetch = async () => new Response([
+    streamData({
+      choices: [{
+        delta: { content: JSON.stringify({ tokens: returnedTokens }) },
+        finish_reason: null,
+      }],
+    }),
+    streamData({ choices: [{ delta: {}, finish_reason: 'stop' }] }),
+  ].join(''), {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+
+  try {
+    await streamAnalyzeSentence(
+      source,
+      (content, done) => {
+        if (done) finalContent = content;
+      },
+      (error) => {
+        streamError = error;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.strictEqual(streamError, null);
+  const finalTokens = (JSON.parse(finalContent) as { tokens: Array<{ word: string }> }).tokens;
+  assert.strictEqual(finalTokens.map((token) => token.word).join(''), source);
+}
+
+async function runProofreadStreamTests() {
+  const originalFetch = globalThis.fetch;
+  const reasoningEvents: Array<{ text: string; done: boolean }> = [];
+  const progressEvents: Array<{ completed: number; total: number; sentence: number; status: string }> = [];
+  const completedSentenceIndexes: number[] = [];
+  const usageSentenceIndexes: number[] = [];
+  const batchTokens = [
+    { word: '私', pos: '代名詞', furigana: 'わたし' },
+    { word: 'は', pos: '助詞', furigana: '' },
+    { word: '。', pos: '記号', furigana: '' },
+    { word: '君', pos: '代名詞', furigana: 'きみ' },
+    { word: 'も', pos: '助詞', furigana: '' },
+    { word: '。', pos: '記号', furigana: '' },
+    { word: '彼', pos: '代名詞', furigana: 'かれ' },
+    { word: 'ら', pos: '接尾辞', furigana: '' },
+    { word: '。', pos: '記号', furigana: '' },
+  ];
+  const responses: Record<string, { content: string; finishReason: string }> = {
+    '私は。': {
+      content: '[{"index":0,"field":"kana","correct":"わたし","why":"语境读音"}]',
+      finishReason: 'stop',
+    },
+    '君も。': {
+      content: '[{"indexes":[0,1],"field":"seg","correct":"君|も","why":"词界错误"}]',
+      finishReason: 'stop',
+    },
+    '彼ら。': {
+      content: '[{"index":0,"field":"pos","correct":"名詞"',
+      finishReason: 'length',
+    },
+  };
+  let requestCount = 0;
+  let activeRequests = 0;
+  let maxActiveRequests = 0;
+
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    requestCount += 1;
+    activeRequests += 1;
+    maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+    assert.strictEqual(String(input), '/api/proofread');
+    const requestBody = JSON.parse(String(init?.body)) as {
+      source: string;
+      tokens: unknown[];
+      previousSource: string;
+      nextSource: string;
+      provider: string;
+      model: string;
+    };
+    assert.strictEqual(requestBody.tokens.length, 3);
+    assert.strictEqual(requestBody.provider, 'deepseek');
+    assert.strictEqual(requestBody.model, 'deepseek-v4-flash');
+    assert.ok(init?.signal);
+    if (requestBody.source === '私は。') {
+      assert.strictEqual(requestBody.previousSource, '');
+      assert.strictEqual(requestBody.nextSource, '君も。');
+    }
+    if (requestBody.source === '君も。') {
+      assert.strictEqual(requestBody.previousSource, '私は。');
+      assert.strictEqual(requestBody.nextSource, '彼ら。');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    activeRequests -= 1;
+    const responseSpec = responses[requestBody.source];
+    assert.ok(responseSpec);
+    const sentenceNumber = requestBody.source === '私は。'
+      ? 1
+      : requestBody.source === '君も。'
+        ? 2
+        : 3;
+    const completionTokens = 99 + sentenceNumber;
+    const reasoningTokens = 79 + sentenceNumber;
+    return new Response([
+      streamData({ choices: [{ delta: { reasoning_content: `核对第${sentenceNumber}句。` }, finish_reason: null }] }),
+      streamData({ choices: [{ delta: { content: responseSpec.content }, finish_reason: null }] }),
+      streamData({
+        choices: [],
+        usage: {
+          prompt_tokens: 1_000,
+          completion_tokens: completionTokens,
+          total_tokens: 1_000 + completionTokens,
+          completion_tokens_details: { reasoning_tokens: reasoningTokens },
+        },
+      }),
+      streamData({ choices: [{ delta: {}, finish_reason: responseSpec.finishReason }] }),
+      'data: [DONE]\n\n',
+    ].join(''), {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    });
+  };
+
+  try {
+    const result = await streamProofreadTokens(
+      '私は。君も。彼ら。',
+      batchTokens,
+      undefined,
+      'deepseek-v4-flash',
+      {
+        onReasoning: (text, done) => reasoningEvents.push({ text, done }),
+        onUsage: (_usage, sentenceIndex) => usageSentenceIndexes.push(sentenceIndex),
+        onSentenceComplete: (sentenceResult) => {
+          completedSentenceIndexes.push(sentenceResult.sentenceIndex);
+        },
+        onProgress: (completed, total, sentenceResult) => {
+          progressEvents.push({
+            completed,
+            total,
+            sentence: sentenceResult.sentenceIndex,
+            status: sentenceResult.status,
+          });
+        },
+      }
+    );
+    assert.deepStrictEqual(result.corrections, [
+      { indexes: [0], field: 'kana', correct: 'わたし', why: '语境读音' },
+      { indexes: [3, 4], field: 'seg', correct: '君|も', why: '词界错误' },
+    ]);
+    assert.strictEqual(result.recoveredFromTruncation, false);
+    assert.strictEqual(result.totalSentences, 3);
+    assert.strictEqual(result.completedSentences, 2);
+    assert.strictEqual(result.failedSentences, 1);
+    assert.strictEqual(result.sentenceResults[2].status, 'failed');
+    assert.match(result.sentenceResults[2].error || '', /length/u);
+    assert.deepStrictEqual(result.usage, {
+      promptTokens: 3_000,
+      completionTokens: 303,
+      reasoningTokens: 243,
+      outputTokens: 60,
+      totalTokens: 3_303,
+    });
+    assert.strictEqual(requestCount, 3);
+    assert.strictEqual(maxActiveRequests, 2);
+    assert.deepStrictEqual([...completedSentenceIndexes].sort(), [0, 1]);
+    assert.deepStrictEqual([...usageSentenceIndexes].sort(), [0, 1, 2]);
+    assert.strictEqual(progressEvents.length, 3);
+    assert.strictEqual(progressEvents.at(-1)?.completed, 2);
+    assert.strictEqual(reasoningEvents.at(-1)?.done, true);
+    assert.match(reasoningEvents.at(-1)?.text || '', /第 1 句/u);
+    assert.match(reasoningEvents.at(-1)?.text || '', /第 3 句/u);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 Promise.all([
   runOpenAIContentStreamTests(),
   runReasoningSummaryControllerTests(),
 ])
+  .then(() => runSingleChunkWhitespaceReconciliationTests())
+  .then(() => runChunkedAnalysisRetryTests())
+  .then(() => runProofreadStreamTests())
   .then(() => {
     console.log('All tests passed');
   })

@@ -413,32 +413,111 @@ html[lang="zh-CN"],
   cursor: not-allowed;
 }
 
-.deep-thinking-button {
-  position: relative;
+.atom-icon {
+  display: block;
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
-.deep-thinking-button::after {
-  content: '';
-  position: absolute;
-  right: 5px;
-  bottom: 5px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.34;
-  transition: opacity 0.15s, transform 0.15s;
+/* 6 号方案：三态变速 Atom。 */
+.atom-icon .orbit {
+  fill: none;
+  stroke-width: 1.6;
+  transform-origin: 22px 22px;
 }
 
-.deep-thinking-button.is-active {
-  border-color: color-mix(in srgb, var(--shu) 55%, var(--rule));
-  color: var(--shu);
-  background: var(--shu-soft);
+.atom-icon .o2 {
+  transform: rotate(60deg);
 }
 
-.deep-thinking-button.is-active::after {
+.atom-icon .o3 {
+  transform: rotate(-60deg);
+}
+
+.atom-icon .eg2 {
+  transform: rotate(60deg);
+  transform-origin: 22px 22px;
+}
+
+.atom-icon .eg3 {
+  transform: rotate(-60deg);
+  transform-origin: 22px 22px;
+}
+
+.atom-icon.v6 .orbit {
+  stroke: var(--ink3);
+  transition: stroke 0.3s;
+}
+
+.atom-icon.v6 .nucleus {
+  fill: var(--ink3);
+  transform-origin: 22px 22px;
+  transition: fill 0.3s;
+}
+
+.atom-icon.v6 .electron {
+  fill: var(--ink3);
+  opacity: 0;
+  transition: fill 0.3s;
+}
+
+.atom-icon.v6.on .orbit {
+  stroke: var(--shu);
+}
+
+.atom-icon.v6.on .nucleus,
+.atom-icon.v6.on .electron {
+  fill: var(--shu);
+}
+
+.atom-icon.v6.on .electron {
   opacity: 1;
-  transform: scale(1.15);
+  offset-path: ellipse(18px 7px at 22px 22px);
+  animation: atom-electron-run 3.5s linear infinite;
+}
+
+.atom-icon.v6.on .e2 {
+  animation-duration: 4.4s;
+  animation-delay: -1.6s;
+}
+
+.atom-icon.v6.on .e3 {
+  animation-duration: 5.2s;
+  animation-delay: -2.8s;
+}
+
+.atom-icon.v6.busy .electron {
+  animation-duration: 0.55s;
+}
+
+.atom-icon.v6.busy .e2 {
+  animation-duration: 0.7s;
+}
+
+.atom-icon.v6.busy .e3 {
+  animation-duration: 0.85s;
+}
+
+.atom-icon.v6.busy .nucleus {
+  animation: atom-nucleus-breathe 0.6s ease-in-out infinite;
+}
+
+.atom-icon.v6.busy {
+  filter: drop-shadow(0 0 4px rgba(195, 64, 47, 0.45));
+}
+
+@keyframes atom-electron-run {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+
+@keyframes atom-nucleus-breathe {
+  0%, 100% { transform: scale(0.85); opacity: 0.55; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+.reasoning-state-atom {
+  margin-bottom: 2px;
 }
 
 .provider-indicator {
@@ -781,10 +860,6 @@ input, textarea {
   transform-origin: center;
 }
 
-.reasoning-state-icon.is-active .reasoning-state-ring {
-  animation: reasoning-ring-spin 0.9s linear infinite;
-}
-
 .reasoning-state-tick {
   stroke-linejoin: round;
   stroke-dasharray: 17;
@@ -803,10 +878,6 @@ input, textarea {
 
 .reasoning-state-icon.is-finishing {
   animation: reasoning-icon-pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1) 0.78s;
-}
-
-@keyframes reasoning-ring-spin {
-  to { transform: rotate(360deg); }
 }
 
 @keyframes reasoning-ring-last-spin {
@@ -1271,6 +1342,15 @@ input, textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .atom-icon.v6 .electron,
+  .atom-icon.v6 .nucleus {
+    animation: none !important;
+  }
+
+  .atom-icon.v6.busy {
+    filter: none;
+  }
+
   .reasoning-state-icon,
   .reasoning-state-ring,
   .reasoning-state-tick,
@@ -1906,6 +1986,40 @@ html.safari input::placeholder {
   animation: annotationInkIn 0.5s ease forwards;
 }
 
+.annotation-token.is-proofread-corrected .annotation-word {
+  animation: proofreadSecondInk 0.72s cubic-bezier(0.2, 0.72, 0.35, 1) both;
+}
+
+@keyframes proofreadSecondInk {
+  0% {
+    opacity: 0.18;
+    color: var(--ink-3);
+    transform: translateY(2px);
+  }
+  45% {
+    opacity: 1;
+    color: var(--shu);
+    transform: translateY(0);
+  }
+  100% {
+    color: var(--ink);
+  }
+}
+
+.annotation-review-mark {
+  position: absolute;
+  top: -0.15em;
+  right: -0.75em;
+  z-index: 2;
+  font-family: var(--font-display);
+  font-size: 8px;
+  line-height: 1;
+  color: var(--shu);
+  opacity: 0;
+  pointer-events: auto;
+  animation: annotationFloatUp 0.38s ease 0.28s forwards;
+}
+
 @keyframes annotationInkIn {
   from { color: var(--annotation-muted); }
   to { color: var(--ink); }
@@ -2368,6 +2482,15 @@ html.safari input::placeholder {
   .annotation-token.is-inked .annotation-underline {
     transform: scaleX(1);
   }
+
+  .annotation-token.is-proofread-corrected .annotation-word,
+  .annotation-review-mark {
+    animation: none;
+  }
+
+  .annotation-review-mark {
+    opacity: 1;
+  }
 }
 
 /* ========== Paper Edition · 辞书词条 ========== */
@@ -2770,5 +2893,494 @@ html.safari input::placeholder {
   .dictionary-pos-box,
   .dictionary-meta-box {
     min-height: 28px;
+  }
+}
+
+/* ========== 开发日誌 ========== */
+.debug-log-page {
+  width: min(1180px, calc(100% - 32px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 28px 38px 54px;
+  background-color: var(--paper);
+  background-image: radial-gradient(var(--paper-grain) 1px, transparent 1px);
+  background-size: 4px 4px;
+  color: var(--ink);
+}
+
+.debug-log-masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 17px;
+  border-bottom: 3px double var(--rule-strong);
+}
+
+.debug-log-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.debug-log-seal {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  transform: rotate(-2deg);
+  border: 2px solid var(--shu);
+  border-radius: 6px;
+  color: var(--shu);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.debug-log-kicker {
+  margin: 0 0 2px;
+  color: var(--ink3);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+}
+
+.debug-log-brand h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 27px;
+  letter-spacing: 0.08em;
+}
+
+.debug-log-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.debug-log-text-link,
+.debug-log-head-actions button,
+.debug-log-tool-action,
+.debug-log-toolbar button,
+.debug-log-json-head button {
+  border: 0;
+  background: transparent;
+  color: var(--ink2);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.debug-log-head-actions button,
+.debug-log-tool-action,
+.debug-log-toolbar button,
+.debug-log-json-head button {
+  padding: 7px 10px;
+  border: 1px solid var(--rule);
+  background: color-mix(in oklab, var(--paper) 90%, var(--rule));
+}
+
+.debug-log-text-link:hover,
+.debug-log-head-actions button:hover,
+.debug-log-tool-action:hover,
+.debug-log-toolbar button:hover,
+.debug-log-json-head button:hover {
+  color: var(--shu);
+}
+
+.debug-log-notice {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0 16px;
+  padding: 12px 15px;
+  border-left: 2px solid var(--shu);
+  background: var(--shu-soft);
+}
+
+.debug-log-notice-mark {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--shu) 70%, transparent);
+  border-radius: 50%;
+  color: var(--shu);
+  font-family: var(--font-display);
+  font-size: 11px;
+}
+
+.debug-log-notice strong {
+  font-family: var(--font-display);
+  font-size: 13px;
+}
+
+.debug-log-notice p {
+  margin: 2px 0 0;
+  color: var(--ink2);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.debug-log-notice > div {
+  min-width: 0;
+}
+
+.debug-log-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.debug-log-stats div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 13px 16px;
+  border-right: 1px solid var(--rule);
+}
+
+.debug-log-stats div:last-child {
+  border-right: 0;
+}
+
+.debug-log-stats span {
+  color: var(--ink3);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.debug-log-stats strong {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.debug-log-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 145px 190px auto auto auto;
+  align-items: end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.debug-log-toolbar label:not(.debug-log-auto-refresh) {
+  display: grid;
+  gap: 5px;
+}
+
+.debug-log-toolbar label > span {
+  color: var(--ink3);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.debug-log-toolbar input[type="search"],
+.debug-log-toolbar select {
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+.debug-log-toolbar input[type="search"]:focus,
+.debug-log-toolbar select:focus {
+  border-bottom-color: var(--shu);
+}
+
+.debug-log-auto-refresh {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  white-space: nowrap;
+}
+
+.debug-log-auto-refresh input {
+  accent-color: var(--shu);
+}
+
+.debug-log-toolbar .is-danger {
+  color: var(--shu);
+}
+
+.debug-log-file-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 13px 0 18px;
+  color: var(--ink3);
+  font-size: 10px;
+}
+
+.debug-log-file-row code {
+  overflow: hidden;
+  color: var(--ink2);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-log-updated {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.debug-log-error {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklab, var(--shu) 40%, var(--rule));
+  color: var(--shu);
+  font-size: 12px;
+}
+
+.debug-log-list {
+  display: grid;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.debug-log-entry {
+  border-bottom: 1px solid var(--rule);
+}
+
+.debug-log-entry summary {
+  display: grid;
+  grid-template-columns: 58px 112px minmax(130px, 170px) minmax(240px, 1fr) 42px;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 7px 4px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.debug-log-entry summary::-webkit-details-marker {
+  display: none;
+}
+
+.debug-log-entry[open] summary {
+  background: color-mix(in oklab, var(--paper) 94%, var(--rule));
+}
+
+.debug-log-level {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.debug-log-entry.is-info .debug-log-level { color: var(--pos-n); }
+.debug-log-entry.is-debug .debug-log-level { color: var(--ink3); }
+.debug-log-entry.is-warn .debug-log-level { color: var(--pos-adj); }
+.debug-log-entry.is-error .debug-log-level { color: var(--shu); }
+
+.debug-log-entry time,
+.debug-log-scope,
+.debug-log-expand {
+  color: var(--ink3);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9.5px;
+}
+
+.debug-log-scope,
+.debug-log-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-log-message {
+  color: var(--ink2);
+  font-size: 12px;
+}
+
+.debug-log-expand {
+  text-align: right;
+}
+
+.debug-log-entry[open] .debug-log-expand {
+  color: var(--shu);
+}
+
+.debug-log-entry-body {
+  padding: 13px 16px 18px 78px;
+  border-top: 1px dotted var(--rule);
+  background: color-mix(in oklab, var(--paper) 96%, var(--surround));
+}
+
+.debug-log-entry-body dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 0 0 14px;
+}
+
+.debug-log-entry-body dl div {
+  min-width: 0;
+}
+
+.debug-log-entry-body dt {
+  margin-bottom: 3px;
+  color: var(--ink3);
+  font-size: 9px;
+}
+
+.debug-log-entry-body dd {
+  overflow: hidden;
+  margin: 0;
+  color: var(--ink2);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-log-json-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: var(--ink3);
+  font-size: 10px;
+}
+
+.debug-log-entry pre {
+  max-height: 520px;
+  margin: 0;
+  padding: 14px;
+  overflow: auto;
+  border: 1px solid var(--rule);
+  background: color-mix(in oklab, var(--surround) 42%, var(--paper));
+  color: var(--ink2);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  scrollbar-color: var(--rule) transparent;
+}
+
+.debug-log-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 76px 20px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink3);
+  text-align: center;
+}
+
+.debug-log-empty strong {
+  color: var(--ink2);
+  font-family: var(--font-display);
+  font-size: 17px;
+}
+
+.debug-log-empty span {
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .debug-log-page {
+    width: 100%;
+    padding-inline: 20px;
+  }
+
+  .debug-log-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .debug-log-search {
+    grid-column: 1 / -1;
+  }
+
+  .debug-log-entry summary {
+    grid-template-columns: 54px 104px minmax(100px, 140px) 1fr;
+  }
+
+  .debug-log-expand {
+    display: none;
+  }
+
+  .debug-log-entry-body {
+    padding-left: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .debug-log-page {
+    padding: 18px 14px 40px;
+  }
+
+  .debug-log-masthead {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .debug-log-head-actions {
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .debug-log-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .debug-log-stats div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .debug-log-stats div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .debug-log-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .debug-log-search {
+    grid-column: auto;
+  }
+
+  .debug-log-file-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .debug-log-file-row code {
+    width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .debug-log-updated {
+    margin-left: 0;
+  }
+
+  .debug-log-entry summary {
+    grid-template-columns: 52px 1fr;
+    gap: 4px 8px;
+    padding-block: 10px;
+  }
+
+  .debug-log-scope {
+    grid-column: 1;
+  }
+
+  .debug-log-message {
+    grid-column: 2;
+  }
+
+  .debug-log-entry-body dl {
+    grid-template-columns: 1fr 1fr;
   }
 }

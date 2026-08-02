@@ -26,7 +26,7 @@ export default function ReasoningStream({
   store,
   done,
   summaryHistory,
-  completionLabel = '已深度思考',
+  completionLabel = '已深度校對',
 }: ReasoningStreamProps) {
   const revision = useSyncExternalStore(
     store.subscribe,

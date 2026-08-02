@@ -152,6 +152,7 @@ export function withProviderControls(
   options: {
     structuredOutput?: StructuredOutputKind;
     enableThinking?: boolean;
+    reasoningEffort?: 'low' | 'high' | 'max';
   } = {}
 ): Record<string, unknown> {
   const responseFormat = options.structuredOutput
@@ -165,7 +166,7 @@ export function withProviderControls(
       ...payload,
       ...responseFormat,
       thinking: { type: thinkingEnabled ? 'enabled' : 'disabled' },
-      ...(thinkingEnabled ? { reasoning_effort: 'high' } : {}),
+      ...(thinkingEnabled ? { reasoning_effort: options.reasoningEffort ?? 'high' } : {}),
     };
   }
 

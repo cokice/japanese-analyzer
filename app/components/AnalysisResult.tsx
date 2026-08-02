@@ -257,12 +257,13 @@ export default function AnalysisResult({
               ? token.romaji || ''
               : '';
           const tokenColorClass = showPosColors ? getPosClass(token.pos) : '';
+          const proofreadReview = token.proofreadReview;
 
           return (
             <span
-              key={`${index}-${token.word}`}
+              key={`${token.proofreadSourceIndexes?.join('-') ?? index}-${token.word}-${proofreadReview?.revision ?? 0}`}
               ref={(element) => { tokenRefs.current[index] = element; }}
-              className={`annotation-token is-inked ${isPunct ? 'is-punct' : ''} ${isAfterPunct ? 'is-after-punct' : ''} ${isBeforePunct ? 'is-before-punct' : ''} ${isActive ? 'is-active' : ''} ${tokenColorClass}`}
+              className={`annotation-token is-inked ${isPunct ? 'is-punct' : ''} ${isAfterPunct ? 'is-after-punct' : ''} ${isBeforePunct ? 'is-before-punct' : ''} ${isActive ? 'is-active' : ''} ${proofreadReview ? 'is-proofread-corrected' : ''} ${tokenColorClass}`}
               onClick={phase === 'done' && !isPunct ? () => onWordClick(token, index) : undefined}
               role={phase === 'done' && !isPunct ? 'button' : undefined}
               tabIndex={phase === 'done' && !isPunct ? 0 : undefined}
@@ -291,6 +292,13 @@ export default function AnalysisResult({
               )}
               {!isPunct && (
                 <span className="annotation-pos">〔{getShortPos(token.pos)}〕</span>
+              )}
+              {proofreadReview && (
+                <span
+                  className="annotation-review-mark"
+                  title={proofreadReview.why}
+                  aria-label={`审校修正：${proofreadReview.why}`}
+                >校</span>
               )}
             </span>
           );

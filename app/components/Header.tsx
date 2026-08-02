@@ -39,6 +39,16 @@ export default function Header({ aiModel, onSettingsClick }: HeaderProps) {
           <b>{PROVIDER_LABELS[provider]}</b>
         </span>
         <div className="masthead-actions">
+          {process.env.NODE_ENV !== 'production' && (
+            <a
+              href="/debug/logs"
+              title="开发日志"
+              aria-label="打开开发日志"
+              className="masthead-action"
+            >
+              {Icon.logs}
+            </a>
+          )}
           <a
             href="https://github.com/cokice/japanese-analyzer"
             target="_blank"

@@ -1,0 +1,19 @@
+Captured from the final upstream request on 2026-08-02.
+
+UPSTREAM_BASE_URL
+https://api.deepseek.com/chat/completions
+
+SYSTEM_PROMPT
+None. The messages array contains no system-role message.
+
+FINAL_REQUEST_PAYLOAD_BEGIN
+{"model":"deepseek-v4-flash","messages":[{"role":"user","content":"这是一次日语分词底稿的快速抽查，不是详尽校对。底稿来自可靠的解析器，绝大多数词元是正确的；默认正确、无需逐词确认，禁止逐项核对或全量验算。\n\n仅审校“当前句”，检查范围仅限以下三类高风险点：\n1. 複合词或专有名词的切分边界：field 为 \"seg\"；correct 使用全角竖线「｜」分隔正确词界。\n2. 动词与助动词活用形的归属：field 为 \"pos\"；correct 只能是学校文法词性标签。\n3. 多音汉字的注音选择：field 为 \"kana\"；correct 只能填写平假名读音。\n\n其余类型不在检查范围，一律忽略。不要检查普通词的常规切分、一般词性或单一读音，也不要检查翻译、罗马音、文风或原文本身是否规范；不得纠正历史假名遣。\n\n执行方式：快速通读一遍，仅对明显可疑处深入验证。没有明显错误即输出 []，不要为了找错而找错。发现明显错误后只报告该项，完成一遍抽查即停止，不得二次复查或扩展检查。推理中不得逐词复述底稿、罗列正确项目或解释全文。\n\n输出必须是唯一一个严格有效的 JSON 数组。每项格式固定为：\n{\"index\":0,\"field\":\"seg\"|\"pos\"|\"kana\",\"correct\":\"正确值\",\"why\":\"十字内理由\"}\n\n多个词元需要合并或重切时，必须合并成一项：\n{\"indexes\":[27,28],\"field\":\"seg\",\"correct\":\"東京|国際空港\",\"why\":\"十字内理由\"}\n\n规则：\n- index/indexes 使用当前句底稿中的零基局部索引。\n- indexes 只用于 field=\"seg\"，必须按升序列出相关词元；禁止把同一处切分逐个重复报告。\n- why 不超过 10 个字符。\n- 只输出确有错误的项目；没有错误时输出 []。\n- 禁止输出全文、Markdown、前后说明、总结或任何 JSON 以外字符。\n- 最终 JSON 必须尽量精简；输出后立即停止。\n\n上一句（仅供参考，不审校）：\n\"\"\n\n下一句（仅供参考，不审校）：\n\"\"\n\n当前句原文（仅审校这一句）：\n\"【ワシントン共同】トランプ米大統領は交流サイト（SNS）で、イランに対する大規模攻撃の中止は、ホルムズ海峡の完全開放やイランによる核の脅威の終結を巡って迅速に合意することが条件だと主張した。\"\n\n当前句分词底稿（局部序号<TAB>词元<TAB>词性<TAB>假名）：\n0\t\"【\"\t\"記号\"\t\"\"\n1\t\"ワシントン\"\t\"名詞\"\t\"ワシントン\"\n2\t\"共同\"\t\"名詞\"\t\"きょうどう\"\n3\t\"】\"\t\"記号\"\t\"\"\n4\t\"トランプ\"\t\"名詞\"\t\"トランプ\"\n5\t\"米\"\t\"名詞\"\t\"べい\"\n6\t\"大統領\"\t\"名詞\"\t\"だいとうりょう\"\n7\t\"は\"\t\"助詞\"\t\"\"\n8\t\"交流\"\t\"名詞\"\t\"こうりゅう\"\n9\t\"サイト\"\t\"名詞\"\t\"サイト\"\n10\t\"（\"\t\"記号\"\t\"\"\n11\t\"SNS\"\t\"名詞\"\t\"エスエヌエス\"\n12\t\"）\"\t\"記号\"\t\"\"\n13\t\"で\"\t\"助詞\"\t\"\"\n14\t\"、\"\t\"記号\"\t\"\"\n15\t\"イラン\"\t\"名詞\"\t\"イラン\"\n16\t\"に\"\t\"助詞\"\t\"\"\n17\t\"対する\"\t\"動詞\"\t\"たいする\"\n18\t\"大規模\"\t\"名詞\"\t\"だいきぼ\"\n19\t\"攻撃\"\t\"名詞\"\t\"こうげき\"\n20\t\"の\"\t\"助詞\"\t\"\"\n21\t\"中止\"\t\"名詞\"\t\"ちゅうし\"\n22\t\"は\"\t\"助詞\"\t\"\"\n23\t\"、\"\t\"記号\"\t\"\"\n24\t\"ホルムズ\"\t\"名詞\"\t\"ホルムズ\"\n25\t\"海峡\"\t\"名詞\"\t\"かいきょう\"\n26\t\"の\"\t\"助詞\"\t\"\"\n27\t\"完全\"\t\"形容動詞\"\t\"かんぜん\"\n28\t\"開放\"\t\"名詞\"\t\"かいほう\"\n29\t\"や\"\t\"助詞\"\t\"\"\n30\t\"イラン\"\t\"名詞\"\t\"イラン\"\n31\t\"による\"\t\"助詞\"\t\"\"\n32\t\"核\"\t\"名詞\"\t\"かく\"\n33\t\"の\"\t\"助詞\"\t\"\"\n34\t\"脅威\"\t\"名詞\"\t\"きょうい\"\n35\t\"の\"\t\"助詞\"\t\"\"\n36\t\"終結\"\t\"名詞\"\t\"しゅうけつ\"\n37\t\"を\"\t\"助詞\"\t\"\"\n38\t\"巡って\"\t\"動詞\"\t\"めぐって\"\n39\t\"迅速\"\t\"形容動詞\"\t\"じんそく\"\n40\t\"に\"\t\"助詞\"\t\"\"\n41\t\"合意\"\t\"名詞\"\t\"ごうい\"\n42\t\"する\"\t\"動詞\"\t\"する\"\n43\t\"こと\"\t\"名詞\"\t\"こと\"\n44\t\"が\"\t\"助詞\"\t\"\"\n45\t\"条件\"\t\"名詞\"\t\"じょうけん\"\n46\t\"だ\"\t\"助動詞\"\t\"だ\"\n47\t\"と\"\t\"助詞\"\t\"\"\n48\t\"主張\"\t\"名詞\"\t\"しゅちょう\"\n49\t\"した\"\t\"動詞\"\t\"した\"\n50\t\"。\"\t\"記号\"\t\"\""}],"stream":true,"stream_options":{"include_usage":true},"max_tokens":6144,"thinking":{"type":"enabled"},"reasoning_effort":"high"}
+FINAL_REQUEST_PAYLOAD_END
+
+UPSTREAM_RESPONSE
+status: 200 OK
+headers: {"content-type":"text/event-stream; charset=utf-8","date":"Sun, 02 Aug 2026 08:56:27 GMT","server":"elb","via":"1.1 ae81cdd90b47c4829b6759686fd03716.cloudfront.net (CloudFront)","x-amz-cf-id":"ZYMSilSbuMSAS6L2Eoh5wiT9SLJTwjayplt8_jpjQGPXd0BkYdaCuA==","x-amz-cf-pop":"NRT12-P5","x-cache":"Miss from cloudfront","x-content-type-options":"nosniff","x-ds-trace-id":"7fd4d2a11249e6f24681238d75982e7a"}
+model: deepseek-v4-flash
+usage: {"prompt_tokens":1438,"completion_tokens":3670,"total_tokens":5108,"prompt_tokens_details":{"cached_tokens":512},"completion_tokens_details":{"reasoning_tokens":3668},"prompt_cache_hit_tokens":512,"prompt_cache_miss_tokens":926}
+raw correction content: []
+elapsed: 42.4 seconds

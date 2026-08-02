@@ -1,9 +1,32 @@
+import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
 import { requireApiSession } from '../_utils/sessionAuth';
+import { writeDebugLog } from '../../utils/serverDebugLog';
+
+const ANALYSIS_MAX_OUTPUT_TOKENS = 16_384;
+
+function getDebugResponseHeaders(response: Response): Record<string, string> {
+  const headers: Record<string, string> = {};
+  response.headers.forEach((value, key) => {
+    const normalizedKey = key.toLowerCase();
+    if (
+      normalizedKey === 'content-type'
+      || normalizedKey === 'date'
+      || normalizedKey === 'server'
+      || normalizedKey === 'via'
+      || normalizedKey.startsWith('x-')
+      || normalizedKey.startsWith('cf-')
+    ) {
+      headers[key] = value;
+    }
+  });
+  return headers;
+}
 
 export async function POST(req: NextRequest) {
+  const requestId = randomUUID();
   try {
     const authError = requireApiSession(req);
     if (authError) return authError;
@@ -40,9 +63,25 @@ export async function POST(req: NextRequest) {
       model: providerConfig.model,
       messages: [{ role: "user", content: prompt }],
       stream: stream,
+      max_tokens: ANALYSIS_MAX_OUTPUT_TOKENS,
     }, {
       structuredOutput: 'analysisTokens',
       enableThinking: thinkingEnabled === true,
+    });
+
+    writeDebugLog({
+      scope: 'analysis.upstream',
+      event: 'request.started',
+      message: `发送解析请求：${providerConfig.provider} / ${providerConfig.model}`,
+      data: {
+        requestId,
+        url: providerConfig.apiUrl,
+        method: 'POST',
+        provider: providerConfig.provider,
+        model: providerConfig.model,
+        stream,
+        payload,
+      },
     });
 
     const proxied = await proxyOpenAICompatibleRequest({
@@ -54,6 +93,17 @@ export async function POST(req: NextRequest) {
 
     if (!proxied.ok) {
       console.error('AI API error:', proxied.error.raw ?? proxied.error.message);
+      writeDebugLog({
+        level: 'error',
+        scope: 'analysis.upstream',
+        event: 'request.failed',
+        message: `解析上游请求失败：${proxied.error.message}`,
+        data: {
+          requestId,
+          status: proxied.status,
+          error: proxied.error.raw ?? proxied.error.message,
+        },
+      });
       return NextResponse.json(
         { error: { message: proxied.error.message } },
         { status: proxied.status }
@@ -61,6 +111,17 @@ export async function POST(req: NextRequest) {
     }
 
     const response = proxied.response;
+    writeDebugLog({
+      scope: 'analysis.upstream',
+      event: 'response.headers',
+      message: `解析上游已响应：${response.status} ${response.statusText}`,
+      data: {
+        requestId,
+        status: response.status,
+        statusText: response.statusText,
+        headers: getDebugResponseHeaders(response),
+      },
+    });
 
     // 如果是流式输出
     if (stream) {
@@ -84,10 +145,23 @@ export async function POST(req: NextRequest) {
     } else {
       // 非流式输出，按原来方式处理
       const data = await response.json();
+      writeDebugLog({
+        scope: 'analysis.upstream',
+        event: 'response.completed',
+        message: '解析上游返回完整响应',
+        data: { requestId, response: data },
+      });
       return NextResponse.json(data);
     }
   } catch (error) {
     if (error instanceof ProviderConfigError) {
+      writeDebugLog({
+        level: 'error',
+        scope: 'analysis.route',
+        event: 'provider.invalid',
+        message: error.message,
+        data: { requestId, status: error.status },
+      });
       return NextResponse.json(
         { error: { message: error.message } },
         { status: error.status }
@@ -95,10 +169,24 @@ export async function POST(req: NextRequest) {
     }
 
     if (req.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      writeDebugLog({
+        level: 'warn',
+        scope: 'analysis.route',
+        event: 'request.aborted',
+        message: '解析请求已由客户端中止',
+        data: { requestId },
+      });
       return new Response(null, { status: 499 });
     }
 
     console.error('Server error:', error);
+    writeDebugLog({
+      level: 'error',
+      scope: 'analysis.route',
+      event: 'route.error',
+      message: '解析 API 路由发生异常',
+      data: { requestId, error },
+    });
     return NextResponse.json(
       { error: { message: error instanceof Error ? error.message : '服务器错误' } },
       { status: 500 }

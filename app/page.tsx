@@ -24,15 +24,24 @@ import {
   getModelName,
   loadAISettingsFromStorage,
   parseAnalyzeResponseContent,
+  reconcileTokenWhitespaceToSource,
   summarizeDeepSeekReasoningProgress,
-  streamAnalyzeSentence
+  streamAnalyzeSentence,
+  streamProofreadTokens
 } from './services/api';
 import { ReasoningSummaryController } from './utils/reasoningSummary';
 import { ReasoningTextStore } from './utils/reasoningTextStore';
+import {
+  applyProofreadCorrections,
+  findTokenByProofreadSourceIndex,
+  getTokenProofreadSourceIndex,
+} from './utils/applyProofreadCorrections';
+import { writeClientDebugLog } from './utils/clientDebugLog';
 
 export default function Home() {
   const [currentSentence, setCurrentSentence] = useState('');
   const [analyzedTokens, setAnalyzedTokens] = useState<TokenData[]>([]);
+  const analyzedTokensRef = useRef<TokenData[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
   const [useStream, setUseStream] = useState<boolean>(true);
@@ -57,9 +66,10 @@ export default function Home() {
   const reasoningTextStore = reasoningTextStoreRef.current;
   const [deepseekReasoningDone, setDeepseekReasoningDone] = useState(true);
   const [deepseekReasoningSummaryHistory, setDeepseekReasoningSummaryHistory] = useState<string[]>([]);
-  const [deepseekReasoningCompletionLabel, setDeepseekReasoningCompletionLabel] = useState('已深度思考');
+  const [deepseekReasoningCompletionLabel, setDeepseekReasoningCompletionLabel] = useState('已深度校對');
   const reasoningSummaryControllerRef = useRef<ReasoningSummaryController | null>(null);
   const analysisAbortControllerRef = useRef<AbortController | null>(null);
+  const proofreadAbortControllerRef = useRef<AbortController | null>(null);
   const [ttsProvider, setTtsProvider] = useState<TTSProvider>('edge');
 
   // 密码验证相关状态
@@ -71,6 +81,7 @@ export default function Home() {
 
   // 选中词汇（右侧详情面板 / 移动端模态）
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const selectedIndexRef = useRef<number | null>(null);
   const [isWordDetailPanelOpen, setIsWordDetailPanelOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
   const {
@@ -83,6 +94,14 @@ export default function Home() {
     clearWordDetail,
   } = useWordDetail({ userApiKey, aiProvider, aiModel, useStream });
 
+  useEffect(() => {
+    analyzedTokensRef.current = analyzedTokens;
+  }, [analyzedTokens]);
+
+  useEffect(() => {
+    selectedIndexRef.current = selectedIndex;
+  }, [selectedIndex]);
+
   // 侧栏在 lg(1024px) 以上显示，以下使用模态
   useEffect(() => {
     const mql = window.matchMedia('(min-width: 1024px)');
@@ -94,6 +113,7 @@ export default function Home() {
 
   useEffect(() => () => {
     analysisAbortControllerRef.current?.abort();
+    proofreadAbortControllerRef.current?.abort();
     reasoningSummaryControllerRef.current?.cancel();
   }, []);
 
@@ -175,6 +195,8 @@ export default function Home() {
     setDeepseekReasoningCompletionLabel('已深度思考');
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;
+    proofreadAbortControllerRef.current?.abort();
+    proofreadAbortControllerRef.current = null;
   };
 
   const handleDeepseekThinkingChange = (enabled: boolean) => {
@@ -188,6 +210,8 @@ export default function Home() {
     setDeepseekReasoningCompletionLabel('已深度思考');
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;
+    proofreadAbortControllerRef.current?.abort();
+    proofreadAbortControllerRef.current = null;
   };
 
   const handleTtsProviderChange = (provider: TTSProvider) => {
@@ -352,7 +376,23 @@ export default function Home() {
   const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
     if (!text.trim()) return;
 
+    writeClientDebugLog({
+      scope: 'analysis.client',
+      event: 'analysis.started',
+      message: `开始解析 ${text.length} 字日文`,
+      data: {
+        source: text,
+        characters: text.length,
+        provider: aiProvider,
+        model: aiModel,
+        stream: useStream,
+        proofreadingEnabled: aiProvider === 'deepseek' && deepseekThinkingEnabled,
+      },
+    });
+
     analysisAbortControllerRef.current?.abort();
+    proofreadAbortControllerRef.current?.abort();
+    proofreadAbortControllerRef.current = null;
     const analysisAbortController = new AbortController();
     analysisAbortControllerRef.current = analysisAbortController;
     const isCurrentAnalysis = () => (
@@ -367,64 +407,256 @@ export default function Home() {
     setTranslationTrigger(Date.now());
     setStreamContent('');
     setAnalyzedTokens([]);
-    const deepseekThinkingActive = aiProvider === 'deepseek' && deepseekThinkingEnabled;
+    const deepseekProofreadActive = aiProvider === 'deepseek' && deepseekThinkingEnabled;
     reasoningTextStore.reset();
     hasDeepseekReasoningRef.current = false;
     setHasDeepseekReasoning(false);
-    setDeepseekReasoningDone(!deepseekThinkingActive);
+    setDeepseekReasoningDone(true);
     setDeepseekReasoningSummaryHistory([]);
     setDeepseekReasoningCompletionLabel('已深度思考');
     reasoningSummaryControllerRef.current?.cancel();
-    const reasoningSummaryController = deepseekThinkingActive
-      ? new ReasoningSummaryController({
-          requestSummary: ({ reasoningSnippet, signal }) => (
-            summarizeDeepSeekReasoningProgress({
-              reasoningSnippet,
-              userApiKey,
-              signal,
-            })
-          ),
-          onSummary: (summary) => {
-            if (!isCurrentAnalysis()) return;
-            setDeepseekReasoningSummaryHistory((current) => [...current, summary]);
-          },
-          onError: (error) => {
-            console.warn('DeepSeek reasoning summary skipped:', error);
-          },
-        })
-      : null;
-    reasoningSummaryControllerRef.current = reasoningSummaryController;
-    if (reasoningSummaryController) {
-      reasoningSummaryController.start();
-    }
-    let reasoningStatusEnded = !deepseekThinkingActive;
-    const finishReasoningStatus = (summary: string) => {
-      if (!isCurrentAnalysis() || reasoningStatusEnded || !deepseekThinkingActive) return;
-      reasoningStatusEnded = true;
-      reasoningSummaryController?.finish();
-      if (reasoningSummaryControllerRef.current !== reasoningSummaryController) return;
-      setDeepseekReasoningCompletionLabel(summary);
-      setDeepseekReasoningDone(true);
-    };
+    reasoningSummaryControllerRef.current = null;
     handleCloseWordDetail();
 
-    const reasoningOptions = {
-      deepseekThinkingEnabled: deepseekThinkingActive,
+    const analysisOptions = {
+      deepseekThinkingEnabled: false,
       signal: analysisAbortController.signal,
-      onReasoning: (reasoningText: string) => {
-        if (!isCurrentAnalysis()) return;
-        if (!reasoningStatusEnded) {
-          reasoningSummaryController?.ingest(reasoningText);
+    };
+
+    const launchProofread = (tokens: TokenData[]) => {
+      if (!deepseekProofreadActive || tokens.length === 0) return;
+
+      const proofreadTokens = reconcileTokenWhitespaceToSource(text, tokens) ?? tokens;
+      if (proofreadTokens !== tokens) {
+        analyzedTokensRef.current = proofreadTokens;
+        setAnalyzedTokens(proofreadTokens);
+        setStreamContent(JSON.stringify({ tokens: proofreadTokens }));
+        writeClientDebugLog({
+          level: 'warn',
+          scope: 'proofread.client',
+          event: 'draft.whitespace-reconciled',
+          message: '审校启动前已按原文恢复底稿空白字符',
+          data: {
+            source: text,
+            before: tokens.map((token) => token.word).join(''),
+            after: proofreadTokens.map((token) => token.word).join(''),
+          },
+        });
+      } else {
+        analyzedTokensRef.current = tokens;
+      }
+      const proofreadController = new AbortController();
+      proofreadAbortControllerRef.current = proofreadController;
+      const startedAt = performance.now();
+      reasoningTextStore.reset();
+      hasDeepseekReasoningRef.current = true;
+      setHasDeepseekReasoning(true);
+      setDeepseekReasoningDone(false);
+      setDeepseekReasoningSummaryHistory([]);
+      setDeepseekReasoningCompletionLabel('已深度校對');
+      reasoningSummaryControllerRef.current?.cancel();
+      let progressLabel = '深度校對中 · 0/0 句';
+      const isProgressLabel = (summary: string) => summary.startsWith('深度校對中 · ');
+      const updateProgressLabel = (completed: number, total: number) => {
+        progressLabel = `深度校對中 · ${completed}/${total} 句`;
+        setDeepseekReasoningSummaryHistory((current) => [
+          ...current.filter((summary) => !isProgressLabel(summary)),
+          progressLabel,
+        ]);
+      };
+      const reasoningSummaryController = new ReasoningSummaryController({
+        requestSummary: ({ reasoningSnippet, signal }) => (
+          summarizeDeepSeekReasoningProgress({
+            reasoningSnippet,
+            userApiKey,
+            signal,
+          })
+        ),
+        onSummary: (summary) => {
+          if (proofreadAbortControllerRef.current !== proofreadController) return;
+          if (!summary) return;
+          setDeepseekReasoningSummaryHistory((current) => {
+            const withoutProgress = current.filter((item) => !isProgressLabel(item));
+            if (isProgressLabel(summary)) return [...withoutProgress, summary];
+            return [...withoutProgress, summary, progressLabel];
+          });
+        },
+        onError: (error) => {
+          console.warn('DeepSeek proofreading summary skipped:', error);
+        },
+      });
+      reasoningSummaryControllerRef.current = reasoningSummaryController;
+      reasoningSummaryController.start('');
+
+      const finishProofreadStatus = (completionLabel: string) => {
+        if (proofreadAbortControllerRef.current !== proofreadController) return;
+        reasoningSummaryController.finish();
+        if (reasoningSummaryControllerRef.current === reasoningSummaryController) {
+          reasoningSummaryControllerRef.current = null;
         }
-        reasoningTextStore.setText(reasoningText);
-        if (reasoningText && !hasDeepseekReasoningRef.current) {
-          hasDeepseekReasoningRef.current = true;
-          setHasDeepseekReasoning(true);
+        setDeepseekReasoningCompletionLabel(completionLabel);
+        setDeepseekReasoningDone(true);
+      };
+
+      console.info(`[深度审校] 已启动，底稿 ${proofreadTokens.length} 词`);
+      writeClientDebugLog({
+        scope: 'proofread.client',
+        event: 'proofread.started',
+        message: `深度审校已启动，底稿 ${proofreadTokens.length} 词`,
+        data: {
+          source: text,
+          tokens: proofreadTokens,
+          sourceCharacters: text.length,
+          tokenCount: proofreadTokens.length,
+          model: aiModel,
+        },
+      });
+
+      void streamProofreadTokens(
+        text,
+        proofreadTokens,
+        userApiKey,
+        aiModel,
+        {
+          signal: proofreadController.signal,
+          onStart: (totalSentences) => {
+            if (proofreadAbortControllerRef.current !== proofreadController) return;
+            updateProgressLabel(0, totalSentences);
+            console.info(`[深度审校] 已分为 ${totalSentences} 句，并发 2`);
+            writeClientDebugLog({
+              scope: 'proofread.client',
+              event: 'proofread.partitioned',
+              message: `审校已分为 ${totalSentences} 句`,
+              data: { totalSentences, concurrency: 2 },
+            });
+          },
+          onUsage: (usage, sentenceIndex) => {
+            if (proofreadAbortControllerRef.current !== proofreadController) return;
+            console.info(`[深度审校] 第 ${sentenceIndex + 1} 句 Token用量 ${JSON.stringify(usage)}`);
+            writeClientDebugLog({
+              scope: 'proofread.client',
+              event: 'sentence.usage',
+              message: `第 ${sentenceIndex + 1} 句返回 token 用量`,
+              data: { sentenceIndex, usage },
+            });
+          },
+          onReasoning: (reasoningText) => {
+            if (
+              proofreadAbortControllerRef.current !== proofreadController
+              || proofreadController.signal.aborted
+            ) {
+              return;
+            }
+            reasoningTextStore.setText(reasoningText);
+            reasoningSummaryController.ingest(reasoningText);
+          },
+          onSentenceComplete: (sentenceResult) => {
+            if (
+              proofreadAbortControllerRef.current !== proofreadController
+              || proofreadController.signal.aborted
+            ) {
+              return;
+            }
+            console.info(
+              `[深度审校] 第 ${sentenceResult.sentenceIndex + 1} 句修正清单原文 ${sentenceResult.rawContent}`
+            );
+            writeClientDebugLog({
+              scope: 'proofread.client',
+              event: 'sentence.completed',
+              message: `第 ${sentenceResult.sentenceIndex + 1} 句审校完成，修正 ${sentenceResult.corrections.length} 处`,
+              data: sentenceResult,
+            });
+            if (sentenceResult.corrections.length === 0) return;
+
+            const currentTokens = analyzedTokensRef.current;
+            const currentSelectedIndex = selectedIndexRef.current;
+            const selectedSourceIndex = currentSelectedIndex === null
+              ? null
+              : getTokenProofreadSourceIndex(
+                currentTokens[currentSelectedIndex],
+                currentSelectedIndex
+              );
+            const nextTokens = applyProofreadCorrections(
+              currentTokens,
+              sentenceResult.corrections
+            );
+            analyzedTokensRef.current = nextTokens;
+            setAnalyzedTokens(nextTokens);
+
+            if (selectedSourceIndex !== null) {
+              const nextSelectedIndex = findTokenByProofreadSourceIndex(
+                nextTokens,
+                selectedSourceIndex
+              );
+              selectedIndexRef.current = nextSelectedIndex >= 0 ? nextSelectedIndex : null;
+              setSelectedIndex(nextSelectedIndex >= 0 ? nextSelectedIndex : null);
+            }
+          },
+          onProgress: (completed, total, sentenceResult) => {
+            if (proofreadAbortControllerRef.current !== proofreadController) return;
+            updateProgressLabel(completed, total);
+            if (sentenceResult.status === 'failed') {
+              console.info(
+                `[深度审校] 第 ${sentenceResult.sentenceIndex + 1}/${total} 句已跳过：${sentenceResult.error}`
+              );
+              writeClientDebugLog({
+                level: 'warn',
+                scope: 'proofread.client',
+                event: 'sentence.skipped',
+                message: `第 ${sentenceResult.sentenceIndex + 1}/${total} 句已跳过`,
+                data: sentenceResult,
+              });
+            }
+          },
         }
-      },
-      onContentStart: () => {
-        if (isCurrentAnalysis()) finishReasoningStatus('已深度思考');
-      },
+      )
+        .then((result) => {
+          if (
+            proofreadAbortControllerRef.current !== proofreadController
+            || proofreadController.signal.aborted
+          ) {
+            return;
+          }
+          const elapsedSeconds = (performance.now() - startedAt) / 1000;
+          console.info(`[深度审校] 修正清单原文 ${result.rawContent}`);
+          console.info(`[深度审校] 修正清单 ${JSON.stringify(result.corrections)}`);
+          console.info(`[深度审校] 完成，用时 ${elapsedSeconds.toFixed(1)} 秒`);
+          writeClientDebugLog({
+            scope: 'proofread.client',
+            event: 'proofread.completed',
+            message: `深度审校完成，用时 ${elapsedSeconds.toFixed(1)} 秒`,
+            data: result,
+          });
+          finishProofreadStatus(
+            result.failedSentences > 0
+              ? `已深度校對(${result.completedSentences}/${result.totalSentences} 句)· 修正 ${result.corrections.length} 处`
+              : `已深度校對 · 修正 ${result.corrections.length} 处`
+          );
+        })
+        .catch((error) => {
+          if (
+            proofreadAbortControllerRef.current !== proofreadController
+            || proofreadController.signal.aborted
+          ) {
+            return;
+          }
+          const elapsedSeconds = (performance.now() - startedAt) / 1000;
+          const message = error instanceof Error ? error.message : '未知错误';
+          console.info(`[深度审校] 已静默放弃，用时 ${elapsedSeconds.toFixed(1)} 秒：${message}`);
+          writeClientDebugLog({
+            level: 'error',
+            scope: 'proofread.client',
+            event: 'proofread.failed',
+            message: `深度审校未完成：${message}`,
+            data: { elapsedSeconds, error: message },
+          });
+          finishProofreadStatus('深度校對未完成');
+        })
+        .finally(() => {
+          if (proofreadAbortControllerRef.current === proofreadController) {
+            proofreadAbortControllerRef.current = null;
+          }
+        });
     };
 
     try {
@@ -436,11 +668,23 @@ export default function Home() {
             if (!isCurrentAnalysis()) return;
             setStreamContent(chunk);
             if (isDone) {
-              finishReasoningStatus('已深度思考');
               setIsAnalyzing(false);
               analysisAbortControllerRef.current = null;
               try {
-                setAnalyzedTokens(parseAnalyzeResponseContent(chunk));
+                const tokens = parseAnalyzeResponseContent(chunk);
+                setAnalyzedTokens(tokens);
+                writeClientDebugLog({
+                  scope: 'analysis.client',
+                  event: 'analysis.completed',
+                  message: `流式解析完成，生成 ${tokens.length} 个词元`,
+                  data: {
+                    source: text,
+                    tokens,
+                    tokenCount: tokens.length,
+                    characters: text.length,
+                  },
+                });
+                launchProofread(tokens);
               } catch (error) {
                 console.error('Final stream analysis parse error:', error);
                 setAnalysisError('解析结果JSON格式错误');
@@ -449,8 +693,14 @@ export default function Home() {
           },
           (error) => {
             if (!isCurrentAnalysis()) return;
-            finishReasoningStatus('深度思考已中止');
             console.error('Stream analysis error:', error);
+            writeClientDebugLog({
+              level: 'error',
+              scope: 'analysis.client',
+              event: 'analysis.failed',
+              message: `流式解析失败：${error.message || '未知错误'}`,
+              data: error,
+            });
             setAnalysisError(error.message || '流式解析错误');
             setStreamContent('');
             setAnalyzedTokens([]);
@@ -460,7 +710,7 @@ export default function Home() {
           userApiKey,
           aiProvider,
           aiModel,
-          reasoningOptions
+          analysisOptions
         );
       } else {
         // 使用传统API进行分析
@@ -469,18 +719,35 @@ export default function Home() {
           userApiKey,
           aiProvider,
           aiModel,
-          reasoningOptions
+          analysisOptions
         );
         if (!isCurrentAnalysis()) return;
         setAnalyzedTokens(tokens);
-        finishReasoningStatus('已深度思考');
+        writeClientDebugLog({
+          scope: 'analysis.client',
+          event: 'analysis.completed',
+          message: `解析完成，生成 ${tokens.length} 个词元`,
+          data: {
+            source: text,
+            tokens,
+            tokenCount: tokens.length,
+            characters: text.length,
+          },
+        });
         setIsAnalyzing(false);
         analysisAbortControllerRef.current = null;
+        launchProofread(tokens);
       }
     } catch (error) {
       if (!isCurrentAnalysis()) return;
-      finishReasoningStatus('深度思考已中止');
       console.error('Analysis error:', error);
+      writeClientDebugLog({
+        level: 'error',
+        scope: 'analysis.client',
+        event: 'analysis.failed',
+        message: `解析失败：${error instanceof Error ? error.message : '未知错误'}`,
+        data: error,
+      });
       setAnalysisError(error instanceof Error ? error.message : '未知错误');
       setAnalyzedTokens([]);
       setIsAnalyzing(false);
@@ -492,6 +759,8 @@ export default function Home() {
     const controller = analysisAbortControllerRef.current;
     analysisAbortControllerRef.current = null;
     if (controller && !controller.signal.aborted) controller.abort();
+    proofreadAbortControllerRef.current?.abort();
+    proofreadAbortControllerRef.current = null;
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;
     reasoningTextStore.reset();
@@ -513,6 +782,8 @@ export default function Home() {
     const controller = analysisAbortControllerRef.current;
     analysisAbortControllerRef.current = null;
     if (controller && !controller.signal.aborted) controller.abort();
+    proofreadAbortControllerRef.current?.abort();
+    proofreadAbortControllerRef.current = null;
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;
     reasoningTextStore.reset();
@@ -610,7 +881,7 @@ export default function Home() {
 
             {aiProvider === 'deepseek'
               && deepseekThinkingEnabled
-              && (isAnalyzing || hasDeepseekReasoning) && (
+              && hasDeepseekReasoning && (
                 <ReasoningStream
                   store={reasoningTextStore}
                   done={deepseekReasoningDone}
@@ -621,7 +892,7 @@ export default function Home() {
 
             {isAnalyzing
               && (!analyzedTokens.length || !useStream)
-              && !(aiProvider === 'deepseek' && deepseekThinkingEnabled) && (
+              && !hasDeepseekReasoning && (
               <div className="analysis-thinking-strip">
                 <ThinkingIndicator />
               </div>
