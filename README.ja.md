@@ -33,9 +33,25 @@
 
 > 注意：現在のDemoサイトでは無料のAPIキーを使用しているため、動作が不安定になる場合があります。大量利用が必要な場合は、下記の手順でご自身のAPIキーを申請してください（完全無料）。APIキーの不正利用が続いているため、テストサイトでもご自身のAPIキーを設定して利用することをおすすめします。
 
-## 📺 デモ動画
+## 画面プレビュー
 
-https://github.com/user-attachments/assets/5039cb62-135e-48e1-971d-960d6b82cacf
+### メイン画面・解析と辞書
+
+![日本語の解析・中国語訳・単語の解説](./docs/images/app-home.png)
+
+### ダークモード
+
+![ダークモードの解析と辞書](./docs/images/app-dark.png)
+
+### モデルと API の設定
+
+![モデルと API の設定](./docs/images/provider-settings.png)
+
+### モバイル版 AI 日本語アシスタント
+
+<p align="center">
+  <img src="./docs/images/mobile-chat.png" alt="現在の文章に合わせた文法解説" width="390" />
+</p>
 
 ---
 
