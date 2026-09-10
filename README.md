@@ -127,7 +127,9 @@ npm run dev
 - 用户也可以在右上角设置中填写自己的 Key，设置保存在浏览器本地；发起请求时，Key 会发送给本应用服务端，由服务端调用上游 API。接口地址由服务端环境变量配置。
 - Gemini TTS 使用独立的 `gemini-3.1-flash-tts-preview` 模型和官方语音接口，不受 `GEMINI_API_URL` 影响。
 - Umami 统计通过本地 loader 读取运行时环境变量；两个 `NEXT_PUBLIC_UMAMI_*` 都为空时不会加载 Umami。
-- 启用 Umami 后会记录隐私最小化的使用事件：`analyze_sentence` 只包含解析 `provider` / `model`、是否使用图片识别、图片识别模型、是否使用 TTS、TTS 模型；`image_text_extract`、`tts_speech`、`word_detail_click` 只包含对应功能的 provider/model 元数据。事件不包含输入文本、图片内容、提取结果、词汇内容、翻译结果、错误内容或 API Key。
+- 启用 Umami 后会记录功能使用事件：`analyze_sentence` 包含解析服务商、模型及 OCR / TTS 使用情况；`image_text_extract`、`tts_speech`、`word_detail_click` 包含对应功能的服务商和模型。
+- 解析结果事件：`analyze_success`、`analyze_error`、`analyze_cancel`，每次解析最多记录一个终态。聊天事件：`chat_send`、`chat_success`、`chat_error`。结果事件包含服务商、模型、流式模式、总耗时 `duration_ms`；若出现过可显示内容，还包含首个结果耗时 `first_result_ms`（单位均为毫秒）。非流式解析的首个结果时间为全部结果返回时间；解析计时不包含独立的整句翻译或词典请求。
+- 失败只记录固定的 `error_category` 分类；解析取消通过 `cancel_reason` 区分主动停止、被新请求替代和组件卸载。事件不包含原文、聊天消息或回复、图片、翻译结果、原始错误信息或 API Key。此处不额外监测主题、设置、复制和重试操作。
 - 不要提交 `.env.local`，仓库已经默认忽略本地环境变量文件。
 
 ### 用 AI Agent 部署(Claude Code / Codex)

@@ -15,7 +15,8 @@ import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailP
 import { useWordDetail } from './hooks/useWordDetail';
 import { AnalyzeStreamParser } from './utils/analyzeStreamParser';
 import { selectWordDetailContext } from './utils/wordDetailContext';
-import { trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
+import { createRequestMetrics, trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
+import { InvalidResponseError } from './utils/requestErrors';
 import {
   analyzeSentence,
   AIModelName,
@@ -95,7 +96,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => () => {
-    analysisAbortControllerRef.current?.abort();
+    analysisAbortControllerRef.current?.abort('unmount');
     reasoningSummaryControllerRef.current?.cancel();
   }, []);
 
@@ -251,7 +252,7 @@ export default function Home() {
   const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
     if (!text.trim()) return;
 
-    analysisAbortControllerRef.current?.abort();
+    analysisAbortControllerRef.current?.abort('superseded');
     const analysisAbortController = new AbortController();
     analysisAbortControllerRef.current = analysisAbortController;
     setAnalysisSignal(analysisAbortController.signal);
@@ -262,6 +263,7 @@ export default function Home() {
     );
 
     trackAnalyzeUsage(aiProvider, usage, aiModel);
+    const metrics = createRequestMetrics('analyze', aiProvider, aiModel, useStream, analysisAbortController.signal);
     setIsAnalyzing(true);
     setAnalysisError('');
     setCurrentSentence(text);
@@ -330,21 +332,28 @@ export default function Home() {
     try {
       if (useStream) {
         // 使用流式API进行分析
-        streamAnalyzeSentence(
+        await streamAnalyzeSentence(
           text,
           (chunk, isDone) => {
             if (!isCurrentAnalysis()) return;
             if (!isDone) {
               const tokens = streamParser.push(chunk);
-              if (tokens.length) setAnalyzedTokens(tokens);
+              if (tokens.length) {
+                metrics.firstResult();
+                setAnalyzedTokens(tokens);
+              }
             }
             if (isDone) {
               finishReasoningStatus('已深度思考');
               setIsAnalyzing(false);
               analysisAbortControllerRef.current = null;
               try {
-                setAnalyzedTokens(parseAnalyzeResponseContent(chunk));
+                const tokens = parseAnalyzeResponseContent(chunk);
+                metrics.firstResult();
+                setAnalyzedTokens(tokens);
+                metrics.succeed();
               } catch (error) {
+                metrics.fail(new InvalidResponseError('Invalid analysis result'));
                 console.error('Final stream analysis parse error:', error);
                 setAnalysisError('解析结果JSON格式错误');
               }
@@ -352,6 +361,7 @@ export default function Home() {
           },
           (error) => {
             if (!isCurrentAnalysis()) return;
+            metrics.fail(error);
             finishReasoningStatus('深度思考已中止');
             console.error('Stream analysis error:', error);
             setAnalysisError(error.message || '流式解析错误');
@@ -374,13 +384,16 @@ export default function Home() {
           reasoningOptions
         );
         if (!isCurrentAnalysis()) return;
+        metrics.firstResult();
         setAnalyzedTokens(tokens);
+        metrics.succeed();
         finishReasoningStatus('已深度思考');
         setIsAnalyzing(false);
         analysisAbortControllerRef.current = null;
       }
     } catch (error) {
       if (!isCurrentAnalysis()) return;
+      metrics.fail(error);
       finishReasoningStatus('深度思考已中止');
       console.error('Analysis error:', error);
       setAnalysisError(error instanceof Error ? error.message : '未知错误');
@@ -395,7 +408,7 @@ export default function Home() {
     if (!controller || controller.signal.aborted) return;
 
     analysisAbortControllerRef.current = null;
-    controller.abort();
+    controller.abort('user');
     handleCloseWordDetail();
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;

@@ -6,8 +6,10 @@ import {
   getModelName,
   getTtsModelName,
 } from '../services/api';
+import { ApiRequestError, InvalidResponseError } from './requestErrors';
 
-type UmamiTrack = (eventName: string, eventData?: Record<string, string>) => void;
+type EventData = Record<string, string | number>;
+type UmamiTrack = (eventName: string, eventData?: EventData) => void;
 
 declare global {
   interface Window {
@@ -39,7 +41,7 @@ export interface AnalyzeUsageMetadata {
 
 interface AnalyticsEvent {
   name: string;
-  data: Record<string, string>;
+  data: EventData;
 }
 
 export function getImageRecognitionUsage(provider: AIProvider, model?: AIModelName): ImageRecognitionUsage {
@@ -153,4 +155,62 @@ export function trackTtsUsage(provider: TTSProvider): void {
 
 export function trackWordDetailUsage(provider: AIProvider, model?: AIModelName): void {
   trackUmamiEvent(getWordDetailUsageEvent(provider, model), 'word detail usage');
+}
+
+export function getRequestErrorCategory(error: unknown): string {
+  if (error instanceof ApiRequestError) {
+    if (error.status === 408 || error.status === 504) return 'timeout';
+    if (error.status === 401 || error.status === 403) return 'auth';
+    if (error.status === 429) return 'rate_limit';
+    if (error.status >= 500) return 'server';
+    return 'request';
+  }
+  if (error instanceof InvalidResponseError || error instanceof SyntaxError) return 'invalid_response';
+  if (error instanceof Error && error.name === 'TimeoutError') return 'timeout';
+  if (error instanceof TypeError) return 'network';
+  return 'unknown';
+}
+
+/** 每次请求只记录一个终态。入口只接受统计元数据，不接受原文、聊天或密钥。 */
+export function createRequestMetrics(
+  kind: 'analyze' | 'chat',
+  provider: AIProvider,
+  model: AIModelName,
+  streaming: boolean,
+  signal?: AbortSignal,
+  dependencies: { now?: () => number; emit?: (event: AnalyticsEvent) => void } = {},
+) {
+  const now = dependencies.now ?? (() => performance.now());
+  const emit = dependencies.emit ?? ((event: AnalyticsEvent) => trackUmamiEvent(event, 'request metrics'));
+  const started = now();
+  const metadata = { provider, model: getModelName(provider, model), mode: streaming ? 'stream' : 'complete' };
+  let firstResultMs: number | undefined;
+  let ended = false;
+  const elapsed = () => Math.max(0, Math.round(now() - started));
+  const finish = (outcome: 'success' | 'error' | 'cancel', extra: EventData = {}) => {
+    if (ended) return;
+    ended = true;
+    signal?.removeEventListener('abort', abort);
+    emit({ name: `${kind}_${outcome}`, data: {
+      ...metadata,
+      duration_ms: elapsed(),
+      ...(firstResultMs === undefined ? {} : { first_result_ms: firstResultMs }),
+      ...extra,
+    } });
+  };
+  const abort = () => {
+    if (kind !== 'analyze') return;
+    const reason: unknown = signal?.reason;
+    finish('cancel', { cancel_reason: reason === 'user' || reason === 'superseded' || reason === 'unmount' ? reason : 'other' });
+  };
+  if (kind === 'chat') emit({ name: 'chat_send', data: { ...metadata } });
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) abort();
+  return {
+    firstResult() {
+      if (!ended && firstResultMs === undefined) firstResultMs = elapsed();
+    },
+    succeed() { finish('success'); },
+    fail(error: unknown) { finish('error', { error_category: getRequestErrorCategory(error) }); },
+  };
 }

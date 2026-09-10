@@ -94,6 +94,8 @@ npm run dev
 
 Umamiは実行時の環境変数から読み込まれます。機能の利用とモデルなどのメタデータを記録し、入力文章、画像、翻訳結果、APIキーはイベントに含めません。ローカル環境変数ファイルはGitの管理対象外です。
 
+解析の結果は `analyze_success` / `analyze_error` / `analyze_cancel` として、1回につき1つの終了イベントを記録します。チャットは `chat_send` / `chat_success` / `chat_error` を記録します。終了イベントにはプロバイダー、モデル、ストリーミングの有無、処理時間 `duration_ms`、表示可能な内容が届いた場合の初回表示時間 `first_result_ms`（いずれもミリ秒）を含みます。非ストリーミング解析では初回表示時間は全結果の受信時点であり、独立した翻訳・辞書の処理時間は含みません。エラーは固定の分類名、解析の中止は停止・新規リクエストへの置換・画面の終了の区分のみを送信します。原文、チャットの質問・回答、エラー本文、APIキーは送信しません。
+
 ## Vercelにデプロイ
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer)

@@ -10,6 +10,7 @@ import {
 import { splitJapaneseText, type JapaneseTextChunk } from '../utils/japaneseChunking';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
 import { getLocalRomaji } from '../utils/romaji';
+import { ApiRequestError, InvalidResponseError } from '../utils/requestErrors';
 
 export {
   DEFAULT_AI_PROVIDER,
@@ -576,7 +577,7 @@ export async function readOpenAIContentStream(
 ): Promise<void> {
   const reader = response.body?.getReader();
   if (!reader) {
-    onError(new Error('无法创建流式读取器'));
+    onError(new InvalidResponseError('无法创建流式读取器'));
     return;
   }
 
@@ -678,7 +679,7 @@ export async function readOpenAIContentStream(
       try {
         options.validateFinalContent(rawContent);
       } catch {
-        return fail(new Error(
+        return fail(new InvalidResponseError(
           options.invalidContentMessage || `${completionLabel}没有完整生成，请重新生成。`
         ));
       }
@@ -725,7 +726,7 @@ export async function readOpenAIContentStream(
     if (finishReason) {
       hasTerminalSignal = true;
       if (finishReason.toLowerCase() !== 'stop') {
-        terminalError = new Error(getFinishReasonErrorMessage(finishReason, completionLabel));
+        terminalError = new InvalidResponseError(getFinishReasonErrorMessage(finishReason, completionLabel));
         return fail(terminalError);
       }
     }
@@ -772,7 +773,7 @@ export async function readOpenAIContentStream(
     }
 
     if (!hasTerminalSignal && options.validateFinalContent) {
-      fail(new Error(`${completionLabel}连接已结束，但没有收到完整结束信号，请重新生成。`));
+      fail(new InvalidResponseError(`${completionLabel}连接已结束，但没有收到完整结束信号，请重新生成。`));
       return;
     }
 
@@ -816,9 +817,9 @@ async function analyzeSingleSentence(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       console.error('API Error (Analysis):', errorData);
-      throw new Error(`解析失败：${errorData.error?.message || response.statusText || '未知错误'}`);
+      throw new ApiRequestError(`解析失败：${errorData.error?.message || response.statusText || '未知错误'}`, response.status);
     }
     
     const result = await response.json();
@@ -833,11 +834,11 @@ async function analyzeSingleSentence(
         return parseAnalyzeResponseContent(responseContent);
       } catch (e) {
         console.error("Failed to parse JSON from analysis response:", e, responseContent);
-        throw new Error('解析结果JSON格式错误');
+        throw new InvalidResponseError('解析结果JSON格式错误');
       }
     } else {
       console.error('Unexpected API response structure (Analysis):', result);
-      throw new Error('解析结果格式错误，请重试');
+      throw new InvalidResponseError('解析结果格式错误，请重试');
     }
   } catch (error) {
     if (options.signal?.aborted || isAbortError(error)) throw error;
@@ -934,9 +935,9 @@ async function streamAnalyzeSingleSentence(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       console.error('API Error (Stream Analysis):', errorData);
-      onError(new Error(`流式解析失败：${errorData.error?.message || response.statusText || '未知错误'}`));
+      onError(new ApiRequestError(`流式解析失败：${errorData.error?.message || response.statusText || '未知错误'}`, response.status));
       return;
     }
     
@@ -989,7 +990,7 @@ async function streamAnalyzeChunk(
 
   if (streamError) throw streamError;
   if (!finalTokens) {
-    throw new Error(`第 ${chunkIndex + 1}/${chunkCount} 段没有返回完整解析结果，请重试。`);
+    throw new InvalidResponseError(`第 ${chunkIndex + 1}/${chunkCount} 段没有返回完整解析结果，请重试。`);
   }
 
   return reconcileChunkReconstruction(chunk, finalTokens, chunkIndex, chunkCount);
@@ -1501,15 +1502,19 @@ export async function streamChat(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       console.error('API Error (Stream Chat):', errorData);
-      onError(new Error(`聊天失败：${errorData.error?.message || response.statusText || '未知错误'}`));
+      onError(new ApiRequestError(`聊天失败：${errorData.error?.message || response.statusText || '未知错误'}`, response.status));
       return;
     }
     
     await readOpenAIContentStream(response, onChunk, onError, {
       debounceMs: 30,
       parseWarning: '解析聊天流式数据时出错:',
+      validateFinalContent: content => {
+        if (!content.trim()) throw new InvalidResponseError('聊天回复为空');
+      },
+      invalidContentMessage: '聊天回复为空，请重试。',
     });
     
   } catch (error) {

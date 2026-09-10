@@ -8,6 +8,7 @@ import type { AIModelName, AIProvider } from '../services/api';
 import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { MarkdownText } from '@/components/ui/markdown-text';
+import { createRequestMetrics } from '../utils/analytics';
 
 interface ChatMessage {
   id: string;
@@ -86,6 +87,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
+    const metrics = createRequestMetrics('chat', aiProvider, aiModel, true);
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -133,9 +135,10 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
         content: userMessage.content
       });
 
-      streamChat(
+      await streamChat(
         apiMessages,
         (chunk, isDone) => {
+          if (chunk.trim()) metrics.firstResult();
           setMessages((prev) => prev.map((msg) =>
             msg.id === assistantMessageId
               ? { ...msg, content: chunk }
@@ -143,10 +146,12 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
           ));
 
           if (isDone) {
+            metrics.succeed();
             setIsLoading(false);
           }
         },
         (error) => {
+          metrics.fail(error);
           console.error('Chat error:', error);
           setMessages((prev) => prev.map((msg) =>
             msg.id === assistantMessageId
@@ -160,6 +165,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
         aiModel
       );
     } catch (error) {
+      metrics.fail(error);
       console.error('Chat error:', error);
       setMessages((prev) => prev.map((msg) =>
         msg.id === assistantMessageId

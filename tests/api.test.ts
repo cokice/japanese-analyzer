@@ -3,6 +3,7 @@ import './readingLayout.test';
 import './wordDetailContext.test';
 import './wordDetailDictionary.test';
 import { runLocalOutputTests } from './localOutput.test';
+import { runRequestMetricsTests } from './requestMetrics.test';
 import {
   DEFAULT_AI_PROVIDER,
   DEEPSEEK_VISION_MODEL_NAME,
@@ -892,6 +893,7 @@ Promise.all([
   runReasoningSummaryControllerTests(),
 ])
   .then(runLocalOutputTests)
+  .then(runRequestMetricsTests)
   .then(() => {
     console.log('All tests passed');
   })
