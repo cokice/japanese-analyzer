@@ -32,13 +32,15 @@ function normalizeWordDetail(detail: WordDetail): WordDetail {
   return {
     ...detail,
     explanation: normalizeEscapedLineBreaks(detail.explanation || ''),
+    conjugation: normalizeEscapedLineBreaks(detail.conjugation || ''),
+    example: normalizeEscapedLineBreaks(detail.example || ''),
+    exampleTranslation: normalizeEscapedLineBreaks(detail.exampleTranslation || ''),
   };
 }
 
 function createPendingDetail(
   word: string,
   pos: string,
-  useStream: boolean,
   furigana?: string,
   romaji?: string
 ): WordDetail {
@@ -49,7 +51,7 @@ function createPendingDetail(
     furigana: (furigana && furigana !== word && containsKanji(word)) ? furigana : '',
     romaji: romaji || '',
     dictionaryForm: '',
-    explanation: useStream ? '正在生成解释...' : '正在查询释义...',
+    explanation: '',
   };
 }
 
@@ -117,6 +119,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
     provider: aiProvider,
     model: aiModel,
     mode: useStream ? 'stream' : 'standard',
+    format: 'dictionary-v1',
     sentence,
     word,
     pos,
@@ -134,6 +137,9 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
       romaji: '',
       dictionaryForm: '',
       explanation: '',
+      conjugation: '',
+      example: '',
+      exampleTranslation: '',
       rawContent: content
     };
 
@@ -189,6 +195,9 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
       result.romaji = extractFieldEfficient('romaji');
       result.dictionaryForm = extractFieldEfficient('dictionaryForm');
       result.explanation = extractFieldEfficient('explanation');
+      result.conjugation = extractFieldEfficient('conjugation');
+      result.example = extractFieldEfficient('example');
+      result.exampleTranslation = extractFieldEfficient('exampleTranslation');
 
       return result;
     } catch (e) {
@@ -228,7 +237,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
 
     const requestId = ++requestSeqRef.current;
     const entry: WordDetailCacheEntry = {
-      detail: createPendingDetail(word, pos, useStream, furigana, romaji),
+      detail: createPendingDetail(word, pos, furigana, romaji),
       isLoading: !useStream,
       isStreamLoading: useStream,
       streamContent: '',
@@ -261,7 +270,10 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
               furigana: realtimeData.furigana || furigana || '',
               romaji: realtimeData.romaji || romaji || '',
               dictionaryForm: realtimeData.dictionaryForm || '',
-              explanation: realtimeData.explanation || '正在生成解释...'
+              explanation: realtimeData.explanation || '',
+              conjugation: realtimeData.conjugation,
+              example: realtimeData.example,
+              exampleTranslation: realtimeData.exampleTranslation,
             };
           }
 

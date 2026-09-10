@@ -13,6 +13,7 @@ import ThinkingIndicator from './components/ThinkingIndicator';
 import ReasoningStream from './components/ReasoningStream';
 import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
+import { selectWordDetailContext } from './utils/wordDetailContext';
 import { trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import {
   analyzeSentence,
@@ -316,8 +317,9 @@ export default function Home() {
     }
     setSelectedIndex(index);
     trackWordDetailUsage(aiProvider, aiModel);
-    fetchWordDetails(token.word, token.pos, currentSentence, token.furigana, token.romaji);
-  }, [aiProvider, aiModel, selectedIndex, currentSentence, fetchWordDetails, handleCloseWordDetail]);
+    const context = selectWordDetailContext(currentSentence, analyzedTokens, index);
+    fetchWordDetails(token.word, token.pos, context, token.furigana, token.romaji);
+  }, [aiProvider, aiModel, selectedIndex, currentSentence, analyzedTokens, fetchWordDetails, handleCloseWordDetail]);
 
   const handleRefreshWordDetail = useCallback(() => {
     if (selectedIndex === null) return;
@@ -328,7 +330,7 @@ export default function Home() {
     fetchWordDetails(
       token.word,
       token.pos,
-      currentSentence,
+      selectWordDetailContext(currentSentence, analyzedTokens, selectedIndex),
       token.furigana,
       token.romaji,
       { force: true }

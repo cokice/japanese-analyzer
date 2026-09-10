@@ -1,8 +1,7 @@
 'use client';
 
-import { containsKanji, getPosClass, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEND_GROUPS } from '../utils/helpers';
+import { containsKanji, getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEND_GROUPS } from '../utils/helpers';
 import { TokenData } from '../services/api';
-import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { Switch } from '@/components/ui/switch';
 
@@ -54,17 +53,18 @@ export default function AnalysisResult({
   if (!tokens || tokens.length === 0) {
     return null;
   }
+  const presentPosGroups = new Set(tokens
+    .filter((token) => token.pos !== '改行' && !isPunctuationToken(token))
+    .map((token) => getPosGroup(token.pos)));
+  const legendGroups = [...POS_LEGEND_GROUPS, 'o' as const].filter((group) => presentPosGroups.has(group));
 
   return (
-    <section className="nd-card relative">
+    <section className="nd-card analysis-card relative">
       {/* 标题行 */}
-      <div className="mb-4 flex flex-wrap items-center gap-y-2">
-        <span className="mr-2 grid place-items-center" style={{ color: 'var(--primary)' }}>
-          {Icon.book}
-        </span>
+      <div className="analysis-heading mb-4 flex flex-wrap items-center gap-y-2">
         <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>解析结果</h2>
         <div className="flex-1" />
-        <div className="flex items-center gap-4 sm:gap-[18px]">
+        <div className="analysis-display-options flex items-center gap-4 sm:gap-[18px]">
           <label className="inline-flex cursor-pointer items-center gap-2">
             <span className="text-[13px]" style={{ color: 'var(--ink-3)' }}>显示假名</span>
             <Toggle on={showFurigana} onChange={onShowFuriganaChange} ariaLabel="显示假名" />
@@ -78,7 +78,7 @@ export default function AnalysisResult({
 
       <AutoAnimateHeight duration={300}>
         {/* 分词结果 */}
-        <div id="analyzedSentenceOutput" lang="ja">
+        <div id="analyzedSentenceOutput" lang="ja" data-furigana={showFurigana} data-romaji={showRomaji}>
           {tokens.map((token, index) => {
             if (token.pos === '改行') {
               return <span key={index} style={{ flexBasis: '100%', height: 0 }} />;
@@ -98,23 +98,29 @@ export default function AnalysisResult({
                 className={`word-unit-wrapper ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}`}
               >
                 {!isPunct && (
-                  <span className="furigana-text" style={{ opacity: showFurigana && furiganaText ? 1 : 0 }}>
+                  <span className="furigana-text" aria-hidden={!showFurigana || !furiganaText} style={{ opacity: showFurigana && furiganaText ? 1 : 0 }}>
                     {furiganaText || '\u00a0'}
                   </span>
                 )}
-                <span
-                  className={`word-token ${isPunct ? 'no-click' : ''}`}
-                  onClick={isPunct ? undefined : () => onWordClick(token, index)}
-                >
-                  {token.word}
-                </span>
+                {isPunct ? (
+                  <span className="word-token no-click">{token.word}</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="word-token"
+                    aria-pressed={isActive}
+                    onClick={() => onWordClick(token, index)}
+                  >
+                    {token.word}
+                  </button>
+                )}
 
                 {/* 词性下划线 */}
                 {!isPunct && <span className={`pos-underline ${getPosClass(token.pos)}`} />}
 
                 {/* 罗马音 */}
                 {!isPunct && (
-                  <span className="romaji-text" style={{ opacity: showRomaji ? 1 : 0 }}>
+                  <span className="romaji-text" aria-hidden={!showRomaji}>
                     {token.romaji || '\u00a0'}
                   </span>
                 )}
@@ -128,13 +134,12 @@ export default function AnalysisResult({
       <div className="analysis-footer">
         {/* 提示 */}
         <div className="analysis-hint">
-          <span className="grid place-items-center" style={{ color: 'var(--primary)' }}>{Icon.bulb}</span>
-          点击词汇查看详细解释。
+          点击词汇查看释义
         </div>
 
         {/* 词性图例 */}
         <div className="pos-legend">
-          {POS_LEGEND_GROUPS.map((g) => (
+          {legendGroups.map((g) => (
             <span key={g} className="legend-item">
               <span className="legend-swatch" style={{ background: POS_GROUP_COLORS[g] }} />
               {POS_GROUP_LABELS[g]}

@@ -97,24 +97,21 @@ export default function SettingsModal({
           onClick={onModalClose}
           aria-label="关闭设置"
         >
-          &times;
+          {Icon.x}
         </button>
 
         <div className="mb-5">
           <div className="mb-1 flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-              {Icon.gear}
-            </span>
-            <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>自定义 API 设置</h3>
+            <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>模型与 API</h3>
           </div>
           <p className="m-0 text-sm leading-6" style={{ color: 'var(--ink-3)' }}>
-            应用默认使用服务器端密钥，也可以为 Gemini 和 DeepSeek 分别配置浏览器本地密钥。上游端点由服务器配置。
+            使用默认配置，或填写自己的 API 密钥。
           </p>
         </div>
 
         <div className="mb-4">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[.08em]" style={{ color: 'var(--ink-3)' }}>
-            文本模型服务商
+          <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+            模型服务
           </label>
           <div className="grid grid-cols-2 gap-2 rounded-[12px] p-1" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
             {(['gemini', 'deepseek'] as AIProvider[]).map((provider) => {
@@ -123,10 +120,11 @@ export default function SettingsModal({
                 <button
                   key={provider}
                   type="button"
-                  className="inline-flex items-center justify-center gap-2 rounded-[10px] px-3 py-2 text-sm font-semibold transition-colors"
+                  className="inline-flex items-center justify-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium transition-colors"
+                  aria-pressed={active}
                   style={{
                     background: active ? 'var(--bg-2)' : 'transparent',
-                    color: active ? 'var(--primary)' : 'var(--ink-3)',
+                    color: active ? 'var(--ink)' : 'var(--ink-3)',
                     boxShadow: active ? '0 1px 2px rgba(20,10,40,.06)' : 'none',
                   }}
                   onClick={() => setSelectedProvider(provider)}
@@ -173,11 +171,11 @@ export default function SettingsModal({
           />
         </div>
 
-        <div className="mb-5 rounded-[12px] p-3" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
+        <div className="settings-option-row">
           <div className="flex items-center justify-between gap-4">
             <div>
               <label htmlFor="useStreamToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-                启用流式输出
+                流式输出
               </label>
               <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
                 实时显示解析结果，网络不稳定时可关闭。
@@ -196,14 +194,14 @@ export default function SettingsModal({
         </div>
 
         {selectedProvider === 'deepseek' && (
-          <div className="mb-5 rounded-[12px] p-3" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
+          <div className="settings-option-row">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <label htmlFor="deepseekThinkingToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-                  启用深度思考
+                  深度思考
                 </label>
                 <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
-                  当前固定关闭，暂不可选择。
+                  暂不可用。
                 </p>
               </div>
               <button
@@ -219,15 +217,16 @@ export default function SettingsModal({
           </div>
         )}
 
-        <button
-          id="saveSettingsButton"
-          className="nd-primary-btn w-full"
-          onClick={handleSaveSettings}
-          type="button"
-        >
-          {Icon.check}
-          <span>保存设置</span>
-        </button>
+        <div className="settings-actions">
+          <button
+            id="saveSettingsButton"
+            className="nd-primary-btn"
+            onClick={handleSaveSettings}
+            type="button"
+          >
+            <span>保存设置</span>
+          </button>
+        </div>
 
         {status && (
           <div id="settingsStatus" className="mt-3 text-center text-sm" style={{ color: 'var(--primary)' }}>
@@ -236,7 +235,7 @@ export default function SettingsModal({
         )}
 
         <p className="mb-0 mt-4 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
-          注意：自定义设置仅存储在您的浏览器中，并会随请求用于调用所选模型接口。
+          密钥保存在此浏览器中，随请求发送用于调用模型。留空则使用默认配置。
         </p>
       </div>
     </div>

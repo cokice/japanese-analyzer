@@ -117,7 +117,7 @@ export default function TranslationSection({
   return (
     <section id="fullTranslationCard" className="nd-card">
       <div className="mb-3 flex items-center">
-        <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>全文翻译（中）</h2>
+        <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>中文翻译</h2>
         <div className="flex-1" />
         <button
           id="translateSentenceButton"

@@ -42,6 +42,9 @@ export interface WordDetail {
   romaji?: string;
   dictionaryForm?: string;
   explanation: string;
+  conjugation?: string;
+  example?: string;
+  exampleTranslation?: string;
 }
 
 export interface ChatMessage {
@@ -350,7 +353,7 @@ function formatChunkReasoning(
     .join('\n\n');
 }
 
-const wordDetailFields = [
+const requiredWordDetailFields = [
   'originalWord',
   'chineseTranslation',
   'pos',
@@ -359,6 +362,8 @@ const wordDetailFields = [
   'dictionaryForm',
   'explanation',
 ] as const;
+const optionalWordDetailFields = ['conjugation', 'example', 'exampleTranslation'] as const;
+const wordDetailFields = [...requiredWordDetailFields, ...optionalWordDetailFields] as const;
 
 type WordDetailField = typeof wordDetailFields[number];
 
@@ -409,14 +414,18 @@ function parseLooseWordDetailObject(content: string): Record<WordDetailField, st
   }
 
   const values: Partial<Record<WordDetailField, string>> = {};
+  // 兼容旧版七字段响应；新版扩展字段只有存在时才参与宽松解析。
+  const fields = wordDetailFields.filter((field) =>
+    (requiredWordDetailFields as readonly string[]).includes(field)
+    || new RegExp(`"${field}"\\s*:`).test(jsonText));
 
-  wordDetailFields.forEach((field, index) => {
+  fields.forEach((field, index) => {
     const fieldPattern = new RegExp(`"${field}"\\s*:\\s*"`, 'm');
     const searchFrom = index === 0
       ? objectStart + 1
       : Math.max(
         objectStart + 1,
-        ...wordDetailFields
+        ...fields
           .slice(0, index)
           .map((previousField) => jsonText.indexOf(`"${previousField}"`))
       );
@@ -428,8 +437,8 @@ function parseLooseWordDetailObject(content: string): Record<WordDetailField, st
     const valueStart = searchFrom + fieldMatch.index + fieldMatch[0].length;
     let valueEnd = -1;
 
-    if (index < wordDetailFields.length - 1) {
-      const nextFieldPattern = new RegExp(`"\\s*,\\s*"${wordDetailFields[index + 1]}"\\s*:`, 'm');
+    if (index < fields.length - 1) {
+      const nextFieldPattern = new RegExp(`"\\s*,\\s*"${fields[index + 1]}"\\s*:`, 'm');
       const nextFieldMatch = nextFieldPattern.exec(jsonText.slice(valueStart));
       if (nextFieldMatch && nextFieldMatch.index !== undefined) {
         valueEnd = valueStart + nextFieldMatch.index;
@@ -445,7 +454,7 @@ function parseLooseWordDetailObject(content: string): Record<WordDetailField, st
     values[field] = decodeLooseJsonStringValue(jsonText.slice(valueStart, valueEnd));
   });
 
-  const missingField = wordDetailFields.find((field) => typeof values[field] !== 'string');
+  const missingField = requiredWordDetailFields.find((field) => typeof values[field] !== 'string');
   if (missingField) {
     throw new Error(`释义结果缺少 ${missingField} 字段`);
   }
@@ -468,6 +477,9 @@ export function parseWordDetailResponseContent(content: string): WordDetail {
       romaji: detail.romaji,
       dictionaryForm: detail.dictionaryForm,
       explanation: normalizeEscapedLineBreaks(detail.explanation),
+      conjugation: normalizeEscapedLineBreaks(detail.conjugation || ''),
+      example: normalizeEscapedLineBreaks(detail.example || ''),
+      exampleTranslation: normalizeEscapedLineBreaks(detail.exampleTranslation || ''),
     };
   }
 
@@ -475,9 +487,14 @@ export function parseWordDetailResponseContent(content: string): WordDetail {
     throw new Error('释义结果缺少 originalWord 字段');
   }
 
-  const missingField = wordDetailFields.find((field) => typeof parsed[field] !== 'string');
+  const missingField = requiredWordDetailFields.find((field) => typeof parsed[field] !== 'string');
   if (missingField) {
     throw new Error(`释义结果缺少 ${missingField} 字段`);
+  }
+  for (const field of optionalWordDetailFields) {
+    if (parsed[field] !== undefined && typeof parsed[field] !== 'string') {
+      throw new Error(`释义结果 ${field} 必须是字符串`);
+    }
   }
   const detail = parsed as Record<WordDetailField, string>;
 
@@ -489,6 +506,9 @@ export function parseWordDetailResponseContent(content: string): WordDetail {
     romaji: detail.romaji,
     dictionaryForm: detail.dictionaryForm,
     explanation: normalizeEscapedLineBreaks(detail.explanation),
+    conjugation: normalizeEscapedLineBreaks(detail.conjugation || ''),
+    example: normalizeEscapedLineBreaks(detail.example || ''),
+    exampleTranslation: normalizeEscapedLineBreaks(detail.exampleTranslation || ''),
   };
 }
 

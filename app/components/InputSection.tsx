@@ -477,7 +477,7 @@ export default function InputSection({
 
   return (
     <div className="w-full">
-      <section className="nd-card">
+      <section className="nd-card input-card">
         <div className="relative">
           {showFirstVisitExample && (
             <div className="first-visit-example-kicker">
@@ -486,6 +486,7 @@ export default function InputSection({
           )}
           <textarea
             id="japaneseInput"
+            aria-label="日语原文"
             ref={japaneseInputRef}
             lang="ja"
             className={`jp w-full resize-none border-none bg-transparent outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''} ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}

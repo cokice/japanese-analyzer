@@ -103,6 +103,9 @@ const wordDetailSchema = {
     romaji: { type: 'string' },
     dictionaryForm: { type: 'string' },
     explanation: { type: 'string' },
+    conjugation: { type: 'string' },
+    example: { type: 'string' },
+    exampleTranslation: { type: 'string' },
   },
   required: [
     'originalWord',
@@ -112,6 +115,9 @@ const wordDetailSchema = {
     'romaji',
     'dictionaryForm',
     'explanation',
+    'conjugation',
+    'example',
+    'exampleTranslation',
   ],
   additionalProperties: false,
 } as const;
