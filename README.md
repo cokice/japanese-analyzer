@@ -60,9 +60,9 @@
 
 | 能力 | 默认模型 / 服务 | 说明 |
 | --- | --- | --- |
-| 文本解析 | `deepseek-v4-flash` / `deepseek-v4-pro` | 默认文本服务商是 DeepSeek，可在设置中切换 Flash / Pro；DeepSeek 请求默认关闭思考模式。 |
+| 文本解析 | `deepseek-flash` | 默认文本服务商是 DeepSeek，统一使用 V4.1 Flash；DeepSeek 请求默认关闭思考模式。 |
 | Gemini 文本解析 | `gemini-3.7-flash` / `gemini-3.5-flash-lite` | 可在设置中切换 Gemini Flash / Flash-Lite；3.7 Flash 使用 Low 推理档，Flash-Lite 使用 Minimal。 |
-| 图片识别 | `deepseek-v4-flash-vision-exp` / Gemini | 选择 DeepSeek 时，视觉实验模型只用于 OCR 且固定关闭思考；普通文字解析仍使用所选的 Flash / Pro。 |
+| 图片识别 | `deepseek-flash` / Gemini | 选择 DeepSeek 时，图片 OCR 与文字解析统一使用原生多模态的 V4.1 Flash；OCR 固定关闭思考。 |
 | 朗读 | Edge TTS / Gemini TTS | 默认使用 Edge TTS；Gemini TTS 需要 Gemini API Key。 |
 
 ## 快速开始
