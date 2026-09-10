@@ -1,90 +1,135 @@
-# Japanese Sentence Analyzer（日本語文章解析器）🈁
+# 日本語文章解析
 
 🌐 **言語 / Language:** [简体中文](README.md) | [日本語](README.ja.md)
 
-[![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](#📄-ライセンス)
-[![Demo](https://img.shields.io/badge/demo-online-blue.svg)](https://japanese-analyzer-demo.vercel.app/)
+中国語を母語とする日本語学習者向けの文章解析ツールです。日本語の文章を入力すると、単語、かな、ローマ字、品詞、文全体の中国語訳、語句の詳しい解説を確認できます。画像からの文字抽出、読み上げ、AI日本語アシスタントにも対応しています。
 
-> **AI大規模言語モデルを搭載した日本語文の詳細解析ツール**  
-> 中国語話者の日本語学習者向けに、Gemini Flash（`gemini-flash-latest`）モデルを使って、構文構造の分析・分解、品詞の注釈、発音と意味の表示を行います。日本語の読解をもっと簡単にします。
+[オンラインで試す](https://nihongodemo.howen.ink/) · [オンラインドキュメント](https://doc.howen.ink/)
 
----
+![メイン画面](./docs/images/app-home.png)
 
-## ✨ 主な機能
+## 主な機能
 
-| 機能 | 説明 |
-| :-- | :-- |
-| 🔍 **スマート構文解析** | 品詞、かな、ローマ字、文法成分をワンクリックで表示 |
-| 📚 **多角的な語義解説** | Gemini大規模言語モデルによる正確な中国語訳を提供 |
-| 🖼️ **OCR画像認識** | スクリーンショットや写真から日本語テキストを抽出して、そのまま解析 |
-| 🔈 **自然な音声によるTTS読み上げ** | Gemini TTS（`gemini-3.1-flash-tts-preview`）を統合し、日本語全文を読み上げ |
-| 🔄 **文全体の翻訳** | バイリンガル表示で、文の全体的な意味をすばやく把握 |
-| 🌐 **ストリーミング応答** | ストリーミングAPIによる、なめらかな操作感 |
-| 🌙 **ダークモード** | ライト、ダーク、システム設定に合わせる3つのテーマに対応 |
-| 🔐 **アクセス制御** | 任意のパスワード保護で、個人デプロイ環境を不正利用から保護 |
-| ⚙️ **高いカスタマイズ性** | Gemini API Key / Endpointをカスタマイズ可能 |
+- 日本の学校文法に基づく単語分割、品詞、かな、ローマ字の表示。
+- 単語をクリックして、中国語の意味、活用、文中での役割、例文を確認。
+- 段落と改行を保った中国語訳。
+- 画像のアップロードや貼り付けによる日本語OCR。
+- Edge TTS / Gemini TTSによる読み上げ。
+- 文法、語彙、文化などを質問できるAI日本語アシスタント。
+- DeepSeek / Geminiの切り替えと、ブラウザに保存するプロバイダー別APIキー設定。
+- ライト、ダーク、システム設定に合わせるテーマ。
+- 任意のアクセスパスワードとUmami利用統計。
+- Vercel、Docker Compose、Docker Hubイメージによるデプロイ。
 
----
+## モデル
 
-## 🚀 オンラインで試す
+| 用途 | モデル / サービス | 説明 |
+| --- | --- | --- |
+| DeepSeekのテキスト処理 | `deepseek-flash` | デフォルトのプロバイダー。V4.1 Flashを使用し、思考モードはデフォルトで無効。 |
+| Geminiのテキスト処理 | `gemini-flash-latest` / `gemini-flash-lite-latest` | 設定で切り替え可能。推論レベルはFlashがLow、Flash-LiteがMinimal。 |
+| 画像OCR | `deepseek-flash` / 選択したGeminiモデル | DeepSeekはテキスト処理と同じモデルを使用。OCRの思考モードは無効。 |
+| 読み上げ | Edge TTS / `gemini-3.1-flash-tts-preview` | デフォルトはEdge TTS。Gemini TTSにはGemini APIキーが必要。 |
 
-ブラウザですぐに試す 👉 **[Demo](https://japanese-analyzer-demo.vercel.app/)**  
-中国国内向けのアクセス先 👉 **[国内向けサイト](https://nihongodemo.howen.ink/)**
+![モデルとAPI設定](./docs/images/provider-settings.png)
 
-> 注意：現在のDemoサイトでは無料のAPIキーを使用しているため、動作が不安定になる場合があります。大量利用が必要な場合は、下記の手順でご自身のAPIキーを申請してください（完全無料）。APIキーの不正利用が続いているため、テストサイトでもご自身のAPIキーを設定して利用することをおすすめします。
+## ローカルで起動
 
-## 📺 デモ動画
+Dockerイメージと同じNode.js 22の利用を推奨します。
 
-https://github.com/user-attachments/assets/5039cb62-135e-48e1-971d-960d6b82cacf
+```bash
+git clone https://github.com/cokice/japanese-analyzer.git
+cd japanese-analyzer
+npm ci
+```
 
----
+macOS / Linuxでは環境変数のテンプレートをコピーします。
 
-## 🛠️ オンラインデプロイ手順
+```bash
+cp .env.example .env.local
+```
 
-1. Google AI Studio公式サイト 👉 **[aistudio](https://aistudio.google.com/)** にアクセスします
-2. ページ右上の **「Get API Key」** ボタンをクリックします
-3. 表示されたウィンドウで既存のプロジェクトを選ぶか、新しいプロジェクトを作成します（完全無料）
-4. 作成されたAPIキーをコピーし、安全に保管します
-5. 取得したAPIキーは次の用途に使用できます：
-   - プロジェクト全体を自分でデプロイする
-   - Demoサイト右上の「設定」で自分のAPIキーを設定する
+Windows PowerShellでは次のコマンドを使います。
 
-### Vercelへワンクリックデプロイ（推奨）
+```powershell
+Copy-Item .env.example .env.local
+```
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer&env=API_KEY)
+`.env.local`に`DEEPSEEK_API_KEY`を設定すると、デフォルトのテキスト解析と画像OCRを利用できます。Geminiを使う場合は`GEMINI_API_KEY`も設定してください。
 
-1. このリポジトリを自分のGitHubアカウントへ **Fork** します  
-2. [Vercel](https://vercel.com/) でリポジトリを **Import** します  
-3. *Project Settings › Environment Variables* で環境変数を追加します  
-4. 現在はGeminiモデルのみ対応しています。今後、対応モデルを追加する予定です
+```bash
+npm run dev
+```
 
-| 変数名 | 必須 | 説明 |
-| :--- | :---: | :--- |
-| `API_KEY` | ✅ | Gemini APIキー（上記の手順で取得） |
-| `API_URL` | ❌ | カスタムAPIエンドポイント（空欄の場合はデフォルトを使用） |
-| `CODE` | ❌ | アクセスパスワード（設定すると、アプリの利用時にパスワードが必要） |
+[http://127.0.0.1:3000](http://127.0.0.1:3000)を開きます。
 
-## 🤝 貢献方法
+## 環境変数
 
-どのような形の貢献も歓迎します！
+| 変数 | 用途 |
+| --- | --- |
+| `DEEPSEEK_API_KEY` | DeepSeekのテキスト処理と画像OCR用のサーバー側APIキー。 |
+| `DEEPSEEK_API_URL` | DeepSeekのOpenAI互換エンドポイント。空欄なら公式の既定値を使用。 |
+| `GEMINI_API_KEY` | Geminiのテキスト処理、画像認識、Gemini TTS用のサーバー側APIキー。 |
+| `GEMINI_API_URL` | GeminiのOpenAI互換エンドポイント。空欄なら公式の既定値を使用。 |
+| `CODE` | 任意のアクセスパスワード。空欄ならパスワード入力は不要。 |
+| `NEXT_PUBLIC_UMAMI_SRC` | 任意のUmamiスクリプトURL。 |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | UmamiのWebsite ID。スクリプトURLと両方を設定すると有効。 |
 
-- 🐛 **バグを報告**：Issuesで再現手順を説明してください  
-- 🚀 **機能を提案**：新機能のアイデアや要望を話し合いましょう  
-- 💻 **コードを投稿**：Pull Requestを送ってください  
+サーバー側のAPIキーはフロントエンドに公開されません。ユーザー独自のキーは設定画面からブラウザに保存でき、API呼び出し時に本アプリのサーバーへ送信されます。接続先URLはサーバー側で設定します。Gemini TTSは独立した公式音声APIを利用するため、`GEMINI_API_URL`の変更は反映されません。
 
-> PRを作成する前に、まずIssueを作成して相談してください。プロジェクトの方向性をそろえるためです。
+Umamiは実行時の環境変数から読み込まれます。機能の利用とモデルなどのメタデータを記録し、入力文章、画像、翻訳結果、APIキーはイベントに含めません。ローカル環境変数ファイルはGitの管理対象外です。
 
----
+## Vercelにデプロイ
 
-## 📄 ライセンス
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer)
 
-本プロジェクトは **[MIT License](LICENSE)** のもとで公開されています。© 2025 Japanese Analyzer
+1. リポジトリをForkするか、VercelにImportします。
+2. プロジェクトの`Settings → Environment Variables`で`DEEPSEEK_API_KEY`を設定します。
+3. Geminiを使う場合は`GEMINI_API_KEY`、アクセスパスワードが必要な場合は`CODE`も設定します。
+4. 必要に応じてUmamiの2つの変数を設定し、デプロイします。
 
----
+## Dockerでデプロイ
 
-## 📬 連絡先
+Docker Hubイメージ`howenhowen/japanese-analyzer:latest`は`linux/amd64`と`linux/arm64`に対応しています。リポジトリのルートで次を実行します。
 
-ご質問がある場合は、Issueを作成してご連絡ください。
+```bash
+cp .env.production.example .env.production
+# .env.productionを編集し、必要なAPIキーを設定
+docker compose -f docker-compose.hub.yml up -d
+```
+
+Windows PowerShellではテンプレートのコピーに`Copy-Item .env.production.example .env.production`を使います。
+
+ホストとコンテナのポートはどちらも`3002`です。起動後は`http://サーバーのIP:3002`にアクセスします。更新は次のコマンドで行います。
+
+```bash
+docker compose -f docker-compose.hub.yml pull
+docker compose -f docker-compose.hub.yml up -d
+```
+
+`docker run`の例やAI Agent向けのデプロイ手順は[中国語README](README.md)を参照してください。
+
+## 開発コマンド
+
+```bash
+npm run dev          # 開発サーバー
+npm test             # APIとプロバイダー設定のテスト
+npm run build        # 本番ビルド
+npm start            # ビルド済みアプリの本番サーバー
+npx tsc --noEmit      # 型チェック
+npx eslint app tests # アプリとテストの静的検査
+```
+
+## 貢献・お問い合わせ
+
+不具合は再現手順を添えてIssueでお知らせください。機能提案やPull Requestも歓迎します。大きな変更は、実装前にIssueで相談してください。
+
+## 謝辞
+
+[LINUX DO](https://linux.do/)コミュニティの支援に感謝します。
+
+## ライセンス
+
+本プロジェクトは[MIT License](./LICENSE)のもとで公開されています。
 
 ## Star History
 
