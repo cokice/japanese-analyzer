@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
 import type { AIProvider, TTSProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
@@ -460,9 +460,33 @@ export default function InputSection({
     fontSize: '20px',
     lineHeight: 1.6,
     letterSpacing: '0.3px',
-    minHeight: '148px',
   };
   const showInputShimmer = isLoading && inputText.trim().length > 0;
+
+  useLayoutEffect(() => {
+    const input = japaneseInputRef.current;
+    if (!input) return;
+    const resizeInput = () => {
+      const scrollTop = input.scrollTop;
+      input.style.height = 'auto';
+      input.style.height = `${input.scrollHeight}px`;
+      input.scrollTop = scrollTop;
+    };
+    resizeInput();
+    let previousWidth = input.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (input.clientWidth !== previousWidth) {
+        previousWidth = input.clientWidth;
+        resizeInput();
+      }
+    });
+    observer.observe(input);
+    window.addEventListener('resize', resizeInput);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', resizeInput);
+    };
+  }, [inputText, showFirstVisitExample]);
 
   useEffect(() => {
     if (!showInputShimmer) return;
@@ -477,7 +501,7 @@ export default function InputSection({
 
   return (
     <div className="w-full">
-      <section className="nd-card">
+      <section className="nd-card input-card">
         <div className="relative">
           {showFirstVisitExample && (
             <div className="first-visit-example-kicker">
@@ -486,10 +510,11 @@ export default function InputSection({
           )}
           <textarea
             id="japaneseInput"
+            aria-label="日语原文"
             ref={japaneseInputRef}
             lang="ja"
             className={`jp w-full resize-none border-none bg-transparent outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''} ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
-            rows={5}
+            rows={3}
             placeholder="输入日语句子"
             value={inputText}
             onChange={(e) => handleInputTextChange(e.target.value)}
@@ -509,7 +534,7 @@ export default function InputSection({
           ></textarea>
           {showFirstVisitExample && (
             <div id="firstVisitExampleHint" className="first-visit-example-hint" role="status">
-              点击提交试试
+              点击「解析」试试
             </div>
           )}
           {showInputShimmer && (
@@ -533,33 +558,34 @@ export default function InputSection({
 
         <div className="mt-3.5 flex items-center">
           {/* 左侧工具按钮区域 */}
-          <div className="flex items-center gap-2.5" style={{ color: 'var(--ink-3)' }}>
+          <div className="input-tools flex items-center gap-2">
             {/* 上传图片按钮 */}
             <button
               id="uploadImageButton"
-              className="nd-icon-btn"
+              className="input-tool-button"
               onClick={() => document.getElementById('imageUploadInput')?.click()}
               disabled={isImageUploading}
               title="上传图片提取文字"
+              aria-label="上传图片提取文字"
             >
               {isImageUploading
                 ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
-                : Icon.cameraLg}
+                : Icon.photo}
             </button>
 
             {/* TTS按钮组 */}
             <div className="relative" ref={dropdownRef}>
-              <div className="flex">
+              <div className="input-voice-controls flex">
                 <button
                   id="speakButton"
-                  className="nd-icon-btn"
-                  style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRight: 'none' }}
+                  className="input-tool-button"
                   onClick={handleSpeak}
                   disabled={!inputText.trim() || isLoading || isSpeaking}
                   title={inputText.trim() ?
-                    `朗读文本 (${ttsProvider === 'edge' ? 'Edge' : 'Gemini'} TTS，预计需要 ${getEstimatedTime(inputText)})` :
+                    `朗读文本（约 ${getEstimatedTime(inputText)}）` :
                     '请先输入文本'
                   }
+                  aria-label="朗读文本"
                 >
                   {isSpeaking
                     ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
@@ -567,11 +593,13 @@ export default function InputSection({
                 </button>
 
                 <button
-                  className="nd-icon-btn"
-                  style={{ width: 26, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+                  className="input-tool-button input-tool-disclosure"
                   onClick={() => setShowTtsDropdown(!showTtsDropdown)}
                   disabled={isLoading || isSpeaking}
                   title="语音设置"
+                  aria-label="语音设置"
+                  aria-expanded={showTtsDropdown}
+                  aria-controls="inputVoiceSettings"
                 >
                   {Icon.chev}
                 </button>
@@ -580,7 +608,8 @@ export default function InputSection({
               {/* TTS设置下拉菜单 */}
               {showTtsDropdown && (
                 <div
-                  className="absolute bottom-full left-0 z-20 mb-2 min-w-[280px] rounded-2xl p-4"
+                  id="inputVoiceSettings"
+                  className="input-voice-menu absolute bottom-full z-20 mb-2 rounded-2xl p-4"
                   style={{
                     background: 'var(--bg-2)',
                     border: '1px solid var(--line)',
@@ -592,14 +621,15 @@ export default function InputSection({
                   {/* TTS提供商选择 */}
                   <div className="mb-3">
                     <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>语音引擎</label>
-                    <div className="flex gap-2">
+                    <div className="segmented-control grid grid-cols-2 gap-1 rounded-xl p-1">
                       {(['edge', 'gemini'] as const).map((provider) => (
                         <button
                           key={provider}
-                          className="cursor-pointer rounded-full border-none px-3 py-2 text-sm transition-colors"
+                          className="cursor-pointer rounded-lg border-none px-3 py-2 text-sm transition-colors"
+                          aria-pressed={ttsProvider === provider}
                           style={ttsProvider === provider
-                            ? { background: 'var(--primary-soft)', color: 'var(--primary)', fontWeight: 600 }
-                            : { background: 'var(--bg)', color: 'var(--ink-3)' }}
+                            ? { background: 'var(--bg-2)', color: 'var(--ink)', fontWeight: 500 }
+                            : { background: 'transparent', color: 'var(--ink-2)' }}
                           onClick={() => handleTtsProviderSelect(provider)}
                         >
                           {provider === 'edge' ? 'Edge TTS' : 'Gemini TTS'}
@@ -628,10 +658,12 @@ export default function InputSection({
 
                       <div className="mb-2">
                         <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
-                          语速: {getRateLabel(selectedRate)} ({selectedRate})
+                          语速 · {getRateLabel(selectedRate)}
                         </label>
                         <input
                           type="range"
+                          aria-label="语速"
+                          aria-valuetext={getRateLabel(selectedRate)}
                           min="-100"
                           max="100"
                           step="10"
@@ -641,9 +673,9 @@ export default function InputSection({
                           style={{ background: 'var(--line-2)', accentColor: 'var(--primary)' }}
                         />
                         <div className="mt-1 flex justify-between text-xs" style={{ color: 'var(--ink-3)' }}>
-                          <span>-100</span>
-                          <span>0</span>
-                          <span>100</span>
+                          <span>慢</span>
+                          <span>正常</span>
+                          <span>快</span>
                         </div>
                       </div>
                     </>
@@ -693,8 +725,7 @@ export default function InputSection({
           {/* 清空按钮 */}
           {inputText.trim() !== '' && (
             <button
-              className="mr-3 grid cursor-pointer place-items-center border-none bg-transparent"
-              style={{ color: 'var(--ink-3)' }}
+              className="input-tool-button input-clear-button mr-2"
               onClick={() => {
                 setInputText('');
                 setTtsAudioUrl(null);
@@ -702,8 +733,9 @@ export default function InputSection({
                 clearUsageMetadata();
               }}
               title="清空内容"
+              aria-label="清空内容"
             >
-              {Icon.x}
+              {Icon.xSm}
             </button>
           )}
 
@@ -747,11 +779,9 @@ export default function InputSection({
           className="mt-4 rounded-xl p-4 text-sm"
           style={{ background: 'var(--primary-soft)', color: 'var(--ink-2)' }}
         >
-          <p className="m-0 font-medium" style={{ color: 'var(--primary)' }}>正在进行高质量语音合成，请稍候...</p>
+          <p className="m-0 font-medium">正在准备朗读…</p>
           <p className="mb-0 mt-1 text-xs" style={{ color: 'var(--ink-3)' }}>
-            • 使用 {ttsProvider === 'edge' ? 'Edge' : 'Gemini'} TTS 技术，音质更自然<br/>
-            • 当前文本预计需要：{getEstimatedTime(inputText)}<br/>
-            • 请保持页面打开，不要离开或刷新
+            预计需要 {getEstimatedTime(inputText)}
           </p>
         </div>
       )}

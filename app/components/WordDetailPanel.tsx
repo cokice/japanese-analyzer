@@ -47,8 +47,8 @@ export function WordDetailPlaceholder() {
   return (
     <section className="word-detail-panel-empty">
       <div
-        className="grid h-14 w-14 place-items-center rounded-full"
-        style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+        className="word-detail-placeholder-icon grid h-12 w-12 place-items-center rounded-full"
+        style={{ background: 'var(--bg)', color: 'var(--ink-3)' }}
       >
         {Icon.book}
       </div>
@@ -56,7 +56,7 @@ export function WordDetailPlaceholder() {
         <span className="font-medium" style={{ color: 'var(--ink-2)' }}>点击带下划线的词汇</span>
         <br />
         <span className="text-xs" style={{ color: 'var(--ink-3)' }}>
-          这里会展开读音、释义和详细解释
+          这里会显示读音、释义和用法
         </span>
       </p>
     </section>
@@ -65,7 +65,8 @@ export function WordDetailPlaceholder() {
 
 function renderHighlightedText(text: string) {
   const nodes: React.ReactNode[] = [];
-  const highlightPattern = /(\*\*[^*]+\*\*|【[^】]+】|「[^」]+」)/g;
+  // 只有显式的 Markdown 加粗才强调；引号和括号保留为正常正文。
+  const highlightPattern = /\*\*([^*]+)\*\*/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -75,9 +76,7 @@ function renderHighlightedText(text: string) {
     }
 
     const value = match[0];
-    const content = value.startsWith('**')
-      ? value.slice(2, -2)
-      : value.slice(1, -1);
+    const content = match[1];
 
     nodes.push(<strong key={`${match.index}-${value}`}>{content}</strong>);
     lastIndex = match.index + value.length;
@@ -150,15 +149,14 @@ export default function WordDetailPanel({
     return (
       <section className="word-detail-panel">
         <div className="p-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="m-0 text-base font-semibold" style={{ color: 'var(--pos-p)' }}>词汇详解（出错）</h3>
+          <div className={`mb-3 flex items-center justify-between gap-3${hideClose ? ' pr-[34px]' : ''}`}>
+            <h3 className="m-0 text-base font-semibold" style={{ color: 'var(--pos-p)' }}>释义暂不可用</h3>
             {onRefresh && (
               <button
                 type="button"
-                title="重新生成词语详解"
-                aria-label="重新生成词语详解"
-                className="grid cursor-pointer place-items-center rounded-md border-none bg-transparent p-1.5 transition-colors hover:text-[var(--primary)]"
-                style={{ color: 'var(--ink-2)' }}
+                title="刷新释义"
+                aria-label="刷新释义"
+                className="dictionary-icon-btn"
                 onClick={onRefresh}
               >
                 {Icon.refresh}
@@ -190,118 +188,101 @@ export default function WordDetailPanel({
   const accent = POS_GROUP_COLORS[posGroup];
   const display = (wordDetail.originalWord || '').replace(/[、。]/g, '');
   const posLabel = posChineseMap[normalizePosBase(wordDetail.pos)] || POS_GROUP_LABELS[posGroup];
+  const originalPos = (wordDetail.pos || '').trim();
+  const basePos = normalizePosBase(originalPos);
+  // 合并常见词性名称，保留活用类型、自他性和细分类别。
+  const posDetail = (posChineseMap[basePos] && originalPos.startsWith(basePos)
+    ? originalPos.slice(basePos.length)
+    : originalPos.startsWith(posLabel) ? originalPos.slice(posLabel.length) : originalPos)
+    .replace(/^[\s・,，、/／-]+/, '')
+    .replace(/^[（(](.*)[）)]$/, '$1')
+    .trim();
 
   return (
     <section className="word-detail-panel">
-      {/* 顶栏 */}
+      {/* 词头与读音 */}
       <div
-        className="flex items-center border-b px-4 py-2.5"
-        style={{ borderColor: 'var(--line)', background: 'var(--bg)' }}
+        className="word-detail-headword relative px-5 pb-4 pt-5"
       >
-        <span className="mr-2 h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
-        <span
-          className="text-[11px] font-semibold uppercase tracking-[1.2px]"
-          style={{ color: 'var(--ink-3)' }}
-        >
-          词语详解
-        </span>
-        {isStreamLoading && (
-          <span className="nd-dots ml-2" style={{ color: 'var(--primary)' }} aria-hidden="true">
-            <span /><span /><span />
-          </span>
-        )}
-        <div className="flex-1" />
-        {onRefresh && (
-          <button
-            type="button"
-            title="重新生成词语详解"
-            aria-label="重新生成词语详解"
-            className="grid cursor-pointer place-items-center rounded-md border-none bg-transparent p-1.5 transition-colors hover:text-[var(--primary)]"
-            style={{ color: 'var(--ink-2)' }}
-            onClick={onRefresh}
-          >
-            <span className={isStreamLoading ? 'word-detail-refresh-icon is-spinning' : 'word-detail-refresh-icon'}>
-              {Icon.refresh}
-            </span>
-          </button>
-        )}
-        <button
-          type="button"
-          title="朗读发音"
-          aria-label="朗读发音"
-          className="grid cursor-pointer place-items-center rounded-md border-none bg-transparent p-1.5 transition-colors hover:text-[var(--primary)]"
-          style={{ color: 'var(--ink-2)' }}
-          onClick={() => handleWordSpeak(display)}
-        >
-          {Icon.speaker}
-        </button>
-        {!hideClose && (
-          <button
-            onClick={onClose}
-            title="关闭"
-            className="grid cursor-pointer place-items-center rounded-md border-none bg-transparent p-1.5 transition-colors hover:text-[var(--ink)]"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            <I w={16}><path d="M6 6l12 12M18 6L6 18" /></I>
-          </button>
-        )}
-      </div>
-
-      {/* Hero */}
-      <div
-        className="relative px-5 pb-4 pt-5"
-        style={{
-          background: `linear-gradient(180deg, color-mix(in oklab, ${accent} 6%, transparent), transparent 70%)`
-        }}
-      >
-        {wordDetail.furigana && wordDetail.furigana !== display && (
-          <div lang="ja" className="jp text-center text-[13px] tracking-[2px]" style={{ color: 'var(--ink-3)' }}>
-            {wordDetail.furigana}
+        <div className={`dictionary-heading flex items-start gap-3${hideClose ? ' has-modal-close' : ''}`}>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5">
+            <h2
+              lang="ja"
+              className="jp m-0 min-w-0 text-[28px] font-medium leading-snug tracking-[.5px] sm:text-[30px]"
+              style={{ color: 'var(--ink)' }}
+            >
+              {display}
+            </h2>
+            <button
+              type="button"
+              title="朗读发音"
+              aria-label="朗读发音"
+              className="dictionary-icon-btn dictionary-pronunciation"
+              onClick={() => handleWordSpeak(display)}
+            >
+              {Icon.speaker}
+            </button>
           </div>
-        )}
-        <div
-          lang="ja"
-          className="jp text-center text-[30px] font-semibold leading-tight tracking-[1px] sm:text-[36px]"
-          style={{ color: 'var(--ink)' }}
-        >
-          {display}
+          <div className="flex shrink-0 items-center gap-0.5 pt-1">
+            {onRefresh ? (
+              <button
+                type="button"
+                title="刷新释义"
+                aria-label="刷新释义"
+                className="dictionary-icon-btn"
+                onClick={onRefresh}
+              >
+                <span className={isStreamLoading ? 'word-detail-refresh-icon is-spinning' : 'word-detail-refresh-icon'}>
+                  {Icon.refresh}
+                </span>
+              </button>
+            ) : isStreamLoading && (
+              <span className="nd-dots" style={{ color: 'var(--ink-3)' }} aria-hidden="true">
+                <span /><span /><span />
+              </span>
+            )}
+            {!hideClose && (
+              <button type="button" onClick={onClose} title="关闭" aria-label="关闭" className="dictionary-icon-btn">
+                <I w={16}><path d="M6 6l12 12M18 6L6 18" /></I>
+              </button>
+            )}
+          </div>
         </div>
-        {wordDetail.romaji && (
-          <div
-            className="mono mt-2 text-center text-xs uppercase tracking-[1.5px]"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            {wordDetail.romaji}
-          </div>
-        )}
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          {wordDetail.furigana && wordDetail.furigana !== display && (
+            <span lang="ja" className="jp text-[13px]" style={{ color: 'var(--ink-2)' }}>
+              {wordDetail.furigana}
+            </span>
+          )}
+          {wordDetail.romaji && (
+            <span className="mono text-[11px]" style={{ color: 'var(--ink-3)' }}>{wordDetail.romaji}</span>
+          )}
+        </div>
 
         {/* 标签行 */}
-        <div className="mt-3.5 flex flex-wrap justify-center gap-1.5">
+        <div className="word-detail-meta mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span
-            className="inline-flex items-center gap-[5px] rounded-md px-2.5 py-[3px] text-[11.5px] font-semibold"
-            style={{
-              color: accent,
-              background: `color-mix(in oklab, ${accent} 12%, transparent)`
-            }}
+            className="inline-flex items-center gap-1.5 text-xs"
+            style={{ color: 'var(--ink-2)' }}
           >
-            <span className="h-1.5 w-1.5 rounded-[1px]" style={{ background: accent }} />
+            <span className="h-1 w-1 rounded-full" style={{ background: accent }} aria-hidden="true" />
             {posLabel}
           </span>
-          {wordDetail.pos && (
+          {posDetail && (
             <span
               lang="ja"
-              className="rounded-md border px-2.5 py-[3px] text-[11.5px] font-medium"
-              style={{ color: 'var(--ink-3)', background: 'var(--bg)', borderColor: 'var(--line)' }}
+              className="word-detail-pos-original text-xs"
+              style={{ color: 'var(--ink-3)' }}
             >
-              {wordDetail.pos}
+              {posDetail}
             </span>
           )}
           {wordDetail.dictionaryForm && wordDetail.dictionaryForm !== wordDetail.originalWord && (
             <span
-              className="jp rounded-md border px-2.5 py-[3px] text-[11.5px] font-medium"
-              style={{ color: 'var(--ink-2)', background: 'var(--bg)', borderColor: 'var(--line)' }}
+              className="jp w-full pt-1 text-xs"
+              style={{ color: 'var(--ink-2)' }}
             >
-              辞书形 <span lang="ja">{wordDetail.dictionaryForm}</span>
+              原形 <span lang="ja">{wordDetail.dictionaryForm}</span>
             </span>
           )}
         </div>
@@ -309,21 +290,15 @@ export default function WordDetailPanel({
 
       {/* 正文 */}
       <div className="px-5 pb-5 pt-1">
-        <DetailSection label="释义">
-          <div
-            className={`text-sm leading-relaxed ${wordDetail.chineseTranslation === '加载中...' ? 'animate-pulse' : ''}`}
-            style={{ color: 'var(--ink)' }}
-          >
-            <span
-              className="mono mr-2.5 text-[11px] font-semibold"
-              style={{ color: accent }}
-            >01</span>
-            {wordDetail.chineseTranslation}
-          </div>
-        </DetailSection>
+        <p
+          className={`dictionary-definition m-0 text-[16px] font-medium leading-relaxed ${wordDetail.chineseTranslation === '加载中...' ? 'animate-pulse' : ''}`}
+          style={{ color: 'var(--ink)' }}
+        >
+          {wordDetail.chineseTranslation}
+        </p>
 
         {wordDetail.explanation && (
-          <DetailSection label="解释">
+          <DetailSection label="本句用法">
             <div className="flow-markdown word-detail-explanation text-[13px] leading-relaxed">
               {explanationContent(wordDetail.explanation)}
             </div>
@@ -336,6 +311,21 @@ export default function WordDetailPanel({
                 {isExplanationExpanded ? '收起 ▲' : '展开全文 ▼'}
               </button>
             )}
+          </DetailSection>
+        )}
+        {wordDetail.conjugation && (
+          <DetailSection label="词形">
+            <p className="dictionary-conjugation m-0 text-[13px] leading-7" style={{ color: 'var(--ink-2)' }}>
+              {wordDetail.conjugation}
+            </p>
+          </DetailSection>
+        )}
+        {wordDetail.example && wordDetail.exampleTranslation && (
+          <DetailSection label="例句">
+            <div className="dictionary-example">
+              <p lang="ja" className="jp m-0 text-sm leading-7" style={{ color: 'var(--ink)' }}>{wordDetail.example}</p>
+              <p className="m-0 mt-1 text-xs leading-6" style={{ color: 'var(--ink-2)' }}>{wordDetail.exampleTranslation}</p>
+            </div>
           </DetailSection>
         )}
       </div>

@@ -16,7 +16,7 @@ export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
   const providerLabel = PROVIDER_LABELS[aiProvider];
 
   return (
-    <header className="flex items-center px-4 py-4 sm:px-9 sm:py-5">
+    <header className="app-header mx-auto flex w-full max-w-[1480px] items-center px-4 py-4 sm:px-9 sm:py-5">
       <div className="flex min-w-0 items-center">
         <Image
           src="/logo/logo-text.png"
@@ -38,7 +38,7 @@ export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
         />
       </div>
       <div className="flex-1" />
-      <div className="flex items-center gap-1 sm:gap-2">
+      <div className="glass-toolbar flex items-center gap-1 sm:gap-2">
         <span
           className="provider-indicator"
           title={`当前模型服务商：${providerLabel}`}

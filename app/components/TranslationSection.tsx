@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { translateText, streamTranslateText } from '../services/api';
 import type { AIModelName, AIProvider } from '../services/api';
 import ThinkingIndicator from './ThinkingIndicator';
@@ -16,6 +16,7 @@ interface TranslationSectionProps {
   aiModel: AIModelName;
   useStream?: boolean;
   trigger?: number;
+  analysisSignal?: AbortSignal;
 }
 
 export default function TranslationSection({
@@ -24,8 +25,10 @@ export default function TranslationSection({
   aiProvider,
   aiModel,
   useStream = true, // 默认为true，保持向后兼容
-  trigger
+  trigger,
+  analysisSignal
 }: TranslationSectionProps) {
+  const requestRef = useRef<AbortController | null>(null);
   const [translation, setTranslation] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
@@ -36,49 +39,34 @@ export default function TranslationSection({
     import('flowtoken').catch(() => {});
   }, []);
 
-  const handleTranslate = async () => {
-    if (!japaneseText) {
-      alert('请先输入或分析日语句子！');
-      return;
-    }
-
-    setIsLoading(true);
-    setIsVisible(true); // 确保显示翻译区域
-    setCanAnimateTranslation(false);
-    setTranslation(''); // 清空之前的翻译结果
-
+  const handleTranslate = useCallback(async () => {
+    if (!japaneseText) return;
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    const signal = analysisSignal && !analysisSignal.aborted
+      ? AbortSignal.any([controller.signal, analysisSignal]) : controller.signal;
+    const isCurrent = () => requestRef.current === controller && !signal.aborted;
+    setIsLoading(true); setIsVisible(true); setCanAnimateTranslation(false); setTranslation('');
     try {
       if (useStream) {
-        // 使用流式API进行翻译
-        streamTranslateText(
-          japaneseText,
-          (chunk, isDone) => {
-            setTranslation(chunk);
-            if (isDone) {
-              setIsLoading(false);
-            }
-          },
-          (error) => {
-            console.error('Error during streaming translation:', error);
-            setTranslation(`翻译时发生错误: ${error.message || '未知错误'}。`);
-            setIsLoading(false);
-          },
-          userApiKey,
-          aiProvider,
-          aiModel
-        );
+        await streamTranslateText(japaneseText, (chunk) => {
+          if (isCurrent()) setTranslation(chunk);
+        }, (error) => {
+          if (isCurrent()) setTranslation(`翻译时发生错误: ${error.message}。`);
+        }, userApiKey, aiProvider, aiModel, signal);
       } else {
-        // 使用传统API进行翻译
-        const translatedText = await translateText(japaneseText, userApiKey, aiProvider, aiModel);
-        setTranslation(translatedText);
-        setIsLoading(false);
+        const text = await translateText(japaneseText, userApiKey, aiProvider, aiModel, signal);
+        if (isCurrent()) setTranslation(text);
       }
     } catch (error) {
-      console.error('Error during full sentence translation:', error);
-      setTranslation(`翻译时发生错误: ${error instanceof Error ? error.message : '未知错误'}。`);
-      setIsLoading(false);
+      if (isCurrent()) setTranslation(`翻译时发生错误: ${error instanceof Error ? error.message : '未知错误'}。`);
+    } finally {
+      if (requestRef.current === controller) {
+        setIsLoading(false); requestRef.current = null;
+      }
     }
-  };
+  }, [japaneseText, userApiKey, aiProvider, aiModel, useStream, analysisSignal]);
 
   const handleCopy = () => {
     if (!translation) return;
@@ -95,13 +83,10 @@ export default function TranslationSection({
     return preserveLineBreaksForMarkdown(escapeHtmlForMarkdown(translation));
   }, [translation]);
 
-  // 当trigger变化时自动开始翻译
   useEffect(() => {
-    if (trigger && japaneseText) {
-      handleTranslate();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trigger]);
+    if (trigger && japaneseText) void handleTranslate();
+    return () => { requestRef.current?.abort(); requestRef.current = null; };
+  }, [trigger, japaneseText, handleTranslate]);
 
   useEffect(() => {
     if (!translation) {
@@ -115,70 +100,74 @@ export default function TranslationSection({
   }, [isLoading, translation]);
 
   return (
-    <section id="fullTranslationCard" className="nd-card">
-      <div className="mb-3 flex items-center">
-        <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>全文翻译（中）</h2>
-        <div className="flex-1" />
-        <button
-          id="translateSentenceButton"
-          className="nd-soft-btn"
-          onClick={handleTranslate}
-          disabled={isLoading}
-        >
-          {Icon.globe}
-          <span>{isLoading ? '翻译中' : '翻译'}</span>
-        </button>
+    <section id="fullTranslationCard" className="translation-section">
+      <div className="translation-heading flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h2 className="m-0 text-sm font-medium" style={{ color: 'var(--ink-2)' }}>中文译文</h2>
+        <div className="translation-actions flex items-center gap-1">
+          <button
+            id="translateSentenceButton"
+            className="nd-ghost-btn"
+            onClick={handleTranslate}
+            disabled={isLoading}
+          >
+            {Icon.refresh}
+            <span>{isLoading ? '翻译中' : translation ? '重新翻译' : '翻译'}</span>
+          </button>
+          <button
+            onClick={handleCopy}
+            className="nd-ghost-btn"
+            style={copied ? { color: 'var(--primary)' } : undefined}
+            disabled={!translation}
+          >
+            {Icon.copy}<span>{copied ? '已复制' : '复制'}</span>
+          </button>
+          <button
+            id="toggleFullTranslationButton"
+            className="nd-ghost-btn"
+            onClick={toggleVisibility}
+            aria-expanded={isVisible}
+            aria-controls="translationContent"
+          >
+            <span>{isVisible ? '收起' : '展开'}</span>
+          </button>
+        </div>
       </div>
 
-      <AutoAnimateHeight duration={300}>
-        {isVisible ? (
-          isLoading && !translation ? (
-            <ThinkingIndicator label="翻译中" />
-          ) : translation ? (
-            <div
-              className="flow-markdown full-translation-markdown mb-3.5 mt-1 text-[16px] leading-7"
-              style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
-            >
-              {canAnimateTranslation ? (
-                <FlowAnimatedMarkdown
-                  content={animatedTranslation}
-                  animation="fadeIn"
-                  sep="word"
-                  animationDuration="0.35s"
-                  animationTimingFunction="ease-out"
-                />
+      <div id="translationContent">
+        {/* 包含子元素的外边距，避免高度测量遗漏译文顶部间距。 */}
+        <AutoAnimateHeight duration={300} contentClassName="flow-root">
+          {isVisible ? (
+            <div className="translation-scroll-region flow-root" role="region" aria-label="中文译文正文" tabIndex={0}>
+              {isLoading && !translation ? (
+                <ThinkingIndicator label="翻译中" />
+              ) : translation ? (
+                <div
+                  className="flow-markdown full-translation-markdown mt-2 text-[16px] leading-7"
+                  style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
+                >
+                  {canAnimateTranslation ? (
+                    <FlowAnimatedMarkdown
+                      content={animatedTranslation}
+                      animation="fadeIn"
+                      sep="word"
+                      animationDuration="0.35s"
+                      animationTimingFunction="ease-out"
+                    />
+                  ) : (
+                    <span className="whitespace-pre-wrap">{translation}</span>
+                  )}
+                </div>
               ) : (
-                <span className="whitespace-pre-wrap">{translation}</span>
+                <p
+                  className="mb-0 mt-2 whitespace-pre-wrap text-[16px] leading-7"
+                  style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
+                >
+                  {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译。</span>}
+                </p>
               )}
             </div>
-          ) : (
-            <p
-              className="mb-3.5 mt-1 whitespace-pre-wrap text-[16px] leading-7"
-              style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
-            >
-              {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译。</span>}
-            </p>
-          )
-        ) : null}
-      </AutoAnimateHeight>
-
-      <div className="flex items-center">
-        <div className="flex-1" />
-        <button
-          onClick={handleCopy}
-          className="nd-ghost-btn"
-          style={copied ? { color: 'var(--primary)' } : undefined}
-          disabled={!translation}
-        >
-          {Icon.copy}<span>{copied ? '已复制' : '复制'}</span>
-        </button>
-        <button
-          id="toggleFullTranslationButton"
-          className="nd-ghost-btn"
-          onClick={toggleVisibility}
-        >
-          <span>{isVisible ? '隐藏' : '显示'}</span>
-        </button>
+          ) : null}
+        </AutoAnimateHeight>
       </div>
     </section>
   );

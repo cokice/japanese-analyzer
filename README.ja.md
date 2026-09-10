@@ -6,7 +6,25 @@
 
 [オンラインで試す](https://nihongodemo.howen.ink/) · [オンラインドキュメント](https://doc.howen.ink/)
 
-![メイン画面](./docs/images/app-home.png)
+## 画面プレビュー
+
+### メイン画面・解析と辞書
+
+![日本語の解析・中国語訳・単語の解説](./docs/images/app-home.png)
+
+### ダークモード
+
+![ダークモードの解析と辞書](./docs/images/app-dark.png)
+
+### モデルと API の設定
+
+![モデルと API の設定](./docs/images/provider-settings.png)
+
+### モバイル版 AI 日本語アシスタント
+
+<p align="center">
+  <img src="./docs/images/mobile-chat.png" alt="現在の文章に合わせた文法解説" width="390" />
+</p>
 
 ## 主な機能
 
@@ -29,8 +47,6 @@
 | Geminiのテキスト処理 | `gemini-flash-latest` / `gemini-flash-lite-latest` | 設定で切り替え可能。推論レベルはFlashがLow、Flash-LiteがMinimal。 |
 | 画像OCR | `deepseek-flash` / 選択したGeminiモデル | DeepSeekはテキスト処理と同じモデルを使用。OCRの思考モードは無効。 |
 | 読み上げ | Edge TTS / `gemini-3.1-flash-tts-preview` | デフォルトはEdge TTS。Gemini TTSにはGemini APIキーが必要。 |
-
-![モデルとAPI設定](./docs/images/provider-settings.png)
 
 ## ローカルで起動
 

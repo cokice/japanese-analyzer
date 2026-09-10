@@ -23,12 +23,13 @@
 
 ## 界面预览
 
-### 演示
-<img width="2244" height="1668" alt="动画" src="https://github.com/user-attachments/assets/23871163-c3c9-4cf5-9619-715c22c85ef8" />
+### 主界面 · 解析与词典
 
-### 主界面
+![主界面：日语解析、中文译文与词典释义](./docs/images/app-home.png)
 
-![主界面](./docs/images/app-home.png)
+### 深色模式
+
+![深色模式下的解析与词典](./docs/images/app-dark.png)
 
 ### 模型与 API 设置
 
@@ -36,7 +37,9 @@
 
 ### 移动端 AI 日语助手
 
-![移动端 AI 日语助手](./docs/images/mobile-chat.png)
+<p align="center">
+  <img src="./docs/images/mobile-chat.png" alt="移动端 AI 日语助手：结合当前句子解释语法" width="390" />
+</p>
 
 ## 功能
 

@@ -12,7 +12,7 @@ export interface JapaneseTextChunk {
   overLimit: boolean;
 }
 
-interface SemanticUnit {
+export interface SemanticUnit {
   start: number;
   end: number;
   sentenceCount: number;
@@ -54,7 +54,7 @@ function trailingCharacterBefore(text: string, index: number): string {
   return '';
 }
 
-function collectSemanticUnits(text: string): SemanticUnit[] {
+export function collectSemanticUnits(text: string): SemanticUnit[] {
   if (!text) return [];
 
   const units: SemanticUnit[] = [];

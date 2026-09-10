@@ -9,6 +9,7 @@ import {
 } from '../lib/aiModels';
 import { splitJapaneseText, type JapaneseTextChunk } from '../utils/japaneseChunking';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
+import { getLocalRomaji } from '../utils/romaji';
 
 export {
   DEFAULT_AI_PROVIDER,
@@ -42,6 +43,9 @@ export interface WordDetail {
   romaji?: string;
   dictionaryForm?: string;
   explanation: string;
+  conjugation?: string;
+  example?: string;
+  exampleTranslation?: string;
 }
 
 export interface ChatMessage {
@@ -150,7 +154,7 @@ function getHeaders(userApiKey?: string): HeadersInit {
 function buildAnalyzePrompt(sentence: string): string {
   return `请对以下日语句子进行词法分析，采用【日本学校文法（学校文法／教育文法）】体系，只返回严格有效的 JSON 对象，不要包含任何 markdown 或其他非 JSON 字符。
 
-JSON 对象必须包含 "tokens" 数组；数组里每个对象必须包含字符串字段："word", "pos", "furigana", "romaji"。
+JSON 对象必须包含 "tokens" 数组；数组里每个对象必须包含字符串字段："word", "pos", "furigana"。
 
 【最重要——原文完整性】
 0. 按顺序拼接所有 tokens[].word 后，必须与待解析原文逐字符完全一致。不得省略任何助词、标点、数字、空格或换行，不得改写、纠错、增补或规范化原文。特别注意「には」「とは」「でも」等连续助词必须逐个保留并按学校文法切分。
@@ -163,22 +167,22 @@ JSON 对象必须包含 "tokens" 数组；数组里每个对象必须包含字�
 5. 区分两种「ない」：接在动词后表否定的标为「助動詞」；表示"不存在／没有"的标为「形容詞」。
 
 【读音（furigana）——结合语境判断】
-6. 对同形異音語（同一汉字写法存在多个读音且意义不同的词），必须结合整句语境与该词的实际语义选择正确读音，不可一律采用最高频读音。furigana 一律使用平假名。
+6. 对同形異音語（同一汉字写法存在多个读音且意义不同的词），必须结合整句语境与该词的实际语义选择正确读音，不可一律采用最高频读音。furigana 一律使用平假名；汉字、数字、字母缩写的读音必须给出，纯假名可留空。不要输出 romaji，罗马音由程序生成。
 
 【词性标签——学校文法十大品詞】
 7. "pos" 必须使用日文标签，从以下封闭集合中选择：名詞、代名詞、動詞、形容詞、形容動詞、副詞、連体詞、接続詞、感動詞、助詞、助動詞、記号、改行。（补助动词归入「動詞」）
 
 【标点与换行】
-8. 标点符号只能输出为 {"word": "标点原文", "pos": "記号", "furigana": "", "romaji": ""}，不分配其他词性。包括但不限于：。 、 ， . , ？ ? ！ ! ： : ； ; 「 」 『 』 （ ） ( ) 等。
-9. 若句中包含换行符，在对应位置输出 {"word": "\\n", "pos": "改行", "furigana": "", "romaji": ""}。
+8. 标点符号只能输出为 {"word": "标点原文", "pos": "記号", "furigana": ""}，不分配其他词性。包括但不限于：。 、 ， . , ？ ? ！ ! ： : ； ; 「 」 『 』 （ ） ( ) 等。
+9. 若句中包含换行符，在对应位置输出 {"word": "\\n", "pos": "改行", "furigana": ""}。
 
 返回格式示例：
 {
   "tokens": [
-    { "word": "落ち", "pos": "動詞", "furigana": "おち", "romaji": "ochi" },
-    { "word": "て", "pos": "助詞", "furigana": "", "romaji": "te" },
-    { "word": "ゆく", "pos": "動詞", "furigana": "", "romaji": "yuku" },
-    { "word": "。", "pos": "記号", "furigana": "", "romaji": "" }
+    { "word": "落ち", "pos": "動詞", "furigana": "おち" },
+    { "word": "て", "pos": "助詞", "furigana": "" },
+    { "word": "ゆく", "pos": "動詞", "furigana": "" },
+    { "word": "。", "pos": "記号", "furigana": "" }
   ]
 }
 
@@ -216,7 +220,7 @@ function normalizeTokenDataArray(parsed: unknown): TokenData[] {
       word: item.word as string,
       pos: item.pos as string,
       furigana: typeof item.furigana === 'string' ? item.furigana : '',
-      romaji: typeof item.romaji === 'string' ? item.romaji : '',
+      romaji: getLocalRomaji(item.word as string, typeof item.furigana === 'string' ? item.furigana : '', item.pos as string),
     }));
 
   if (tokens.length === 0) {
@@ -350,15 +354,9 @@ function formatChunkReasoning(
     .join('\n\n');
 }
 
-const wordDetailFields = [
-  'originalWord',
-  'chineseTranslation',
-  'pos',
-  'furigana',
-  'romaji',
-  'dictionaryForm',
-  'explanation',
-] as const;
+const requiredWordDetailFields = ['chineseTranslation', 'dictionaryForm', 'explanation'] as const;
+const optionalWordDetailFields = ['originalWord', 'pos', 'furigana', 'romaji', 'conjugation', 'example', 'exampleTranslation'] as const;
+const wordDetailFields = [...requiredWordDetailFields, ...optionalWordDetailFields] as const;
 
 type WordDetailField = typeof wordDetailFields[number];
 
@@ -409,14 +407,19 @@ function parseLooseWordDetailObject(content: string): Record<WordDetailField, st
   }
 
   const values: Partial<Record<WordDetailField, string>> = {};
+  // 按实际字段顺序恢复，兼容精简响应和旧版词条。
+  const fields = wordDetailFields.filter((field) =>
+    (requiredWordDetailFields as readonly string[]).includes(field)
+    || new RegExp(`"${field}"\\s*:`).test(jsonText))
+    .sort((a, b) => jsonText.indexOf(`"${a}"`) - jsonText.indexOf(`"${b}"`));
 
-  wordDetailFields.forEach((field, index) => {
+  fields.forEach((field, index) => {
     const fieldPattern = new RegExp(`"${field}"\\s*:\\s*"`, 'm');
     const searchFrom = index === 0
       ? objectStart + 1
       : Math.max(
         objectStart + 1,
-        ...wordDetailFields
+        ...fields
           .slice(0, index)
           .map((previousField) => jsonText.indexOf(`"${previousField}"`))
       );
@@ -428,8 +431,8 @@ function parseLooseWordDetailObject(content: string): Record<WordDetailField, st
     const valueStart = searchFrom + fieldMatch.index + fieldMatch[0].length;
     let valueEnd = -1;
 
-    if (index < wordDetailFields.length - 1) {
-      const nextFieldPattern = new RegExp(`"\\s*,\\s*"${wordDetailFields[index + 1]}"\\s*:`, 'm');
+    if (index < fields.length - 1) {
+      const nextFieldPattern = new RegExp(`"\\s*,\\s*"${fields[index + 1]}"\\s*:`, 'm');
       const nextFieldMatch = nextFieldPattern.exec(jsonText.slice(valueStart));
       if (nextFieldMatch && nextFieldMatch.index !== undefined) {
         valueEnd = valueStart + nextFieldMatch.index;
@@ -445,7 +448,7 @@ function parseLooseWordDetailObject(content: string): Record<WordDetailField, st
     values[field] = decodeLooseJsonStringValue(jsonText.slice(valueStart, valueEnd));
   });
 
-  const missingField = wordDetailFields.find((field) => typeof values[field] !== 'string');
+  const missingField = requiredWordDetailFields.find((field) => typeof values[field] !== 'string');
   if (missingField) {
     throw new Error(`释义结果缺少 ${missingField} 字段`);
   }
@@ -453,42 +456,32 @@ function parseLooseWordDetailObject(content: string): Record<WordDetailField, st
   return values as Record<WordDetailField, string>;
 }
 
-export function parseWordDetailResponseContent(content: string): WordDetail {
+export interface WordDetailContext { word: string; pos: string; furigana?: string; }
+
+export function parseWordDetailResponseContent(content: string, context?: WordDetailContext): WordDetail {
   let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(extractJsonText(content));
-  } catch {
-    const detail = parseLooseWordDetailObject(content);
-    return {
-      originalWord: detail.originalWord,
-      chineseTranslation: detail.chineseTranslation,
-      pos: detail.pos,
-      furigana: detail.furigana,
-      romaji: detail.romaji,
-      dictionaryForm: detail.dictionaryForm,
-      explanation: normalizeEscapedLineBreaks(detail.explanation),
-    };
+  try { parsed = JSON.parse(extractJsonText(content)); }
+  catch { parsed = parseLooseWordDetailObject(content); }
+  if (!isRecord(parsed)) throw new Error('释义结果不是有效 JSON 对象');
+  for (const field of requiredWordDetailFields) {
+    if (typeof parsed[field] !== 'string') throw new Error(`释义结果缺少 ${field} 字段`);
   }
-
-  if (!isRecord(parsed) || typeof parsed.originalWord !== 'string') {
-    throw new Error('释义结果缺少 originalWord 字段');
-  }
-
-  const missingField = wordDetailFields.find((field) => typeof parsed[field] !== 'string');
-  if (missingField) {
-    throw new Error(`释义结果缺少 ${missingField} 字段`);
+  for (const field of optionalWordDetailFields) {
+    if (parsed[field] !== undefined && typeof parsed[field] !== 'string') throw new Error(`释义结果 ${field} 必须是字符串`);
   }
   const detail = parsed as Record<WordDetailField, string>;
-
+  const originalWord = context?.word || detail.originalWord;
+  if (!originalWord) throw new Error('释义结果缺少 originalWord 字段');
+  const pos = detail.pos?.trim() || context?.pos || '';
+  const furigana = detail.furigana?.trim() || context?.furigana || '';
   return {
-    originalWord: detail.originalWord,
-    chineseTranslation: detail.chineseTranslation,
-    pos: detail.pos,
-    furigana: detail.furigana,
-    romaji: detail.romaji,
+    originalWord, chineseTranslation: detail.chineseTranslation, pos, furigana,
+    romaji: getLocalRomaji(originalWord, furigana, pos),
     dictionaryForm: detail.dictionaryForm,
     explanation: normalizeEscapedLineBreaks(detail.explanation),
+    conjugation: normalizeEscapedLineBreaks(detail.conjugation || ''),
+    example: normalizeEscapedLineBreaks(detail.example || ''),
+    exampleTranslation: normalizeEscapedLineBreaks(detail.exampleTranslation || ''),
   };
 }
 
@@ -570,6 +563,7 @@ export async function readOpenAIContentStream(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   options: {
+    signal?: AbortSignal;
     debounceMs?: number;
     parseWarning?: string;
     validateFinalContent?: (content: string) => unknown;
@@ -599,6 +593,7 @@ export async function readOpenAIContentStream(
   let hasContentStarted = false;
   let updateTimeout: ReturnType<typeof setTimeout> | null = null;
   let reasoningUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
+  let hasEmitted = false;
 
   const clearPendingUpdate = () => {
     if (updateTimeout) {
@@ -615,6 +610,7 @@ export async function readOpenAIContentStream(
   };
 
   const emitReasoning = (isComplete: boolean) => {
+    if (options.signal?.aborted) return;
     if (!rawReasoningContent || !options.onReasoning) return;
 
     if (isComplete) {
@@ -636,24 +632,29 @@ export async function readOpenAIContentStream(
   };
 
   const emit = (content: string, isComplete: boolean) => {
-    clearPendingUpdate();
+    if (options.signal?.aborted) return;
 
     if (isComplete) {
+      clearPendingUpdate();
       onChunk(content, true);
       return;
     }
 
-    if (debounceMs <= 0) {
+    if (debounceMs <= 0 || !hasEmitted) {
+      hasEmitted = true;
       onChunk(content, false);
       return;
     }
 
+    if (updateTimeout) return;
     updateTimeout = setTimeout(() => {
-      onChunk(content, false);
+      updateTimeout = null;
+      if (!options.signal?.aborted) onChunk(rawContent, false);
     }, debounceMs);
   };
 
   const fail = (error: Error): boolean => {
+    if (options.signal?.aborted) return true;
     clearPendingUpdate();
     if (rawContent) {
       onChunk(rawContent, false);
@@ -666,6 +667,7 @@ export async function readOpenAIContentStream(
   };
 
   const complete = (): boolean => {
+    if (options.signal?.aborted) return true;
     clearPendingUpdate();
 
     if (terminalError) {
@@ -690,6 +692,7 @@ export async function readOpenAIContentStream(
   };
 
   const handleData = (data: string): boolean => {
+    if (options.signal?.aborted) return true;
     if (data === '[DONE]') {
       hasTerminalSignal = true;
       return complete();
@@ -730,41 +733,59 @@ export async function readOpenAIContentStream(
     return false;
   };
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    if (!value) continue;
+  const abort = () => {
+    clearPendingUpdate();
+    clearPendingReasoningUpdate();
+    void reader.cancel().catch(() => {});
+  };
+  options.signal?.addEventListener('abort', abort, { once: true });
+  try {
+    if (options.signal?.aborted) { abort(); return; }
+    while (true) {
+      const { value, done } = await reader.read();
+      if (options.signal?.aborted) return;
+      if (done) break;
+      if (!value) continue;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-    for (const line of lines) {
-      if (line.trim() === '') continue;
+      for (const line of lines) {
+        if (line.trim() === '') continue;
 
-      const trimmedLine = line.trimEnd();
-      if (!trimmedLine.startsWith('data:')) continue;
+        const trimmedLine = line.trimEnd();
+        if (!trimmedLine.startsWith('data:')) continue;
 
-      const data = trimmedLine.substring(5).trimStart();
-      if (handleData(data)) return;
+        const data = trimmedLine.substring(5).trimStart();
+        if (handleData(data)) return;
+      }
     }
-  }
 
-  buffer += decoder.decode();
-  if (buffer.trim() !== '') {
-    const trimmedBuffer = buffer.trim();
-    if (trimmedBuffer.startsWith('data:')) {
-      const data = trimmedBuffer.substring(5).trimStart();
-      if (handleData(data)) return;
+    buffer += decoder.decode();
+    if (buffer.trim() !== '') {
+      const trimmedBuffer = buffer.trim();
+      if (trimmedBuffer.startsWith('data:')) {
+        const data = trimmedBuffer.substring(5).trimStart();
+        if (handleData(data)) return;
+      }
     }
-  }
 
-  if (!hasTerminalSignal && options.validateFinalContent) {
-    fail(new Error(`${completionLabel}连接已结束，但没有收到完整结束信号，请重新生成。`));
-    return;
-  }
+    if (!hasTerminalSignal && options.validateFinalContent) {
+      fail(new Error(`${completionLabel}连接已结束，但没有收到完整结束信号，请重新生成。`));
+      return;
+    }
 
-  complete();
+    complete();
+  } catch (error) {
+    if (!options.signal?.aborted) throw error;
+  } finally {
+    clearPendingUpdate();
+    clearPendingReasoningUpdate();
+    options.signal?.removeEventListener('abort', abort);
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }
 
 // 分析单个语义块
@@ -920,7 +941,8 @@ async function streamAnalyzeSingleSentence(
     }
     
     await readOpenAIContentStream(response, onChunk, onError, {
-      debounceMs: 0,
+      debounceMs: 40,
+      signal: options.signal,
       parseWarning: 'Failed to parse streaming JSON chunk:',
       validateFinalContent: parseAnalyzeResponseContent,
       invalidContentMessage: '句子解析结果没有完整生成，请重新解析。',
@@ -1002,6 +1024,9 @@ export async function streamAnalyzeSentence(
     return;
   }
 
+  const groupController = new AbortController();
+  const requestOptions = { ...options, signal: options.signal
+    ? AbortSignal.any([options.signal, groupController.signal]) : groupController.signal };
   const tokensByChunk = Array<TokenData[] | null>(chunks.length).fill(null);
   const reasoningByChunk = Array<string>(chunks.length).fill('');
   const reasoningDoneByChunk = Array<boolean>(chunks.length).fill(false);
@@ -1049,13 +1074,14 @@ export async function streamAnalyzeSentence(
   };
 
   const reportError = (error: unknown) => {
-    if (failed) return;
+    if (failed || options.signal?.aborted) return;
     failed = true;
+    groupController.abort();
     onError(error instanceof Error ? error : new Error('未知错误'));
   };
 
   const worker = async () => {
-    while (!failed) {
+    while (!failed && !requestOptions.signal.aborted) {
       const chunkIndex = nextChunkIndex;
       if (chunkIndex >= chunks.length) return;
       nextChunkIndex += 1;
@@ -1067,7 +1093,7 @@ export async function streamAnalyzeSentence(
           chunks.length,
           options.onReasoning
             ? (text, done) => {
-                if (failed) return;
+                if (failed || requestOptions.signal.aborted) return;
                 reasoningByChunk[chunkIndex] = text;
                 reasoningDoneByChunk[chunkIndex] = done;
                 emitReasoning();
@@ -1076,7 +1102,7 @@ export async function streamAnalyzeSentence(
           userApiKey,
           provider,
           model,
-          options
+          requestOptions
         );
         if (failed) return;
         tokensByChunk[chunkIndex] = tokens;
@@ -1105,7 +1131,8 @@ export async function streamTranslateText(
   onError: (error: Error) => void,
   userApiKey?: string,
   provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null
+  model?: string | null,
+  signal?: AbortSignal
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/translate');
@@ -1114,6 +1141,7 @@ export async function streamTranslateText(
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
+      signal,
       body: JSON.stringify({ 
         text: japaneseText,
         ...getRequestProviderPayload(provider, model),
@@ -1129,10 +1157,12 @@ export async function streamTranslateText(
     }
     
     await readOpenAIContentStream(response, onChunk, onError, {
+      signal,
       debounceMs: 60,
       parseWarning: 'Failed to parse streaming JSON chunk:',
     });
   } catch (error) {
+    if (signal?.aborted || isAbortError(error)) return;
     console.error('Error in stream translating text:', error);
     onError(error instanceof Error ? error : new Error('未知错误'));
   }
@@ -1144,10 +1174,10 @@ export async function getWordDetails(
   pos: string, 
   sentence: string, 
   furigana?: string, 
-  romaji?: string,
   userApiKey?: string,
   provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null
+  model?: string | null,
+  signal?: AbortSignal
 ): Promise<WordDetail> {
   try {
     const apiUrl = getApiEndpoint('/word-detail');
@@ -1156,12 +1186,12 @@ export async function getWordDetails(
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
+      signal,
       body: JSON.stringify({ 
         word, 
         pos, 
         sentence, 
         furigana, 
-        romaji,
         ...getRequestProviderPayload(provider, model)
       })
     });
@@ -1177,7 +1207,7 @@ export async function getWordDetails(
     if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
       const responseContent = result.choices[0].message.content;
       try {
-        return parseWordDetailResponseContent(responseContent);
+        return parseWordDetailResponseContent(responseContent, { word, pos, furigana });
       } catch (e) {
         console.error("Failed to parse JSON from word detail response:", e, responseContent);
         throw new Error('释义结果JSON格式错误');
@@ -1201,10 +1231,10 @@ export async function streamWordDetails(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   furigana?: string,
-  romaji?: string,
   userApiKey?: string,
   provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null
+  model?: string | null,
+  signal?: AbortSignal
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/word-detail');
@@ -1213,12 +1243,12 @@ export async function streamWordDetails(
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
+      signal,
       body: JSON.stringify({ 
         word, 
         pos, 
         sentence, 
         furigana, 
-        romaji,
         ...getRequestProviderPayload(provider, model),
         useStream: true
       })
@@ -1232,14 +1262,16 @@ export async function streamWordDetails(
     }
     
     await readOpenAIContentStream(response, onChunk, onError, {
-      debounceMs: 30,
+      signal,
+      debounceMs: 50,
       parseWarning: '解析流式数据时出错:',
-      validateFinalContent: parseWordDetailResponseContent,
+      validateFinalContent: content => parseWordDetailResponseContent(content, { word, pos, furigana }),
       invalidContentMessage: '词语详解没有完整生成，请重新生成。',
       completionLabel: '词语详解',
     });
     
   } catch (error) {
+    if (signal?.aborted || isAbortError(error)) return;
     console.error('Stream Word Detail error:', error);
     onError(error instanceof Error ? error : new Error('流式查询词汇详情时出错'));
   }
@@ -1250,7 +1282,8 @@ export async function translateText(
   japaneseText: string,
   userApiKey?: string,
   provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null
+  model?: string | null,
+  signal?: AbortSignal
 ): Promise<string> {
   try {
     const apiUrl = getApiEndpoint('/translate');
@@ -1259,6 +1292,7 @@ export async function translateText(
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
+      signal,
       body: JSON.stringify({ 
         text: japaneseText,
         ...getRequestProviderPayload(provider, model)

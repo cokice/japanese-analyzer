@@ -1,4 +1,8 @@
 import assert from 'assert';
+import './readingLayout.test';
+import './wordDetailContext.test';
+import './wordDetailDictionary.test';
+import { runLocalOutputTests } from './localOutput.test';
 import {
   DEFAULT_AI_PROVIDER,
   DEEPSEEK_VISION_MODEL_NAME,
@@ -521,6 +525,9 @@ const completeWordDetailJson = JSON.stringify({
   romaji: 'enta-teinmento',
   dictionaryForm: 'エンターテインメント',
   explanation: '例句：この映画は純粋なエンターテインメントとして楽しめる。（这部电影可以纯粹作为娱乐来享受。）',
+  conjugation: '',
+  example: '映画を楽しむ。',
+  exampleTranslation: '欣赏电影。',
 });
 
 const looseWordDetailJson = `{
@@ -884,6 +891,7 @@ Promise.all([
   runOpenAIContentStreamTests(),
   runReasoningSummaryControllerTests(),
 ])
+  .then(runLocalOutputTests)
   .then(() => {
     console.log('All tests passed');
   })
