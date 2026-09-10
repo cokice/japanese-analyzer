@@ -1522,6 +1522,14 @@ input[type="text"],
   padding: 0;
 }
 
+/* 中文占位提示与日文输入分别选用对应字体。 */
+#japaneseInput::placeholder {
+  /* 中文提示不继承日文正文的字体，避免简体字回退时字形混杂。 */
+  font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
 /* Safari 输入修复 */
 html.safari textarea,
 html.safari input[type="text"] {
