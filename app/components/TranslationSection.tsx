@@ -152,33 +152,35 @@ export default function TranslationSection({
         {/* 包含子元素的外边距，避免高度测量遗漏译文顶部间距。 */}
         <AutoAnimateHeight duration={300} contentClassName="flow-root">
           {isVisible ? (
-            isLoading && !translation ? (
-              <ThinkingIndicator label="翻译中" />
-            ) : translation ? (
-              <div
-                className="flow-markdown full-translation-markdown mt-2 text-[16px] leading-7"
-                style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
-              >
-                {canAnimateTranslation ? (
-                  <FlowAnimatedMarkdown
-                    content={animatedTranslation}
-                    animation="fadeIn"
-                    sep="word"
-                    animationDuration="0.35s"
-                    animationTimingFunction="ease-out"
-                  />
-                ) : (
-                  <span className="whitespace-pre-wrap">{translation}</span>
-                )}
-              </div>
-            ) : (
-              <p
-                className="mb-0 mt-2 whitespace-pre-wrap text-[16px] leading-7"
-                style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
-              >
-                {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译。</span>}
-              </p>
-            )
+            <div className="translation-scroll-region flow-root" role="region" aria-label="中文译文正文" tabIndex={0}>
+              {isLoading && !translation ? (
+                <ThinkingIndicator label="翻译中" />
+              ) : translation ? (
+                <div
+                  className="flow-markdown full-translation-markdown mt-2 text-[16px] leading-7"
+                  style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
+                >
+                  {canAnimateTranslation ? (
+                    <FlowAnimatedMarkdown
+                      content={animatedTranslation}
+                      animation="fadeIn"
+                      sep="word"
+                      animationDuration="0.35s"
+                      animationTimingFunction="ease-out"
+                    />
+                  ) : (
+                    <span className="whitespace-pre-wrap">{translation}</span>
+                  )}
+                </div>
+              ) : (
+                <p
+                  className="mb-0 mt-2 whitespace-pre-wrap text-[16px] leading-7"
+                  style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
+                >
+                  {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译。</span>}
+                </p>
+              )}
+            </div>
           ) : null}
         </AutoAnimateHeight>
       </div>

@@ -596,6 +596,7 @@ export default function Home() {
               <div className="nd-card reading-card">
                 {shouldShowAnalyzer() && (
                   <AnalysisResult
+                    key={currentSentence}
                     tokens={analyzedTokens}
                     showFurigana={showFurigana}
                     onShowFuriganaChange={setShowFurigana}

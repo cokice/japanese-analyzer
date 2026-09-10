@@ -78,7 +78,15 @@ export default function AnalysisResult({
 
       <AutoAnimateHeight duration={300}>
         {/* 分词结果 */}
-        <div id="analyzedSentenceOutput" lang="ja" data-furigana={showFurigana} data-romaji={showRomaji}>
+        <div
+          id="analyzedSentenceOutput"
+          lang="ja"
+          role="region"
+          aria-label="日文解析正文"
+          tabIndex={0}
+          data-furigana={showFurigana}
+          data-romaji={showRomaji}
+        >
           {tokens.map((token, index) => {
             if (token.pos === '改行') {
               return <span key={index} style={{ flexBasis: '100%', height: 0 }} />;

@@ -558,33 +558,34 @@ export default function InputSection({
 
         <div className="mt-3.5 flex items-center">
           {/* 左侧工具按钮区域 */}
-          <div className="flex items-center gap-2.5" style={{ color: 'var(--ink-3)' }}>
+          <div className="input-tools flex items-center gap-2">
             {/* 上传图片按钮 */}
             <button
               id="uploadImageButton"
-              className="nd-icon-btn"
+              className="input-tool-button"
               onClick={() => document.getElementById('imageUploadInput')?.click()}
               disabled={isImageUploading}
               title="上传图片提取文字"
+              aria-label="上传图片提取文字"
             >
               {isImageUploading
                 ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
-                : Icon.cameraLg}
+                : Icon.photo}
             </button>
 
             {/* TTS按钮组 */}
             <div className="relative" ref={dropdownRef}>
-              <div className="flex">
+              <div className="input-voice-controls flex">
                 <button
                   id="speakButton"
-                  className="nd-icon-btn"
-                  style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRight: 'none' }}
+                  className="input-tool-button"
                   onClick={handleSpeak}
                   disabled={!inputText.trim() || isLoading || isSpeaking}
                   title={inputText.trim() ?
-                    `朗读文本 (${ttsProvider === 'edge' ? 'Edge' : 'Gemini'} TTS，预计需要 ${getEstimatedTime(inputText)})` :
+                    `朗读文本（约 ${getEstimatedTime(inputText)}）` :
                     '请先输入文本'
                   }
+                  aria-label="朗读文本"
                 >
                   {isSpeaking
                     ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
@@ -592,11 +593,13 @@ export default function InputSection({
                 </button>
 
                 <button
-                  className="nd-icon-btn"
-                  style={{ width: 26, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+                  className="input-tool-button input-tool-disclosure"
                   onClick={() => setShowTtsDropdown(!showTtsDropdown)}
                   disabled={isLoading || isSpeaking}
                   title="语音设置"
+                  aria-label="语音设置"
+                  aria-expanded={showTtsDropdown}
+                  aria-controls="inputVoiceSettings"
                 >
                   {Icon.chev}
                 </button>
@@ -605,7 +608,8 @@ export default function InputSection({
               {/* TTS设置下拉菜单 */}
               {showTtsDropdown && (
                 <div
-                  className="absolute bottom-full left-0 z-20 mb-2 min-w-[280px] rounded-2xl p-4"
+                  id="inputVoiceSettings"
+                  className="input-voice-menu absolute bottom-full z-20 mb-2 rounded-2xl p-4"
                   style={{
                     background: 'var(--bg-2)',
                     border: '1px solid var(--line)',
@@ -718,8 +722,7 @@ export default function InputSection({
           {/* 清空按钮 */}
           {inputText.trim() !== '' && (
             <button
-              className="mr-3 grid cursor-pointer place-items-center border-none bg-transparent"
-              style={{ color: 'var(--ink-3)' }}
+              className="input-tool-button input-clear-button mr-2"
               onClick={() => {
                 setInputText('');
                 setTtsAudioUrl(null);
@@ -727,8 +730,9 @@ export default function InputSection({
                 clearUsageMetadata();
               }}
               title="清空内容"
+              aria-label="清空内容"
             >
-              {Icon.x}
+              {Icon.xSm}
             </button>
           )}
 
