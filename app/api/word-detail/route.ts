@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     // 解析请求体
-    const { word, pos, sentence, furigana, romaji, model, apiUrl, useStream = false, provider } = await req.json();
+    const { word, pos, sentence, furigana, model, apiUrl, useStream = false, provider } = await req.json();
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
     
     if (!providerConfig.apiKey) {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       model: providerConfig.model,
       messages: [
         { role: "system", content: WORD_DETAIL_SYSTEM_PROMPT },
-        { role: "user", content: JSON.stringify({ word, pos, sentence, furigana: furigana || "", romaji: romaji || "" }) },
+        { role: "user", content: JSON.stringify({ word, pos, sentence, furigana: furigana || "" }) },
       ],
       stream: useStream,
     }, { structuredOutput: 'wordDetail' });
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
       url: providerConfig.apiUrl,
       apiKey: providerConfig.apiKey,
       payload,
+      signal: req.signal,
     });
 
     if (!proxied.ok) {
@@ -72,6 +73,10 @@ export async function POST(req: NextRequest) {
         { error: { message: error.message } },
         { status: error.status }
       );
+    }
+
+    if (req.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      return new Response(null, { status: 499 });
     }
 
     console.error('Server error (Word Detail):', error);

@@ -43,6 +43,7 @@ ${text}
       url: providerConfig.apiUrl,
       apiKey: providerConfig.apiKey,
       payload,
+      signal: req.signal,
     });
 
     if (!proxied.ok) {
@@ -85,6 +86,10 @@ ${text}
         { error: { message: error.message } },
         { status: error.status }
       );
+    }
+
+    if (req.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      return new Response(null, { status: 499 });
     }
 
     console.error('Server error (Translation):', error);

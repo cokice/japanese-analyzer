@@ -13,6 +13,7 @@ import ThinkingIndicator from './components/ThinkingIndicator';
 import ReasoningStream from './components/ReasoningStream';
 import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
+import { AnalyzeStreamParser } from './utils/analyzeStreamParser';
 import { selectWordDetailContext } from './utils/wordDetailContext';
 import { trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import {
@@ -37,7 +38,8 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
   const [useStream, setUseStream] = useState<boolean>(true);
-  const [streamContent, setStreamContent] = useState('');
+
+  const [analysisSignal, setAnalysisSignal] = useState<AbortSignal>();
   const [translationTrigger, setTranslationTrigger] = useState(0);
   const [showFurigana, setShowFurigana] = useState(true);
   const [showRomaji, setShowRomaji] = useState(false);
@@ -211,96 +213,6 @@ export default function Home() {
     }
   };
 
-  // 解析流式内容中的JSON数据
-  const parseStreamContent = (content: string): TokenData[] => {
-    try {
-      // 如果内容为空，返回空数组
-      if (!content || content.trim() === '') {
-        return [];
-      }
-
-      // 尝试整理内容
-      let processedContent = content;
-
-      // 如果内容包含markdown代码块，尝试提取
-      const jsonMatch = content.match(/```json\n([\s\S]*?)(\n```|$)/);
-      if (jsonMatch && jsonMatch[1]) {
-        processedContent = jsonMatch[1].trim();
-
-        // 检查是否是完整的JSON数组
-        if (!processedContent.endsWith(']') && processedContent.startsWith('[')) {
-          console.log("发现不完整的JSON块，尝试补全");
-          // 尝试找到最后一个完整的对象结束位置
-          const lastObjectEnd = processedContent.lastIndexOf('},');
-          if (lastObjectEnd !== -1) {
-            // 截取到最后一个完整对象
-            processedContent = processedContent.substring(0, lastObjectEnd + 1) + ']';
-          } else {
-            // 找不到完整对象，可能只有部分第一个对象
-            const firstObjectStart = processedContent.indexOf('{');
-            if (firstObjectStart !== -1) {
-              const partialObject = processedContent.substring(firstObjectStart);
-              // 检查是否至少包含一个完整的字段
-              if (partialObject.includes('":')) {
-                return []; // 返回空数组，等待更多内容
-              }
-            }
-            return []; // 返回空数组，等待更多内容
-          }
-        }
-      } else {
-        // 直接查找JSON数组
-        const arrayStart = processedContent.indexOf('[');
-        const arrayEnd = processedContent.lastIndexOf(']');
-
-        if (arrayStart !== -1 && arrayEnd === -1) {
-          // 找到开始但没找到结束，是不完整的
-          const lastObjectEnd = processedContent.lastIndexOf('},');
-          if (lastObjectEnd !== -1 && lastObjectEnd > arrayStart) {
-            // 有至少一个完整对象
-            processedContent = processedContent.substring(arrayStart, lastObjectEnd + 1) + ']';
-          } else {
-            return []; // 没有完整对象，返回空等待更多内容
-          }
-        } else if (arrayStart !== -1 && arrayEnd !== -1) {
-          // 提取数组部分
-          processedContent = processedContent.substring(arrayStart, arrayEnd + 1);
-        }
-      }
-
-      // 尝试解析处理后的内容
-      try {
-        const parsed = JSON.parse(processedContent) as TokenData[];
-        // 验证数组中的对象是否有必要的字段
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const validTokens = parsed.filter(item =>
-            item && typeof item === 'object' && 'word' in item && 'pos' in item
-          );
-          if (validTokens.length > 0) {
-            return validTokens;
-          }
-        }
-        return [];
-      } catch {
-        return [];
-      }
-    } catch (e) {
-      console.error("解析JSON时出错:", e);
-      console.debug("尝试解析的内容:", content);
-      return [];
-    }
-  };
-
-  // 监听流式内容变化，尝试解析TokenData
-  useEffect(() => {
-    if (streamContent && isAnalyzing) {
-      const tokens = parseStreamContent(streamContent);
-      if (tokens.length > 0) {
-        setAnalyzedTokens(tokens);
-      }
-    }
-  }, [streamContent, isAnalyzing]);
-
   // 添加函数，检查是否显示分析器
   const shouldShowAnalyzer = (): boolean => analyzedTokens.length > 0;
 
@@ -318,7 +230,7 @@ export default function Home() {
     setSelectedIndex(index);
     trackWordDetailUsage(aiProvider, aiModel);
     const context = selectWordDetailContext(currentSentence, analyzedTokens, index);
-    fetchWordDetails(token.word, token.pos, context, token.furigana, token.romaji);
+    fetchWordDetails(token.word, token.pos, context, token.furigana);
   }, [aiProvider, aiModel, selectedIndex, currentSentence, analyzedTokens, fetchWordDetails, handleCloseWordDetail]);
 
   const handleRefreshWordDetail = useCallback(() => {
@@ -332,7 +244,6 @@ export default function Home() {
       token.pos,
       selectWordDetailContext(currentSentence, analyzedTokens, selectedIndex),
       token.furigana,
-      token.romaji,
       { force: true }
     );
   }, [analyzedTokens, currentSentence, fetchWordDetails, selectedIndex]);
@@ -343,6 +254,8 @@ export default function Home() {
     analysisAbortControllerRef.current?.abort();
     const analysisAbortController = new AbortController();
     analysisAbortControllerRef.current = analysisAbortController;
+    setAnalysisSignal(analysisAbortController.signal);
+    const streamParser = new AnalyzeStreamParser();
     const isCurrentAnalysis = () => (
       analysisAbortControllerRef.current === analysisAbortController
       && !analysisAbortController.signal.aborted
@@ -353,7 +266,6 @@ export default function Home() {
     setAnalysisError('');
     setCurrentSentence(text);
     setTranslationTrigger(Date.now());
-    setStreamContent('');
     setAnalyzedTokens([]);
     const deepseekThinkingActive = aiProvider === 'deepseek' && deepseekThinkingEnabled;
     reasoningTextStore.reset();
@@ -422,7 +334,10 @@ export default function Home() {
           text,
           (chunk, isDone) => {
             if (!isCurrentAnalysis()) return;
-            setStreamContent(chunk);
+            if (!isDone) {
+              const tokens = streamParser.push(chunk);
+              if (tokens.length) setAnalyzedTokens(tokens);
+            }
             if (isDone) {
               finishReasoningStatus('已深度思考');
               setIsAnalyzing(false);
@@ -440,7 +355,6 @@ export default function Home() {
             finishReasoningStatus('深度思考已中止');
             console.error('Stream analysis error:', error);
             setAnalysisError(error.message || '流式解析错误');
-            setStreamContent('');
             setAnalyzedTokens([]);
             setIsAnalyzing(false);
             analysisAbortControllerRef.current = null;
@@ -482,6 +396,7 @@ export default function Home() {
 
     analysisAbortControllerRef.current = null;
     controller.abort();
+    handleCloseWordDetail();
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;
     setIsAnalyzing(false);
@@ -615,6 +530,7 @@ export default function Home() {
                     aiModel={aiModel}
                     useStream={useStream}
                     trigger={translationTrigger}
+                    analysisSignal={analysisSignal}
                   />
                 )}
               </div>

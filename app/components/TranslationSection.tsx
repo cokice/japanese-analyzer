@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { translateText, streamTranslateText } from '../services/api';
 import type { AIModelName, AIProvider } from '../services/api';
 import ThinkingIndicator from './ThinkingIndicator';
@@ -16,6 +16,7 @@ interface TranslationSectionProps {
   aiModel: AIModelName;
   useStream?: boolean;
   trigger?: number;
+  analysisSignal?: AbortSignal;
 }
 
 export default function TranslationSection({
@@ -24,8 +25,10 @@ export default function TranslationSection({
   aiProvider,
   aiModel,
   useStream = true, // 默认为true，保持向后兼容
-  trigger
+  trigger,
+  analysisSignal
 }: TranslationSectionProps) {
+  const requestRef = useRef<AbortController | null>(null);
   const [translation, setTranslation] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
@@ -36,49 +39,34 @@ export default function TranslationSection({
     import('flowtoken').catch(() => {});
   }, []);
 
-  const handleTranslate = async () => {
-    if (!japaneseText) {
-      alert('请先输入或分析日语句子！');
-      return;
-    }
-
-    setIsLoading(true);
-    setIsVisible(true); // 确保显示翻译区域
-    setCanAnimateTranslation(false);
-    setTranslation(''); // 清空之前的翻译结果
-
+  const handleTranslate = useCallback(async () => {
+    if (!japaneseText) return;
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    const signal = analysisSignal && !analysisSignal.aborted
+      ? AbortSignal.any([controller.signal, analysisSignal]) : controller.signal;
+    const isCurrent = () => requestRef.current === controller && !signal.aborted;
+    setIsLoading(true); setIsVisible(true); setCanAnimateTranslation(false); setTranslation('');
     try {
       if (useStream) {
-        // 使用流式API进行翻译
-        streamTranslateText(
-          japaneseText,
-          (chunk, isDone) => {
-            setTranslation(chunk);
-            if (isDone) {
-              setIsLoading(false);
-            }
-          },
-          (error) => {
-            console.error('Error during streaming translation:', error);
-            setTranslation(`翻译时发生错误: ${error.message || '未知错误'}。`);
-            setIsLoading(false);
-          },
-          userApiKey,
-          aiProvider,
-          aiModel
-        );
+        await streamTranslateText(japaneseText, (chunk) => {
+          if (isCurrent()) setTranslation(chunk);
+        }, (error) => {
+          if (isCurrent()) setTranslation(`翻译时发生错误: ${error.message}。`);
+        }, userApiKey, aiProvider, aiModel, signal);
       } else {
-        // 使用传统API进行翻译
-        const translatedText = await translateText(japaneseText, userApiKey, aiProvider, aiModel);
-        setTranslation(translatedText);
-        setIsLoading(false);
+        const text = await translateText(japaneseText, userApiKey, aiProvider, aiModel, signal);
+        if (isCurrent()) setTranslation(text);
       }
     } catch (error) {
-      console.error('Error during full sentence translation:', error);
-      setTranslation(`翻译时发生错误: ${error instanceof Error ? error.message : '未知错误'}。`);
-      setIsLoading(false);
+      if (isCurrent()) setTranslation(`翻译时发生错误: ${error instanceof Error ? error.message : '未知错误'}。`);
+    } finally {
+      if (requestRef.current === controller) {
+        setIsLoading(false); requestRef.current = null;
+      }
     }
-  };
+  }, [japaneseText, userApiKey, aiProvider, aiModel, useStream, analysisSignal]);
 
   const handleCopy = () => {
     if (!translation) return;
@@ -95,13 +83,10 @@ export default function TranslationSection({
     return preserveLineBreaksForMarkdown(escapeHtmlForMarkdown(translation));
   }, [translation]);
 
-  // 当trigger变化时自动开始翻译
   useEffect(() => {
-    if (trigger && japaneseText) {
-      handleTranslate();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trigger]);
+    if (trigger && japaneseText) void handleTranslate();
+    return () => { requestRef.current?.abort(); requestRef.current = null; };
+  }, [trigger, japaneseText, handleTranslate]);
 
   useEffect(() => {
     if (!translation) {

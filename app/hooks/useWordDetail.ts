@@ -1,372 +1,114 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getWordDetails, parseWordDetailResponseContent, streamWordDetails, WordDetail } from '../services/api';
-import type { AIModelName, AIProvider } from '../services/api';
-import { containsKanji } from '../utils/helpers';
+import { getWordDetails, parseWordDetailResponseContent, streamWordDetails, type WordDetail, type AIModelName, type AIProvider } from '../services/api';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
+import { getLocalRomaji } from '../utils/romaji';
 
-interface UseWordDetailOptions {
-  userApiKey?: string;
-  aiProvider: AIProvider;
-  aiModel: AIModelName;
-  useStream?: boolean;
+interface UseWordDetailOptions { userApiKey?: string; aiProvider: AIProvider; aiModel: AIModelName; useStream?: boolean; }
+interface FetchWordDetailsOptions { force?: boolean; }
+
+function partialField(content: string, name: string, completeOnly = false): string {
+  const match = new RegExp('"' + name + '"\\s*:\\s*"').exec(content);
+  if (!match) return '';
+  const start = match.index + match[0].length;
+  let escaped = false;
+  for (let i = start; i < content.length; i++) {
+    if (escaped) { escaped = false; continue; }
+    if (content[i] === '\\') { escaped = true; continue; }
+    if (content[i] === '"') {
+      try { return normalizeEscapedLineBreaks(JSON.parse('"' + content.slice(start, i) + '"')); }
+      catch { return ''; }
+    }
+  }
+  if (completeOnly) return '';
+  // 未完成的 JSON 转义暂不展示，等后续片段补齐。
+  const partial = content.slice(start).replace(/\\(?:u[0-9a-fA-F]{0,3})?$/, '');
+  try { return normalizeEscapedLineBreaks(JSON.parse('"' + partial + '"')); }
+  catch { return ''; }
 }
 
-interface WordDetailCacheEntry {
-  detail: WordDetail | null;
-  isLoading: boolean;
-  isStreamLoading: boolean;
-  streamContent: string;
-  streamError: string;
-  requestId: number;
-}
-
-interface FetchWordDetailsOptions {
-  force?: boolean;
-}
-
-const MAX_WORD_DETAIL_CACHE = 80;
-
-function normalizeWordDetail(detail: WordDetail): WordDetail {
-  return {
-    ...detail,
-    explanation: normalizeEscapedLineBreaks(detail.explanation || ''),
-    conjugation: normalizeEscapedLineBreaks(detail.conjugation || ''),
-    example: normalizeEscapedLineBreaks(detail.example || ''),
-    exampleTranslation: normalizeEscapedLineBreaks(detail.exampleTranslation || ''),
-  };
-}
-
-function createPendingDetail(
-  word: string,
-  pos: string,
-  furigana?: string,
-  romaji?: string
-): WordDetail {
-  return {
-    originalWord: word,
-    chineseTranslation: '加载中...',
-    pos,
-    furigana: (furigana && furigana !== word && containsKanji(word)) ? furigana : '',
-    romaji: romaji || '',
-    dictionaryForm: '',
-    explanation: '',
-  };
-}
-
-// 词汇详情获取（含流式实时解析），从 AnalysisResult 提取
 export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = true }: UseWordDetailOptions) {
   const [wordDetail, setWordDetail] = useState<WordDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreamLoading, setIsStreamLoading] = useState(false);
   const [streamContent, setStreamContent] = useState('');
   const [streamError, setStreamError] = useState('');
+  // 只缓存已完成的词条；被取消的半截结果不能当作命中。
+  const cacheRef = useRef(new Map<string, WordDetail>());
+  const activeRef = useRef<{ key: string; controller: AbortController } | null>(null);
 
-  const cacheRef = useRef<Map<string, WordDetailCacheEntry>>(new Map());
-  const currentKeyRef = useRef<string | null>(null);
-  const requestSeqRef = useRef(0);
-
-  const resetVisibleState = useCallback(() => {
-    setWordDetail(null);
-    setStreamContent('');
-    setStreamError('');
-    setIsLoading(false);
-    setIsStreamLoading(false);
-  }, []);
-
-  const applyEntryToState = useCallback((entry: WordDetailCacheEntry) => {
-    setWordDetail(entry.detail);
-    setIsLoading(entry.isLoading);
-    setIsStreamLoading(entry.isStreamLoading);
-    setStreamContent(entry.streamContent);
-    setStreamError(entry.streamError);
-  }, []);
-
-  const syncCurrentEntry = useCallback((key: string) => {
-    if (currentKeyRef.current !== key) return;
-
-    const entry = cacheRef.current.get(key);
-    if (entry) {
-      applyEntryToState(entry);
-    }
-  }, [applyEntryToState]);
-
-  const pruneCache = useCallback((protectedKey: string) => {
-    if (cacheRef.current.size <= MAX_WORD_DETAIL_CACHE) return;
-
-    for (const key of cacheRef.current.keys()) {
-      if (cacheRef.current.size <= MAX_WORD_DETAIL_CACHE) break;
-      if (key !== protectedKey) {
-        cacheRef.current.delete(key);
-      }
-    }
+  const clearWordDetail = useCallback(() => {
+    activeRef.current?.controller.abort();
+    activeRef.current = null;
+    setWordDetail(null); setIsLoading(false); setIsStreamLoading(false);
+    setStreamContent(''); setStreamError('');
   }, []);
 
   useEffect(() => {
     cacheRef.current.clear();
-    currentKeyRef.current = null;
-    resetVisibleState();
-  }, [userApiKey, aiProvider, aiModel, useStream, resetVisibleState]);
-
-  const getCacheKey = useCallback((
-    word: string,
-    pos: string,
-    sentence: string,
-    furigana?: string,
-    romaji?: string
-  ) => JSON.stringify({
-    provider: aiProvider,
-    model: aiModel,
-    mode: useStream ? 'stream' : 'standard',
-    format: 'dictionary-v1',
-    sentence,
-    word,
-    pos,
-    furigana: furigana || '',
-    romaji: romaji || '',
-  }), [aiProvider, aiModel, useStream]);
-
-  // 实时解析流式内容的部分字段
-  const parseStreamContentRealtime = useCallback((content: string) => {
-    const result = {
-      originalWord: '',
-      chineseTranslation: '',
-      pos: '',
-      furigana: '',
-      romaji: '',
-      dictionaryForm: '',
-      explanation: '',
-      conjugation: '',
-      example: '',
-      exampleTranslation: '',
-      rawContent: content
-    };
-
-    try {
-      const extractFieldEfficient = (fieldName: string): string => {
-        const searchStr = `"${fieldName}":`;
-        const startIndex = content.indexOf(searchStr);
-        if (startIndex === -1) return '';
-
-        const valueStart = content.indexOf('"', startIndex + searchStr.length);
-        if (valueStart === -1) return '';
-
-        let valueEnd = valueStart + 1;
-        let escapeNext = false;
-
-        // 找到字符串结束位置，处理转义字符
-        while (valueEnd < content.length) {
-          const char = content[valueEnd];
-          if (escapeNext) {
-            escapeNext = false;
-          } else if (char === '\\') {
-            escapeNext = true;
-          } else if (char === '"') {
-            break;
-          }
-          valueEnd++;
-        }
-
-        if (valueEnd >= content.length) {
-          // 字符串未结束，可能还在生成中
-          return normalizeEscapedLineBreaks(
-            content.substring(valueStart + 1, valueEnd).replace(/\\"/g, '"')
-          ) + '...';
-        }
-
-        const rawJsonString = content.substring(valueStart, valueEnd + 1);
-        try {
-          const parsedValue = JSON.parse(rawJsonString);
-          return typeof parsedValue === 'string'
-            ? normalizeEscapedLineBreaks(parsedValue)
-            : '';
-        } catch {
-          return normalizeEscapedLineBreaks(
-            content.substring(valueStart + 1, valueEnd).replace(/\\"/g, '"')
-          );
-        }
-      };
-
-      result.originalWord = extractFieldEfficient('originalWord');
-      result.chineseTranslation = extractFieldEfficient('chineseTranslation');
-      result.pos = extractFieldEfficient('pos');
-      result.furigana = extractFieldEfficient('furigana');
-      result.romaji = extractFieldEfficient('romaji');
-      result.dictionaryForm = extractFieldEfficient('dictionaryForm');
-      result.explanation = extractFieldEfficient('explanation');
-      result.conjugation = extractFieldEfficient('conjugation');
-      result.example = extractFieldEfficient('example');
-      result.exampleTranslation = extractFieldEfficient('exampleTranslation');
-
-      return result;
-    } catch (e) {
-      console.warn('实时解析出错:', e);
-      return result;
-    }
-  }, []);
-
-  const parseFinalWordDetail = useCallback((chunk: string): WordDetail | null => {
-    try {
-      return normalizeWordDetail(parseWordDetailResponseContent(chunk));
-    } catch (e) {
-      console.warn('最终JSON解析失败，保持实时解析结果:', e);
-    }
-
-    return null;
-  }, []);
+    clearWordDetail();
+    return () => { activeRef.current?.controller.abort(); activeRef.current = null; };
+  }, [userApiKey, aiProvider, aiModel, useStream, clearWordDetail]);
 
   const fetchWordDetails = useCallback(async (
-    word: string,
-    pos: string,
-    sentence: string,
-    furigana?: string,
-    romaji?: string,
-    options: FetchWordDetailsOptions = {}
+    word: string, pos: string, sentence: string, furigana?: string, options: FetchWordDetailsOptions = {}
   ) => {
-    const cacheKey = getCacheKey(word, pos, sentence, furigana, romaji);
-    const cachedEntry = cacheRef.current.get(cacheKey);
-    currentKeyRef.current = cacheKey;
-
-    if (!options.force && cachedEntry) {
-      applyEntryToState(cachedEntry);
-      if (cachedEntry.isLoading || cachedEntry.isStreamLoading || cachedEntry.detail || cachedEntry.streamError) {
-        return;
-      }
+    const key = JSON.stringify([aiProvider, aiModel, sentence, word, pos, furigana || '']);
+    if (!options.force && activeRef.current?.key === key) return;
+    activeRef.current?.controller.abort();
+    activeRef.current = null;
+    setStreamError(''); setStreamContent('');
+    const cached = cacheRef.current.get(key);
+    if (!options.force && cached) {
+      setWordDetail(cached); setIsLoading(false); setIsStreamLoading(false); return;
     }
+    const controller = new AbortController();
+    const { signal } = controller;
+    activeRef.current = { key, controller };
+    const isCurrent = () => activeRef.current?.controller === controller && !signal.aborted;
+    const context = { word, pos, furigana };
+    setWordDetail({ originalWord: word, pos, furigana: furigana || '', romaji: getLocalRomaji(word, furigana, pos), chineseTranslation: '加载中...', explanation: '' });
+    setIsLoading(!useStream); setIsStreamLoading(useStream);
 
-    const requestId = ++requestSeqRef.current;
-    const entry: WordDetailCacheEntry = {
-      detail: createPendingDetail(word, pos, furigana, romaji),
-      isLoading: !useStream,
-      isStreamLoading: useStream,
-      streamContent: '',
-      streamError: '',
-      requestId,
+    const finish = (detail: WordDetail) => {
+      if (!isCurrent()) return;
+      cacheRef.current.set(key, detail);
+      if (cacheRef.current.size > 80) cacheRef.current.delete(cacheRef.current.keys().next().value!);
+      setWordDetail(detail); setIsLoading(false); setIsStreamLoading(false);
+      activeRef.current = null;
     };
-
-    cacheRef.current.set(cacheKey, entry);
-    pruneCache(cacheKey);
-    applyEntryToState(entry);
-
-    if (useStream) {
-      void streamWordDetails(
-        word,
-        pos,
-        sentence,
-        (chunk, isDone) => {
-          const activeEntry = cacheRef.current.get(cacheKey);
-          if (!activeEntry || activeEntry.requestId !== requestId) return;
-
-          activeEntry.streamContent = chunk;
-          activeEntry.streamError = '';
-
-          const realtimeData = parseStreamContentRealtime(chunk);
-          if (realtimeData.originalWord || realtimeData.chineseTranslation || realtimeData.explanation) {
-            activeEntry.detail = {
-              originalWord: realtimeData.originalWord || word,
-              chineseTranslation: realtimeData.chineseTranslation || '加载中...',
-              pos: realtimeData.pos || pos,
-              furigana: realtimeData.furigana || furigana || '',
-              romaji: realtimeData.romaji || romaji || '',
-              dictionaryForm: realtimeData.dictionaryForm || '',
-              explanation: realtimeData.explanation || '',
-              conjugation: realtimeData.conjugation,
-              example: realtimeData.example,
-              exampleTranslation: realtimeData.exampleTranslation,
-            };
-          }
-
-          if (isDone) {
-            activeEntry.isStreamLoading = false;
-            const finalDetails = parseFinalWordDetail(chunk);
-            if (finalDetails) {
-              activeEntry.detail = finalDetails;
-            }
-          }
-
-          syncCurrentEntry(cacheKey);
-        },
-        (error) => {
-          const activeEntry = cacheRef.current.get(cacheKey);
-          if (!activeEntry || activeEntry.requestId !== requestId) return;
-
-          console.error('Stream word detail error:', error);
-          activeEntry.streamError = error.message || '流式查询词汇详情出错';
-          activeEntry.isStreamLoading = false;
-          activeEntry.detail = {
-            originalWord: word,
-            pos: pos,
-            furigana: (furigana && furigana !== word && containsKanji(word)) ? furigana : '',
-            romaji: romaji || '',
-            dictionaryForm: '',
-            chineseTranslation: '错误',
-            explanation: `流式查询释义时发生错误: ${error.message || '未知错误'}。`
-          };
-          syncCurrentEntry(cacheKey);
-        },
-        furigana,
-        romaji,
-        userApiKey,
-        aiProvider,
-        aiModel
-      );
-    } else {
-      try {
-        const details = await getWordDetails(word, pos, sentence, furigana, romaji, userApiKey, aiProvider, aiModel);
-        const activeEntry = cacheRef.current.get(cacheKey);
-        if (!activeEntry || activeEntry.requestId !== requestId) return;
-
-        activeEntry.detail = details;
-        activeEntry.streamError = '';
-      } catch (error) {
-        const activeEntry = cacheRef.current.get(cacheKey);
-        if (!activeEntry || activeEntry.requestId !== requestId) return;
-
-        console.error('Error fetching word details:', error);
-        activeEntry.streamError = error instanceof Error ? error.message : '查询释义时发生错误';
-        activeEntry.detail = {
-          originalWord: word,
-          pos: pos,
-          furigana: (furigana && furigana !== word && containsKanji(word)) ? furigana : '',
-          romaji: romaji || '',
-          dictionaryForm: '',
-          chineseTranslation: '错误',
-          explanation: `查询释义时发生错误: ${error instanceof Error ? error.message : '未知错误'}。`
-        };
-      } finally {
-        const activeEntry = cacheRef.current.get(cacheKey);
-        if (!activeEntry || activeEntry.requestId !== requestId) return;
-
-        activeEntry.isLoading = false;
-        syncCurrentEntry(cacheKey);
+    const fail = (error: Error) => {
+      if (!isCurrent()) return;
+      setStreamError(error.message || '查询释义失败');
+      setIsLoading(false); setIsStreamLoading(false); activeRef.current = null;
+    };
+    try {
+      if (useStream) {
+        await streamWordDetails(word, pos, sentence, (content, done) => {
+          if (!isCurrent()) return;
+          setStreamContent(content);
+          if (done) { finish(parseWordDetailResponseContent(content, context)); return; }
+          const correctedPos = partialField(content, 'pos', true) || pos;
+          const correctedReading = partialField(content, 'furigana', true) || furigana || '';
+          setWordDetail({
+            originalWord: word, pos: correctedPos, furigana: correctedReading,
+            romaji: getLocalRomaji(word, correctedReading, correctedPos),
+            chineseTranslation: partialField(content, 'chineseTranslation') || '加载中...',
+            dictionaryForm: partialField(content, 'dictionaryForm'),
+            explanation: partialField(content, 'explanation'),
+            conjugation: partialField(content, 'conjugation'),
+            example: partialField(content, 'example'),
+            exampleTranslation: partialField(content, 'exampleTranslation'),
+          });
+        }, fail, furigana, userApiKey, aiProvider, aiModel, signal);
+      } else {
+        finish(await getWordDetails(word, pos, sentence, furigana, userApiKey, aiProvider, aiModel, signal));
       }
+    } catch (error) {
+      if (isCurrent()) fail(error instanceof Error ? error : new Error('查询释义失败'));
     }
-  }, [
-    aiProvider,
-    aiModel,
-    applyEntryToState,
-    getCacheKey,
-    parseFinalWordDetail,
-    parseStreamContentRealtime,
-    pruneCache,
-    syncCurrentEntry,
-    useStream,
-    userApiKey,
-  ]);
+  }, [userApiKey, aiProvider, aiModel, useStream]);
 
-  const clearWordDetail = useCallback(() => {
-    currentKeyRef.current = null;
-    resetVisibleState();
-  }, [resetVisibleState]);
-
-  return {
-    wordDetail,
-    isLoading,
-    isStreamLoading,
-    streamContent,
-    streamError,
-    fetchWordDetails,
-    clearWordDetail,
-  };
+  return { wordDetail, isLoading, isStreamLoading, streamContent, streamError, fetchWordDetails, clearWordDetail };
 }

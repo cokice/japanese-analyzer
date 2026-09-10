@@ -1,6 +1,7 @@
 import assert from 'assert';
 import './wordDetailContext.test';
 import './wordDetailDictionary.test';
+import { runLocalOutputTests } from './localOutput.test';
 import {
   DEFAULT_AI_PROVIDER,
   DEEPSEEK_VISION_MODEL_NAME,
@@ -889,6 +890,7 @@ Promise.all([
   runOpenAIContentStreamTests(),
   runReasoningSummaryControllerTests(),
 ])
+  .then(runLocalOutputTests)
   .then(() => {
     console.log('All tests passed');
   })
