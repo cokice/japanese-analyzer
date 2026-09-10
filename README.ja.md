@@ -6,7 +6,7 @@
 [![Demo](https://img.shields.io/badge/demo-online-blue.svg)](https://japanese-analyzer-demo.vercel.app/)
 
 > **AI大規模言語モデルを搭載した日本語文の詳細解析ツール**  
-> 中国語話者の日本語学習者向けに、Gemini Flash（`gemini-3.5-flash`）モデルを使って、構文構造の分析・分解、品詞の注釈、発音と意味の表示を行います。日本語の読解をもっと簡単にします。
+> 中国語話者の日本語学習者向けに、Gemini Flash（`gemini-flash-latest`）モデルを使って、構文構造の分析・分解、品詞の注釈、発音と意味の表示を行います。日本語の読解をもっと簡単にします。
 
 ---
 
