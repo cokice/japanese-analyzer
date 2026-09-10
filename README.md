@@ -4,7 +4,7 @@
 
 面向中文学习者的日语句子解析工具。输入一句日语，应用会拆解词汇、读音、罗马音、词性、整句翻译和单词详解，并提供图片识别、朗读和 AI 日语助手。
 
-体验链接 https://nihongodemo.howen.ink/
+体验链接：[在线体验](https://nihongodemo.howen.ink/)。
 
 <p align="center">
   <img src="./public/logo/logo-text.png" alt="日本語文章解析" width="360" />
@@ -46,7 +46,7 @@
 - 句子解析：分词、假名、罗马音、词性标记和中文释义。
 - 单词详解：点击词汇查看读音、释义、语法角色和上下文解释。
 - 整句翻译：生成中文整句翻译，方便快速理解语境。
-- 图片识别：上传或粘贴图片提取日语文字；DeepSeek 使用独立视觉模型进行 OCR。
+- 图片识别：上传或粘贴图片提取日语文字；DeepSeek 文本解析与 OCR 统一使用 `deepseek-flash`，Gemini 使用所选模型。
 - 朗读：支持 Edge TTS 和 Gemini TTS。
 - AI 日语助手：围绕日语语法、词汇、文化和当前句子提问。
 - 双模型服务商：文本模型支持 Gemini 和 DeepSeek，默认使用 DeepSeek。
@@ -69,10 +69,18 @@
 ```bash
 git clone https://github.com/cokice/japanese-analyzer.git
 cd japanese-analyzer
-npm install
+npm ci
 ```
 
-复制环境变量模板：
+建议使用 Node.js 22（与 Docker 镜像一致）。复制环境变量模板：
+
+macOS / Linux：
+
+```bash
+cp .env.example .env.local
+```
+
+Windows PowerShell：
 
 ```powershell
 Copy-Item .env.example .env.local
@@ -99,7 +107,7 @@ NEXT_PUBLIC_UMAMI_WEBSITE_ID=
 npm run dev
 ```
 
-打开 `http://127.0.0.1:3000`。
+打开 [http://127.0.0.1:3000](http://127.0.0.1:3000)。
 
 ## 环境变量
 
@@ -116,7 +124,8 @@ npm run dev
 说明：
 
 - `DEEPSEEK_API_KEY` 和 `GEMINI_API_KEY` 是服务器端默认密钥，不会暴露到前端。
-- 用户也可以在右上角设置中填写自己的 Key，设置仅保存在浏览器本地。
+- 用户也可以在右上角设置中填写自己的 Key，设置保存在浏览器本地；发起请求时，Key 会发送给本应用服务端，由服务端调用上游 API。接口地址由服务端环境变量配置。
+- Gemini TTS 使用独立的 `gemini-3.1-flash-tts-preview` 模型和官方语音接口，不受 `GEMINI_API_URL` 影响。
 - Umami 统计通过本地 loader 读取运行时环境变量；两个 `NEXT_PUBLIC_UMAMI_*` 都为空时不会加载 Umami。
 - 启用 Umami 后会记录隐私最小化的使用事件：`analyze_sentence` 只包含解析 `provider` / `model`、是否使用图片识别、图片识别模型、是否使用 TTS、TTS 模型；`image_text_extract`、`tts_speech`、`word_detail_click` 只包含对应功能的 provider/model 元数据。事件不包含输入文本、图片内容、提取结果、词汇内容、翻译结果、错误内容或 API Key。
 - 不要提交 `.env.local`，仓库已经默认忽略本地环境变量文件。
@@ -192,6 +201,23 @@ npm run dev
 
 项目提供 Docker Hub 多架构镜像，支持 `linux/amd64` 和 `linux/arm64`。容器默认监听 `3002`，下面示例会把宿主机 `3002` 映射到容器 `3002`。
 
+使用仓库中的 Docker Compose 配置（在仓库根目录执行）：
+
+```bash
+cp .env.production.example .env.production
+# 编辑 .env.production，配置所需 API Key
+docker compose -f docker-compose.hub.yml up -d
+```
+
+Windows PowerShell 使用 `Copy-Item .env.production.example .env.production` 复制模板。后续更新镜像并重建容器：
+
+```bash
+docker compose -f docker-compose.hub.yml pull
+docker compose -f docker-compose.hub.yml up -d
+```
+
+也可以使用下面的 `docker run` 命令部署。
+
 拉取镜像：
 
 ```bash
@@ -254,9 +280,11 @@ docker run -d \
 npm run dev      # 本地开发
 npm test         # 运行 API / provider 配置测试
 npm run build    # 生产构建，发布前建议先跑
+npm start        # 启动生产服务，需要先完成构建
+npx tsc --noEmit  # TypeScript 类型检查
+npx eslint app tests  # 检查应用源码与测试
 ```
 
-```
 ## 致谢
 
 - 感谢 [LINUX DO](https://linux.do/) 社区的支持与推广
