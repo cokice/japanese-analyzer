@@ -15,8 +15,8 @@ type StateMorphButtonProps = {
 };
 
 const labels: Record<StateMorphButtonState, string> = {
-  idle: "提交",
-  loading: "终止",
+  idle: "解析",
+  loading: "停止",
   success: "完成",
 };
 

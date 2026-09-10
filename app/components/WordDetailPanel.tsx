@@ -188,6 +188,15 @@ export default function WordDetailPanel({
   const accent = POS_GROUP_COLORS[posGroup];
   const display = (wordDetail.originalWord || '').replace(/[、。]/g, '');
   const posLabel = posChineseMap[normalizePosBase(wordDetail.pos)] || POS_GROUP_LABELS[posGroup];
+  const originalPos = (wordDetail.pos || '').trim();
+  const basePos = normalizePosBase(originalPos);
+  // 合并常见词性名称，保留活用类型、自他性和细分类别。
+  const posDetail = (posChineseMap[basePos] && originalPos.startsWith(basePos)
+    ? originalPos.slice(basePos.length)
+    : originalPos.startsWith(posLabel) ? originalPos.slice(posLabel.length) : originalPos)
+    .replace(/^[\s・,，、/／-]+/, '')
+    .replace(/^[（(](.*)[）)]$/, '$1')
+    .trim();
 
   return (
     <section className="word-detail-panel">
@@ -259,13 +268,13 @@ export default function WordDetailPanel({
             <span className="h-1 w-1 rounded-full" style={{ background: accent }} aria-hidden="true" />
             {posLabel}
           </span>
-          {wordDetail.pos && wordDetail.pos !== posLabel && (
+          {posDetail && (
             <span
               lang="ja"
               className="word-detail-pos-original text-xs"
               style={{ color: 'var(--ink-3)' }}
             >
-              {wordDetail.pos}
+              {posDetail}
             </span>
           )}
           {wordDetail.dictionaryForm && wordDetail.dictionaryForm !== wordDetail.originalWord && (

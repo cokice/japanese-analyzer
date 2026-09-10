@@ -115,70 +115,72 @@ export default function TranslationSection({
   }, [isLoading, translation]);
 
   return (
-    <section id="fullTranslationCard" className="nd-card">
-      <div className="mb-3 flex items-center">
-        <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>中文翻译</h2>
-        <div className="flex-1" />
-        <button
-          id="translateSentenceButton"
-          className="nd-soft-btn"
-          onClick={handleTranslate}
-          disabled={isLoading}
-        >
-          {Icon.globe}
-          <span>{isLoading ? '翻译中' : '翻译'}</span>
-        </button>
+    <section id="fullTranslationCard" className="translation-section">
+      <div className="translation-heading flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h2 className="m-0 text-sm font-medium" style={{ color: 'var(--ink-2)' }}>中文译文</h2>
+        <div className="translation-actions flex items-center gap-1">
+          <button
+            id="translateSentenceButton"
+            className="nd-ghost-btn"
+            onClick={handleTranslate}
+            disabled={isLoading}
+          >
+            {Icon.refresh}
+            <span>{isLoading ? '翻译中' : translation ? '重新翻译' : '翻译'}</span>
+          </button>
+          <button
+            onClick={handleCopy}
+            className="nd-ghost-btn"
+            style={copied ? { color: 'var(--primary)' } : undefined}
+            disabled={!translation}
+          >
+            {Icon.copy}<span>{copied ? '已复制' : '复制'}</span>
+          </button>
+          <button
+            id="toggleFullTranslationButton"
+            className="nd-ghost-btn"
+            onClick={toggleVisibility}
+            aria-expanded={isVisible}
+            aria-controls="translationContent"
+          >
+            <span>{isVisible ? '收起' : '展开'}</span>
+          </button>
+        </div>
       </div>
 
-      <AutoAnimateHeight duration={300}>
-        {isVisible ? (
-          isLoading && !translation ? (
-            <ThinkingIndicator label="翻译中" />
-          ) : translation ? (
-            <div
-              className="flow-markdown full-translation-markdown mb-3.5 mt-1 text-[16px] leading-7"
-              style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
-            >
-              {canAnimateTranslation ? (
-                <FlowAnimatedMarkdown
-                  content={animatedTranslation}
-                  animation="fadeIn"
-                  sep="word"
-                  animationDuration="0.35s"
-                  animationTimingFunction="ease-out"
-                />
-              ) : (
-                <span className="whitespace-pre-wrap">{translation}</span>
-              )}
-            </div>
-          ) : (
-            <p
-              className="mb-3.5 mt-1 whitespace-pre-wrap text-[16px] leading-7"
-              style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
-            >
-              {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译。</span>}
-            </p>
-          )
-        ) : null}
-      </AutoAnimateHeight>
-
-      <div className="flex items-center">
-        <div className="flex-1" />
-        <button
-          onClick={handleCopy}
-          className="nd-ghost-btn"
-          style={copied ? { color: 'var(--primary)' } : undefined}
-          disabled={!translation}
-        >
-          {Icon.copy}<span>{copied ? '已复制' : '复制'}</span>
-        </button>
-        <button
-          id="toggleFullTranslationButton"
-          className="nd-ghost-btn"
-          onClick={toggleVisibility}
-        >
-          <span>{isVisible ? '隐藏' : '显示'}</span>
-        </button>
+      <div id="translationContent">
+        {/* 包含子元素的外边距，避免高度测量遗漏译文顶部间距。 */}
+        <AutoAnimateHeight duration={300} contentClassName="flow-root">
+          {isVisible ? (
+            isLoading && !translation ? (
+              <ThinkingIndicator label="翻译中" />
+            ) : translation ? (
+              <div
+                className="flow-markdown full-translation-markdown mt-2 text-[16px] leading-7"
+                style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
+              >
+                {canAnimateTranslation ? (
+                  <FlowAnimatedMarkdown
+                    content={animatedTranslation}
+                    animation="fadeIn"
+                    sep="word"
+                    animationDuration="0.35s"
+                    animationTimingFunction="ease-out"
+                  />
+                ) : (
+                  <span className="whitespace-pre-wrap">{translation}</span>
+                )}
+              </div>
+            ) : (
+              <p
+                className="mb-0 mt-2 whitespace-pre-wrap text-[16px] leading-7"
+                style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
+              >
+                {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译。</span>}
+              </p>
+            )
+          ) : null}
+        </AutoAnimateHeight>
       </div>
     </section>
   );

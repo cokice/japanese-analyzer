@@ -592,27 +592,31 @@ export default function Home() {
               </div>
             )}
 
-            {shouldShowAnalyzer() && (
-              <AnalysisResult
-                tokens={analyzedTokens}
-                showFurigana={showFurigana}
-                onShowFuriganaChange={setShowFurigana}
-                showRomaji={showRomaji}
-                onShowRomajiChange={setShowRomaji}
-                onWordClick={handleWordClick}
-                selectedIndex={selectedIndex}
-              />
-            )}
+            {(shouldShowAnalyzer() || currentSentence) && (
+              <div className="nd-card reading-card">
+                {shouldShowAnalyzer() && (
+                  <AnalysisResult
+                    tokens={analyzedTokens}
+                    showFurigana={showFurigana}
+                    onShowFuriganaChange={setShowFurigana}
+                    showRomaji={showRomaji}
+                    onShowRomajiChange={setShowRomaji}
+                    onWordClick={handleWordClick}
+                    selectedIndex={selectedIndex}
+                  />
+                )}
 
-            {currentSentence && (
-              <TranslationSection
-                japaneseText={currentSentence}
-                userApiKey={userApiKey}
-                aiProvider={aiProvider}
-                aiModel={aiModel}
-                useStream={useStream}
-                trigger={translationTrigger}
-              />
+                {currentSentence && (
+                  <TranslationSection
+                    japaneseText={currentSentence}
+                    userApiKey={userApiKey}
+                    aiProvider={aiProvider}
+                    aiModel={aiModel}
+                    useStream={useStream}
+                    trigger={translationTrigger}
+                  />
+                )}
+              </div>
             )}
           </div>
 

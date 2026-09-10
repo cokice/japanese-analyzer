@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
 import type { AIProvider, TTSProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
@@ -460,9 +460,33 @@ export default function InputSection({
     fontSize: '20px',
     lineHeight: 1.6,
     letterSpacing: '0.3px',
-    minHeight: '148px',
   };
   const showInputShimmer = isLoading && inputText.trim().length > 0;
+
+  useLayoutEffect(() => {
+    const input = japaneseInputRef.current;
+    if (!input) return;
+    const resizeInput = () => {
+      const scrollTop = input.scrollTop;
+      input.style.height = 'auto';
+      input.style.height = `${input.scrollHeight}px`;
+      input.scrollTop = scrollTop;
+    };
+    resizeInput();
+    let previousWidth = input.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (input.clientWidth !== previousWidth) {
+        previousWidth = input.clientWidth;
+        resizeInput();
+      }
+    });
+    observer.observe(input);
+    window.addEventListener('resize', resizeInput);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', resizeInput);
+    };
+  }, [inputText, showFirstVisitExample]);
 
   useEffect(() => {
     if (!showInputShimmer) return;
@@ -490,7 +514,7 @@ export default function InputSection({
             ref={japaneseInputRef}
             lang="ja"
             className={`jp w-full resize-none border-none bg-transparent outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''} ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
-            rows={5}
+            rows={3}
             placeholder="输入日语句子"
             value={inputText}
             onChange={(e) => handleInputTextChange(e.target.value)}
@@ -510,7 +534,7 @@ export default function InputSection({
           ></textarea>
           {showFirstVisitExample && (
             <div id="firstVisitExampleHint" className="first-visit-example-hint" role="status">
-              点击提交试试
+              点击「解析」试试
             </div>
           )}
           {showInputShimmer && (
@@ -748,11 +772,9 @@ export default function InputSection({
           className="mt-4 rounded-xl p-4 text-sm"
           style={{ background: 'var(--primary-soft)', color: 'var(--ink-2)' }}
         >
-          <p className="m-0 font-medium" style={{ color: 'var(--primary)' }}>正在进行高质量语音合成，请稍候...</p>
+          <p className="m-0 font-medium">正在准备朗读…</p>
           <p className="mb-0 mt-1 text-xs" style={{ color: 'var(--ink-3)' }}>
-            • 使用 {ttsProvider === 'edge' ? 'Edge' : 'Gemini'} TTS 技术，音质更自然<br/>
-            • 当前文本预计需要：{getEstimatedTime(inputText)}<br/>
-            • 请保持页面打开，不要离开或刷新
+            预计需要 {getEstimatedTime(inputText)}
           </p>
         </div>
       )}

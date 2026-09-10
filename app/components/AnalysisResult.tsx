@@ -59,18 +59,18 @@ export default function AnalysisResult({
   const legendGroups = [...POS_LEGEND_GROUPS, 'o' as const].filter((group) => presentPosGroups.has(group));
 
   return (
-    <section className="nd-card analysis-card relative">
+    <section className="analysis-card relative">
       {/* 标题行 */}
       <div className="analysis-heading mb-4 flex flex-wrap items-center gap-y-2">
         <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>解析结果</h2>
         <div className="flex-1" />
         <div className="analysis-display-options flex items-center gap-4 sm:gap-[18px]">
           <label className="inline-flex cursor-pointer items-center gap-2">
-            <span className="text-[13px]" style={{ color: 'var(--ink-3)' }}>显示假名</span>
+            <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>假名</span>
             <Toggle on={showFurigana} onChange={onShowFuriganaChange} ariaLabel="显示假名" />
           </label>
           <label className="inline-flex cursor-pointer items-center gap-2">
-            <span className="text-[13px]" style={{ color: 'var(--ink-3)' }}>显示罗马音</span>
+            <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>罗马音</span>
             <Toggle on={showRomaji} onChange={onShowRomajiChange} ariaLabel="显示罗马音" />
           </label>
         </div>
