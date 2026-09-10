@@ -1,3 +1,4 @@
+import { DEEPSEEK_MODEL_NAME } from '../../lib/aiModels';
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeReasoningSummary } from '../../utils/reasoningSummary';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
@@ -5,7 +6,7 @@ import { ProviderConfigError, resolveProviderConfig, withProviderControls } from
 import { requireApiSession } from '../_utils/sessionAuth';
 
 const SUMMARY_PROMPT = '以下是一个 AI 模型思考过程的最新片段。用一句 8-15 字的中文现在进行时短语,描述它此刻正在做的事。只输出这个短语,不要标点结尾,不要概括全文。例:正在辨析谓语的使役被动形态';
-const SUMMARY_MODEL = 'deepseek-v4-flash';
+const SUMMARY_MODEL = DEEPSEEK_MODEL_NAME;
 const SUMMARY_SNIPPET_CHARS = 800;
 
 function extractAssistantText(data: unknown): string {

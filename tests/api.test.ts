@@ -127,30 +127,34 @@ assert.deepStrictEqual(
 
 assert.strictEqual(DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
-assert.strictEqual(getModelName(), 'deepseek-v4-flash');
+assert.strictEqual(getModelName(), 'deepseek-flash');
 assert.strictEqual(getTtsModelName('edge'), 'edge-tts');
 assert.strictEqual(getTtsModelName('gemini'), 'gemini-3.1-flash-tts-preview');
 assert.deepStrictEqual(GEMINI_MODEL_OPTIONS, ['gemini-3.7-flash', 'gemini-3.5-flash-lite']);
-assert.deepStrictEqual(DEEPSEEK_MODEL_OPTIONS, ['deepseek-v4-flash', 'deepseek-v4-pro']);
-assert.strictEqual(DEEPSEEK_VISION_MODEL_NAME, 'deepseek-v4-flash-vision-exp');
+assert.deepStrictEqual(DEEPSEEK_MODEL_OPTIONS, ['deepseek-flash']);
+assert.strictEqual(DEEPSEEK_VISION_MODEL_NAME, 'deepseek-flash');
 assert.strictEqual(getImageRecognitionModelName('deepseek'), DEEPSEEK_VISION_MODEL_NAME);
-assert.strictEqual(getImageRecognitionModelName('deepseek', 'deepseek-v4-pro'), DEEPSEEK_VISION_MODEL_NAME);
+assert.strictEqual(getImageRecognitionModelName('deepseek', 'deepseek-flash'), DEEPSEEK_VISION_MODEL_NAME);
 assert.strictEqual(getImageRecognitionModelName('gemini'), 'gemini-3.7-flash');
 assert.strictEqual(getImageRecognitionModelName('gemini', 'gemini-3.5-flash-lite'), 'gemini-3.5-flash-lite');
 assert.strictEqual(normalizeAIProvider('gemini'), 'gemini');
 assert.strictEqual(normalizeAIProvider('deepseek'), 'deepseek');
 assert.strictEqual(normalizeAIProvider('unknown'), 'deepseek');
-assert.strictEqual(normalizeAIModel('deepseek', 'deepseek-v4-pro'), 'deepseek-v4-pro');
-assert.strictEqual(normalizeAIModel('deepseek', 'unknown'), 'deepseek-v4-flash');
+assert.strictEqual(normalizeAIModel('deepseek', 'deepseek-flash'), 'deepseek-flash');
+assert.strictEqual(normalizeAIModel('deepseek', 'unknown'), 'deepseek-flash');
+for (const legacyModel of ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp']) {
+  assert.strictEqual(normalizeAIModel('deepseek', legacyModel), 'deepseek-flash');
+  assert.strictEqual(getImageRecognitionModelName('deepseek', legacyModel), 'deepseek-flash');
+}
 assert.strictEqual(normalizeAIModel('gemini', 'gemini-3.5-flash-lite'), 'gemini-3.5-flash-lite');
-assert.strictEqual(normalizeAIModel('gemini', 'deepseek-v4-pro'), 'gemini-3.7-flash');
+assert.strictEqual(normalizeAIModel('gemini', 'deepseek-flash'), 'gemini-3.7-flash');
 assert.strictEqual(normalizeServerAIProvider('gemini'), 'gemini');
 assert.strictEqual(normalizeServerAIProvider('deepseek'), 'deepseek');
 assert.strictEqual(normalizeServerAIProvider('unknown'), 'deepseek');
-assert.strictEqual(getModelName('deepseek'), 'deepseek-v4-flash');
-assert.strictEqual(getModelName('deepseek', 'deepseek-v4-pro'), 'deepseek-v4-pro');
+assert.strictEqual(getModelName('deepseek'), 'deepseek-flash');
+assert.strictEqual(getModelName('deepseek', 'deepseek-v4-pro'), 'deepseek-flash');
 assert.strictEqual(getModelName('gemini', 'gemini-3.5-flash-lite'), 'gemini-3.5-flash-lite');
-assert.strictEqual(getModelName('gemini', 'deepseek-v4-pro'), 'gemini-3.7-flash');
+assert.strictEqual(getModelName('gemini', 'deepseek-flash'), 'gemini-3.7-flash');
 
 const oldCode = process.env.CODE;
 try {
@@ -222,7 +226,7 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek'), {
   name: ANALYZE_USAGE_EVENT_NAME,
   data: {
     provider: 'deepseek',
-    model: 'deepseek-v4-flash',
+    model: 'deepseek-flash',
     image_recognition: 'false',
     image_provider: 'none',
     image_model: 'none',
@@ -235,7 +239,7 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek', {}, 'deepseek-v4-pro'), 
   name: ANALYZE_USAGE_EVENT_NAME,
   data: {
     provider: 'deepseek',
-    model: 'deepseek-v4-pro',
+    model: 'deepseek-flash',
     image_recognition: 'false',
     image_provider: 'none',
     image_model: 'none',
@@ -271,7 +275,7 @@ assert.deepStrictEqual(getImageRecognitionUsageEvent('deepseek'), {
   name: IMAGE_RECOGNITION_USAGE_EVENT_NAME,
   data: {
     provider: 'deepseek',
-    model: 'deepseek-v4-flash-vision-exp',
+    model: 'deepseek-flash',
   },
 });
 assert.deepStrictEqual(getTtsUsageEvent('edge'), {
@@ -285,14 +289,14 @@ assert.deepStrictEqual(getWordDetailUsageEvent('deepseek'), {
   name: WORD_DETAIL_USAGE_EVENT_NAME,
   data: {
     provider: 'deepseek',
-    model: 'deepseek-v4-flash',
+    model: 'deepseek-flash',
   },
 });
 assert.deepStrictEqual(getWordDetailUsageEvent('deepseek', 'deepseek-v4-pro'), {
   name: WORD_DETAIL_USAGE_EVENT_NAME,
   data: {
     provider: 'deepseek',
-    model: 'deepseek-v4-pro',
+    model: 'deepseek-flash',
   },
 });
 
@@ -382,17 +386,17 @@ assert.deepStrictEqual(getRequestProviderPayload('gemini', 'gemini-3.5-flash-lit
 
 assert.deepStrictEqual(getRequestProviderPayload('deepseek'), {
   provider: 'deepseek',
-  model: 'deepseek-v4-flash',
+  model: 'deepseek-flash',
 });
 
 assert.deepStrictEqual(getRequestProviderPayload('deepseek', 'deepseek-v4-pro'), {
   provider: 'deepseek',
-  model: 'deepseek-v4-pro',
+  model: 'deepseek-flash',
 });
 
 assert.deepStrictEqual(getRequestProviderPayload(), {
   provider: 'deepseek',
-  model: 'deepseek-v4-flash',
+  model: 'deepseek-flash',
 });
 
 assert.deepStrictEqual(withProviderControls('gemini', { model: 'gemini-3.7-flash' }), {
@@ -405,29 +409,24 @@ assert.deepStrictEqual(withProviderControls('gemini', { model: 'gemini-3.5-flash
   reasoning_effort: 'minimal',
 });
 
-assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-v4-flash' }), {
-  model: 'deepseek-v4-flash',
-  thinking: { type: 'disabled' },
-});
-
-assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-v4-pro' }), {
-  model: 'deepseek-v4-pro',
+assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-flash' }), {
+  model: 'deepseek-flash',
   thinking: { type: 'disabled' },
 });
 
 assert.deepStrictEqual(withProviderControls('deepseek', { model: DEEPSEEK_VISION_MODEL_NAME }, {
   enableThinking: false,
 }), {
-  model: 'deepseek-v4-flash-vision-exp',
+  model: 'deepseek-flash',
   thinking: { type: 'disabled' },
 });
 
 assert.deepStrictEqual(withProviderControls(
   'deepseek',
-  { model: 'deepseek-v4-flash' },
+  { model: 'deepseek-flash' },
   { enableThinking: true }
 ), {
-  model: 'deepseek-v4-flash',
+  model: 'deepseek-flash',
   thinking: { type: 'enabled' },
   reasoning_effort: 'high',
 });
@@ -444,10 +443,10 @@ assert.ok(
 
 assert.deepStrictEqual(withProviderControls(
   'deepseek',
-  { model: 'deepseek-v4-flash' },
+  { model: 'deepseek-flash' },
   { structuredOutput: 'wordDetail' }
 ), {
-  model: 'deepseek-v4-flash',
+  model: 'deepseek-flash',
   response_format: { type: 'json_object' },
   thinking: { type: 'disabled' },
 });
@@ -700,7 +699,7 @@ try {
 
   const invalidGeminiConfig = resolveProviderConfig(
     createProviderConfigRequest(),
-    { provider: 'gemini', model: 'deepseek-v4-pro' }
+    { provider: 'gemini', model: 'deepseek-flash' }
   );
   assert.strictEqual(invalidGeminiConfig.model, 'gemini-3.7-flash');
 
@@ -754,7 +753,7 @@ const migratedStorage = new MemoryStorage({
 const migratedSettings = loadAISettingsFromStorage(migratedStorage);
 assert.deepStrictEqual(migratedSettings, {
   aiProvider: 'deepseek',
-  aiModel: 'deepseek-v4-pro',
+  aiModel: 'deepseek-flash',
   geminiApiKey: 'legacy-gemini-key',
   deepseekApiKey: 'deepseek-key',
   deepseekThinkingEnabled: false,
@@ -768,7 +767,7 @@ const defaultStorage = new MemoryStorage({
 });
 const defaultSettings = loadAISettingsFromStorage(defaultStorage);
 assert.strictEqual(defaultSettings.aiProvider, 'deepseek');
-assert.strictEqual(defaultSettings.aiModel, 'deepseek-v4-flash');
+assert.strictEqual(defaultSettings.aiModel, 'deepseek-flash');
 assert.strictEqual(defaultSettings.geminiApiKey, '');
 assert.strictEqual(defaultSettings.deepseekApiKey, '');
 assert.strictEqual(defaultSettings.deepseekThinkingEnabled, false);
