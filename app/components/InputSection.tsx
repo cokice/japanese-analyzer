@@ -621,14 +621,15 @@ export default function InputSection({
                   {/* TTS提供商选择 */}
                   <div className="mb-3">
                     <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>语音引擎</label>
-                    <div className="flex gap-2">
+                    <div className="segmented-control grid grid-cols-2 gap-1 rounded-xl p-1">
                       {(['edge', 'gemini'] as const).map((provider) => (
                         <button
                           key={provider}
-                          className="cursor-pointer rounded-full border-none px-3 py-2 text-sm transition-colors"
+                          className="cursor-pointer rounded-lg border-none px-3 py-2 text-sm transition-colors"
+                          aria-pressed={ttsProvider === provider}
                           style={ttsProvider === provider
-                            ? { background: 'var(--primary-soft)', color: 'var(--primary)', fontWeight: 600 }
-                            : { background: 'var(--bg)', color: 'var(--ink-3)' }}
+                            ? { background: 'var(--bg-2)', color: 'var(--ink)', fontWeight: 500 }
+                            : { background: 'transparent', color: 'var(--ink-2)' }}
                           onClick={() => handleTtsProviderSelect(provider)}
                         >
                           {provider === 'edge' ? 'Edge TTS' : 'Gemini TTS'}
@@ -657,10 +658,12 @@ export default function InputSection({
 
                       <div className="mb-2">
                         <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
-                          语速: {getRateLabel(selectedRate)} ({selectedRate})
+                          语速 · {getRateLabel(selectedRate)}
                         </label>
                         <input
                           type="range"
+                          aria-label="语速"
+                          aria-valuetext={getRateLabel(selectedRate)}
                           min="-100"
                           max="100"
                           step="10"
@@ -670,9 +673,9 @@ export default function InputSection({
                           style={{ background: 'var(--line-2)', accentColor: 'var(--primary)' }}
                         />
                         <div className="mt-1 flex justify-between text-xs" style={{ color: 'var(--ink-3)' }}>
-                          <span>-100</span>
-                          <span>0</span>
-                          <span>100</span>
+                          <span>慢</span>
+                          <span>正常</span>
+                          <span>快</span>
                         </div>
                       </div>
                     </>

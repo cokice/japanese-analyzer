@@ -73,8 +73,8 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       const welcomeContent = currentSentence
-        ? `你好！我是你的日语学习助手。我看到你正在分析这个句子：「${currentSentence}」。你可以问我关于这个句子的语法、词汇，或者任何其他日语相关问题。`
-        : '你好！我是你的日语学习助手。你可以问我关于日语语法、词汇、文化等任何问题。';
+        ? '可以问我这句话的语法和用法。'
+        : '想了解哪个词，或哪一句日语？';
 
       setMessages([{
         id: Date.now().toString(),
@@ -171,7 +171,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -198,8 +198,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
   const renderChatPanel = (expanded: boolean) => (
     <>
       <div
-        className="flex items-center gap-3 border-b px-4 py-3"
-        style={{ borderColor: 'var(--line)', background: 'var(--bg)' }}
+        className="chat-toolbar flex items-center gap-2 border-b px-4 py-3"
       >
         <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
           {Icon.chat}
@@ -215,7 +214,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
             setIsExpanded(false);
             setIsOpen(true);
           } : openExpanded}
-          className="nd-icon-btn"
+          className="dictionary-icon-btn"
           title={expanded ? '收缩窗口' : '展开窗口'}
           type="button"
         >
@@ -223,7 +222,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
         </button>
         <button
           onClick={closeChat}
-          className="nd-icon-btn"
+          className="dictionary-icon-btn"
           title="关闭聊天"
           type="button"
         >
@@ -231,7 +230,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
         </button>
       </div>
 
-      <div className={`flex-1 space-y-3 overflow-y-auto ${expanded ? 'p-6' : 'p-4'}`}>
+      <div className={`chat-messages min-h-0 flex-1 space-y-4 overflow-y-auto ${expanded ? 'p-6' : 'p-4'}`}>
         {messages.map((message) => {
           const isUser = message.role === 'user';
           const isRunningAssistant =
@@ -242,15 +241,9 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
           return (
             <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
               <div
-                className={`${expanded ? 'max-w-[72%]' : 'max-w-[82%]'} rounded-2xl px-4 py-3 text-sm leading-6`}
-                style={{
-                  background: isUser ? 'var(--primary)' : 'var(--bg)',
-                  color: isUser ? '#fff' : 'var(--ink-2)',
-                  border: isUser ? '1px solid var(--primary)' : '1px solid var(--line)',
-                  boxShadow: '0 1px 2px rgba(20,10,40,.03)',
-                }}
+                className={`chat-message ${isUser ? 'chat-message-user' : 'chat-message-assistant'} ${expanded ? 'max-w-[80%]' : 'max-w-[90%]'}`}
               >
-                <AutoAnimateHeight duration={300}>
+                <AutoAnimateHeight duration={180} contentClassName="flow-root">
                   {isUser ? (
                     <div className="whitespace-pre-wrap">{message.content}</div>
                   ) : (
@@ -269,22 +262,23 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
         <div ref={messagesEndRef} />
       </div>
 
-      <div className={`border-t ${expanded ? 'p-5' : 'p-4'}`} style={{ borderColor: 'var(--line)' }}>
-        <div className="flex items-end gap-2">
+      <div className={`chat-composer ${expanded ? 'p-5' : 'p-4'}`}>
+        <div className="chat-composer-field flex items-end gap-2">
           <textarea
             ref={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入你的日语问题..."
-            className="nd-input min-h-[42px] flex-1 resize-none"
-            rows={expanded ? 3 : 1}
+            aria-label="日语问题"
+            placeholder="问一个日语问题…"
+            className="chat-input min-h-[36px] min-w-0 flex-1 resize-none"
+            rows={expanded ? 2 : 1}
             disabled={isLoading}
           />
           <button
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || isLoading}
-            className="nd-primary-btn min-h-[42px] px-4"
+            className="nd-primary-btn chat-send-button"
             type="button"
             title="发送"
           >
@@ -299,24 +293,22 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
     <>
       {isExpanded && (
         <div
-          className="fixed inset-0 z-40"
-          style={{ background: 'rgba(20,10,40,.45)' }}
+          className="chat-backdrop fixed inset-0 z-40"
           onClick={() => setIsExpanded(false)}
         />
       )}
 
       {isExpanded && (
         <div
-          className="fixed z-50 flex flex-col overflow-hidden rounded-2xl transition-all duration-300"
+          className="chat-expanded-panel fixed z-50 flex flex-col overflow-hidden rounded-2xl"
           style={{
             top: '50%',
             left: '50%',
             width: 'min(860px, calc(100vw - 32px))',
-            height: 'min(720px, calc(100vh - 48px))',
+            height: 'min(720px, calc(100dvh - 48px))',
             transform: 'translate(-50%, -50%)',
             background: 'var(--bg-2)',
             border: '1px solid var(--line)',
-            boxShadow: '0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06)',
           }}
         >
           {renderChatPanel(true)}

@@ -4,6 +4,8 @@
 
 /* ========== 新设计 Design Tokens ========== */
 :root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-japanese: "Noto Sans JP", "Yu Gothic UI", "Meiryo", "Hiragino Sans", sans-serif;
   --bg: #f5f5f7;
   --bg-2: #ffffff;
   --ink: #242426;
@@ -15,16 +17,16 @@
   --primary-2: #5a39c8;
   --primary-soft: #f0ecfa;
   /* 词性颜色 */
-  --pos-n: #2563eb;      /* 名词 blue */
-  --pos-v: #059669;      /* 动词 green */
+  --pos-n: #4f75be;      /* 名词 blue */
+  --pos-v: #388774;      /* 动词 green */
   --pos-adj: #d97706;    /* 形容词 amber */
   --pos-adjv: #e11d48;   /* 形容动词 rose */
   --pos-adv: #0d9488;    /* 副词 teal */
   --pos-adn: #7c3aed;    /* 连体词 violet */
   --pos-conj: #dc2626;   /* 接续词 red */
   --pos-int: #65a30d;    /* 感动词 lime */
-  --pos-p: #ea580c;      /* 助词 orange */
-  --pos-aux: #c026d3;    /* 助动词 fuchsia */
+  --pos-p: #bb7049;      /* 助词 orange */
+  --pos-aux: #a260a8;    /* 助动词 fuchsia */
   --pos-o: #6b7280;      /* 其他 gray */
 
   /* 兼容旧变量 */
@@ -43,6 +45,17 @@
   --primary: #8b6fff;
   --primary-2: #7a5cff;
   --primary-soft: #3b305a;
+  --selection-ink: #c6b5ff;
+  --pos-n: #7e9ed7;
+  --pos-v: #72b6a2;
+  --pos-adj: #c9a369;
+  --pos-adjv: #d18a9b;
+  --pos-adv: #6db6b0;
+  --pos-adn: #b697d5;
+  --pos-conj: #d48c87;
+  --pos-int: #a1b86f;
+  --pos-p: #d39a78;
+  --pos-aux: #bf90c3;
 
   --background: var(--bg);
   --foreground: var(--ink);
@@ -52,7 +65,7 @@
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
@@ -73,7 +86,7 @@ body {
   display: block;
 }
 
-.jp { font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", "Hiragino Sans", system-ui, sans-serif; }
+.jp { font-family: var(--font-japanese); }
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
 
 /* ========== 卡片 ========== */
@@ -284,7 +297,11 @@ body {
 .nd-primary-btn:disabled { opacity: 0.7; cursor: wait; }
 
 .state-morph-btn {
+  width: 88px;
   min-width: 88px;
+  height: 40px;
+  flex-shrink: 0;
+  padding-inline: 12px;
   overflow: hidden;
   white-space: nowrap;
 }
@@ -417,21 +434,21 @@ input, textarea {
   grid-template-rows: 18px auto 8px;
   justify-items: center;
   align-items: end;
-  padding: 4px 3px;
-  margin: 4px 1px 0;
+  padding: 3px 2px;
+  margin: 0;
   font-size: 24px;
   font-weight: 500;
   line-height: 1.16;
   color: var(--ink);
   border-radius: 8px;
   transition: background 160ms ease, box-shadow 160ms ease;
-  font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", "Hiragino Sans", system-ui, sans-serif;
+  font-family: var(--font-japanese);
   letter-spacing: 0;
 }
 
 .word-unit-wrapper.is-punct {
-  padding: 4px 1px;
-  margin: 4px 0 0 -1px;
+  padding: 3px 0;
+  margin: 0;
   font-size: 22px;
   font-weight: 500;
   color: var(--ink);
@@ -621,7 +638,7 @@ input, textarea {
   padding: 30px 24px;
   text-align: center;
   color: var(--ink-3);
-  min-height: 265px;
+  min-height: 200px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1511,13 +1528,14 @@ input, textarea {
   border-radius: 8px;
 }
 
-/* 日语输入框字体 */
-textarea,
-input[type="text"],
-#japaneseInput {
-  font-family: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+/* 界面输入采用中文字体，日语原文单独指定。 */
+textarea, input, select, button {
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   caret-color: var(--primary);
+}
+#japaneseInput {
+  font-family: var(--font-japanese);
   margin: 0;
   padding: 0;
 }
@@ -1525,7 +1543,7 @@ input[type="text"],
 /* 中文占位提示与日文输入分别选用对应字体。 */
 #japaneseInput::placeholder {
   /* 中文提示不继承日文正文的字体，避免简体字回退时字形混杂。 */
-  font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+  font-family: var(--font-ui);
   font-weight: 400;
   letter-spacing: normal;
 }
@@ -1577,11 +1595,11 @@ body {
   background: var(--reading-surface);
   border-color: var(--glass-border);
   box-shadow: var(--glass-shadow);
-  backdrop-filter: blur(18px) saturate(125%);
-  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
-.nd-card.input-card { background: var(--glass-panel); }
+.nd-card.input-card { background: var(--reading-surface); }
 .input-tool-button {
   display: grid;
   place-items: center;
@@ -1674,7 +1692,7 @@ body {
 #analyzedSentenceOutput {
   padding-block: 2px;
   padding-right: 8px;
-  row-gap: 16px;
+  row-gap: 12px;
   align-content: flex-start;
   max-height: clamp(240px, 46vh, 520px);
   max-height: clamp(240px, 46dvh, 520px);
@@ -1688,6 +1706,16 @@ body {
   outline-offset: -2px;
   border-radius: 6px;
 }
+.reading-word-group {
+  display: inline-flex;
+  align-items: flex-start;
+  max-width: 100%;
+  min-width: 0;
+}
+.reading-paragraph-break { flex-basis: 100%; height: 0; }
+.reading-word-group .word-unit-wrapper { min-width: 0; }
+.reading-word-group .word-token { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.reading-word-group .furigana-text, .reading-word-group .romaji-text { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
 #analyzedSentenceOutput::-webkit-scrollbar { width: 6px; height: 6px; }
 #analyzedSentenceOutput::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
 #analyzedSentenceOutput::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
@@ -1699,7 +1727,7 @@ body {
 #analyzedSentenceOutput[data-furigana="false"] .word-unit-wrapper { grid-template-rows: 4px auto 8px; }
 #analyzedSentenceOutput[data-furigana="false"][data-romaji="true"] .word-unit-wrapper { grid-template-rows: 4px auto 8px 15px; }
 .word-unit-wrapper:focus-within { background: var(--primary-soft); }
-.word-unit-wrapper.active-unit .word-token { color: var(--primary); }
+.word-unit-wrapper.active-unit .word-token { color: var(--selection-ink, var(--primary)); }
 .word-token:focus-visible { outline-offset: 2px; border-radius: 3px; }
 .dictionary-icon-btn {
   display: grid;
@@ -1799,13 +1827,73 @@ body {
   -webkit-backdrop-filter: blur(28px) saturate(130%);
 }
 
-.settings-modal-content, .word-detail-modal-content { background: var(--bg-2); }
+.settings-modal-content, .word-detail-modal-content, .assistant-modal-panel { background: var(--bg-2); }
 
 :is(button, a, select, textarea, input):focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 3px;
 }
 #japaneseInput:focus-visible { outline: none; }
+
+/* 统一表单与聊天控件。 */
+.nd-input { background: var(--bg); border-color: var(--line); min-height: 42px; }
+.nd-input:focus-visible { outline: none; }
+.segmented-control { background: var(--bg); border: 1px solid var(--line); }
+.segmented-control button { min-height: 34px; }
+.settings-group { margin-top: 22px; }
+.settings-group-label { margin: 0 0 12px; color: var(--ink-3); font-size: 12px; font-weight: 500; }
+.settings-group > .mb-4:last-child { margin-bottom: 0; }
+.settings-group .settings-option-row { padding: 12px 0; }
+.settings-unavailable-row { display: flex; justify-content: space-between; padding: 10px 0 0; color: var(--ink-3); font-size: 12px; }
+.settings-actions { margin-top: 24px; }
+.settings-modal-content > p:last-child { font-size: 12px; line-height: 1.6; }
+.settings-modal-content { max-height: calc(100dvh - 32px); overflow-y: auto; scrollbar-width: thin; }
+.settings-modal-close-button { background: transparent; width: 32px; height: 32px; }
+.input-voice-menu .nd-input { padding: 8px 10px; font-size: 13px; }
+.glass-toolbar { gap: 4px; padding: 2px; }
+.glass-toolbar > a svg, .glass-toolbar > button svg, .glass-toolbar > .relative > button svg { width: 18px; height: 18px; }
+.dictionary-icon-btn:focus-visible { outline-offset: 0; }
+.dictionary-example .jp { font-family: var(--font-japanese); line-height: 1.8; }
+.dictionary-example { margin-top: 8px; }
+.detail-section-label { font-size: 12px; letter-spacing: 0; }
+
+.chat-toolbar { flex-shrink: 0; border-color: var(--line); background: var(--glass-control); }
+.chat-toolbar .dictionary-icon-btn { width: 36px; height: 36px; color: var(--ink-2); }
+.chat-messages { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; overscroll-behavior: contain; }
+.chat-message { min-width: 0; padding: 12px 14px; border-radius: 16px; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; color: var(--ink); }
+.chat-message-user { background: color-mix(in srgb, var(--primary) 10%, var(--bg-2)); border-bottom-right-radius: 6px; }
+.chat-message-assistant { background: var(--bg); border-bottom-left-radius: 6px; }
+.chat-message .streamdown-content { gap: 12px; }
+.ai-chat-markdown p { margin: 0; }
+.ai-chat-markdown :is(ul, ol) { margin-block: 4px; padding-left: 1.3em; }
+.ai-chat-markdown li { margin-block: 4px; }
+.ai-chat-markdown strong { color: var(--ink); font-weight: 600; }
+.ai-chat-markdown :is(h1, h2, h3) { font-size: 15px; line-height: 1.6; margin-block: 12px 4px; }
+.chat-composer { flex-shrink: 0; }
+.chat-composer-field { padding: 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 20px; transition: border-color 160ms, box-shadow 160ms; }
+.chat-composer-field:focus-within { border-color: color-mix(in srgb, var(--primary) 55%, var(--line)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 8%, transparent); }
+.chat-input { margin: 0; padding: 6px 8px; background: transparent; border: none; font-size: 14px; line-height: 24px; color: var(--ink); }
+.chat-input::placeholder { color: var(--ink-3); }
+.chat-input:focus-visible { outline: none; }
+.chat-send-button { width: 36px; height: 36px; min-height: 36px; padding: 0; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; }
+.chat-send-button svg { width: 17px; height: 17px; }
+.chat-send-button:disabled { background: var(--line-2); color: var(--ink-3); box-shadow: none; opacity: 1; }
+.chat-backdrop { background: rgba(22, 21, 29, .32); }
+.chat-expanded-panel { box-shadow: 0 24px 80px -24px #00000040; }
+.assistant-modal-content-positioner { height: min(520px, calc(100dvh - 112px)); }
+.dark .chat-message-user { background: color-mix(in srgb, var(--primary) 18%, var(--bg-2)); }
+.dark .word-unit-wrapper.active-unit { background: #bba3ff1a; box-shadow: inset 0 0 0 1px #bba3ff30; }
+.dark .settings-group [role="switch"][data-state="checked"] { background: #7962c8; }
+@media (max-width: 640px) {
+  .settings-modal-content { padding: 24px 20px; width: calc(100% - 32px); }
+  .chat-expanded-panel .chat-messages { padding: 16px; }
+  .chat-expanded-panel .chat-composer { padding: 12px; }
+  .chat-expanded-panel .chat-message { max-width: 92%; }
+  .glass-toolbar { gap: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-composer-field { transition: none; }
+}
 
 @supports not (backdrop-filter: blur(1px)) {
   .nd-card, .dark .nd-card, .word-detail-panel, .word-detail-panel-empty,

@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { cn } from "@/lib/utils";
 
@@ -59,32 +59,31 @@ export function StateMorphButton({
   disabled,
   className,
 }: StateMorphButtonProps) {
+  const reduceMotion = useReducedMotion();
   return (
-    <motion.button
+    <button
       id={id}
-      layout
       type="button"
       className={cn("nd-primary-btn state-morph-btn", className)}
       onClick={onClick}
       disabled={disabled}
       aria-label={state === "loading" ? "终止解析" : undefined}
       title={state === "loading" ? "终止解析" : undefined}
-      transition={{ type: "spring", stiffness: 420, damping: 34 }}
     >
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={state}
           className="state-morph-content"
-          initial={{ opacity: 0, y: 4, filter: "blur(2px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          exit={{ opacity: 0, y: -4, filter: "blur(2px)" }}
-          transition={{ duration: 0.16, ease: "easeOut" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.12, ease: "easeOut" }}
         >
           {state === "loading" && <StopIcon />}
           {state === "success" && <CheckIcon />}
           <span>{labels[state]}</span>
         </motion.span>
       </AnimatePresence>
-    </motion.button>
+    </button>
   );
 }

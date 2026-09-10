@@ -4,6 +4,7 @@ import { containsKanji, getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LA
 import { TokenData } from '../services/api';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { Switch } from '@/components/ui/switch';
+import { groupReadingTokens } from '../utils/readingLayout';
 
 interface AnalysisResultProps {
   tokens: TokenData[];
@@ -87,52 +88,57 @@ export default function AnalysisResult({
           data-furigana={showFurigana}
           data-romaji={showRomaji}
         >
-          {tokens.map((token, index) => {
-            if (token.pos === '改行') {
-              return <span key={index} style={{ flexBasis: '100%', height: 0 }} />;
+          {groupReadingTokens(tokens).map((group) => {
+            if (group[0].token.pos === '改行') {
+              return <span key={group[0].index} className="reading-paragraph-break" />;
             }
-
-            const isPunct = isPunctuationToken(token);
-            const isActive = selectedIndex === index;
-            const hasFurigana = !!token.furigana
-              && token.furigana !== token.word
-              && containsKanji(token.word)
-              && !isPunct;
-            const furiganaText = hasFurigana ? token.furigana! : '';
-
             return (
-              <span
-                key={index}
-                className={`word-unit-wrapper ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}`}
-              >
-                {!isPunct && (
-                  <span className="furigana-text" aria-hidden={!showFurigana || !furiganaText} style={{ opacity: showFurigana && furiganaText ? 1 : 0 }}>
-                    {furiganaText || '\u00a0'}
-                  </span>
-                )}
-                {isPunct ? (
-                  <span className="word-token no-click">{token.word}</span>
-                ) : (
-                  <button
-                    type="button"
-                    className="word-token"
-                    aria-pressed={isActive}
-                    onClick={() => onWordClick(token, index)}
-                  >
-                    {token.word}
-                  </button>
-                )}
+              <span className="reading-word-group" key={group[0].index}>
+                {group.map(({ token, index }) => {
+                  const isPunct = isPunctuationToken(token);
+                  const isActive = selectedIndex === index;
+                  const hasFurigana = !!token.furigana
+                    && token.furigana !== token.word
+                    && containsKanji(token.word)
+                    && !isPunct;
+                  const furiganaText = hasFurigana ? token.furigana! : '';
 
-                {/* 词性下划线 */}
-                {!isPunct && <span className={`pos-underline ${getPosClass(token.pos)}`} />}
+                  return (
+                    <span
+                      key={index}
+                      className={`word-unit-wrapper ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}`}
+                    >
+                      {!isPunct && (
+                        <span className="furigana-text" aria-hidden={!showFurigana || !furiganaText} style={{ opacity: showFurigana && furiganaText ? 1 : 0 }}>
+                          {furiganaText || '\u00a0'}
+                        </span>
+                      )}
+                      {isPunct ? (
+                        <span className="word-token no-click">{token.word}</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="word-token"
+                          aria-pressed={isActive}
+                          onClick={() => onWordClick(token, index)}
+                        >
+                          {token.word}
+                        </button>
+                      )}
 
-                {/* 罗马音 */}
-                {!isPunct && (
-                  <span className="romaji-text" aria-hidden={!showRomaji}>
-                    {token.romaji || '\u00a0'}
-                  </span>
-                )}
+                      {/* 词性下划线 */}
+                      {!isPunct && <span className={`pos-underline ${getPosClass(token.pos)}`} />}
 
+                      {/* 罗马音 */}
+                      {!isPunct && (
+                        <span className="romaji-text" aria-hidden={!showRomaji}>
+                          {token.romaji || '\u00a0'}
+                        </span>
+                      )}
+
+                    </span>
+                  );
+                })}
               </span>
             );
           })}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { DEEPSEEK_MODEL_OPTIONS, GEMINI_MODEL_OPTIONS, getModelName, type AIModelName, type AIProvider } from '../services/api';
 import { Icon } from './Icons';
 import { ProviderLogo, PROVIDER_LABELS } from './ProviderLogo';
+import { Switch } from '@/components/ui/switch';
 
 interface SettingsPayload {
   aiProvider: AIProvider;
@@ -48,7 +49,8 @@ export default function SettingsModal({
     setGeminiKey(geminiApiKey);
     setDeepseekKey(deepseekApiKey);
     setStreamEnabled(useStream);
-  }, [aiProvider, aiModel, geminiApiKey, deepseekApiKey, useStream]);
+    setStatus('');
+  }, [aiProvider, aiModel, geminiApiKey, deepseekApiKey, useStream, isModalOpen]);
 
   const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
@@ -109,113 +111,94 @@ export default function SettingsModal({
           </p>
         </div>
 
-        <div className="mb-4">
-          <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-            模型服务
-          </label>
-          <div className="grid grid-cols-2 gap-2 rounded-[12px] p-1" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>
-            {(['gemini', 'deepseek'] as AIProvider[]).map((provider) => {
-              const active = selectedProvider === provider;
-              return (
-                <button
-                  key={provider}
-                  type="button"
-                  className="inline-flex items-center justify-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium transition-colors"
-                  aria-pressed={active}
-                  style={{
-                    background: active ? 'var(--bg-2)' : 'transparent',
-                    color: active ? 'var(--ink)' : 'var(--ink-3)',
-                    boxShadow: active ? '0 1px 2px rgba(20,10,40,.06)' : 'none',
-                  }}
-                  onClick={() => setSelectedProvider(provider)}
-                >
-                  <ProviderLogo provider={provider} />
-                  {PROVIDER_LABELS[provider]}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label htmlFor="modalModelSelect" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-            模型版本
-          </label>
-          <select
-            id="modalModelSelect"
-            className="nd-input"
-            value={currentModelName}
-            onChange={(e) => setSelectedModel(getModelName(selectedProvider, e.target.value))}
-            style={{
-              color: 'var(--ink)',
-              background: 'var(--bg-2)',
-            }}
-          >
-            {currentModelOptions.map((model) => (
-              <option key={model} value={model}>{model}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mb-4">
-          <label htmlFor="modalApiKeyInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-            {PROVIDER_LABELS[selectedProvider]} API 密钥（可选）
-          </label>
-          <input
-            type="password"
-            id="modalApiKeyInput"
-            className="nd-input"
-            placeholder={`输入您的 ${PROVIDER_LABELS[selectedProvider]} API 密钥`}
-            value={currentApiKey}
-            onChange={(e) => setCurrentApiKey(e.target.value)}
-          />
-        </div>
-
-        <div className="settings-option-row">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <label htmlFor="useStreamToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-                流式输出
-              </label>
-              <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
-                实时显示解析结果，网络不稳定时可关闭。
-              </p>
+        <div className="settings-group" role="group" aria-label="模型配置">
+          <p className="settings-group-label">模型配置</p>
+          <div className="mb-4">
+            <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+              模型服务
+            </label>
+            <div className="segmented-control grid grid-cols-2 gap-1 rounded-[12px] p-1">
+              {(['gemini', 'deepseek'] as AIProvider[]).map((provider) => {
+                const active = selectedProvider === provider;
+                return (
+                  <button
+                    key={provider}
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium transition-colors"
+                    aria-pressed={active}
+                    style={{
+                      background: active ? 'var(--bg-2)' : 'transparent',
+                      color: active ? 'var(--ink)' : 'var(--ink-3)',
+                      boxShadow: active ? '0 1px 2px rgba(20,10,40,.06)' : 'none',
+                    }}
+                    onClick={() => setSelectedProvider(provider)}
+                  >
+                    <ProviderLogo provider={provider} />
+                    {PROVIDER_LABELS[provider]}
+                  </button>
+                );
+              })}
             </div>
-            <button
-              id="useStreamToggle"
-              type="button"
-              className="nd-toggle"
-              aria-pressed={streamEnabled}
-              onClick={() => setStreamEnabled(!streamEnabled)}
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="modalModelSelect" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+              模型版本
+            </label>
+            <select
+              id="modalModelSelect"
+              className="nd-input"
+              value={currentModelName}
+              onChange={(e) => setSelectedModel(getModelName(selectedProvider, e.target.value))}
             >
-              <span className="nd-toggle-knob" />
-            </button>
+              {currentModelOptions.map((model) => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="modalApiKeyInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+              {PROVIDER_LABELS[selectedProvider]} API 密钥（可选）
+            </label>
+            <input
+              type="password"
+              id="modalApiKeyInput"
+              className="nd-input"
+              placeholder="留空使用默认配置"
+              value={currentApiKey}
+              onChange={(e) => setCurrentApiKey(e.target.value)}
+            />
           </div>
         </div>
 
-        {selectedProvider === 'deepseek' && (
+        <div className="settings-group" role="group" aria-label="输出方式">
+          <p className="settings-group-label">输出方式</p>
           <div className="settings-option-row">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <label htmlFor="deepseekThinkingToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-                  深度思考
+                <label htmlFor="useStreamToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>
+                  流式输出
                 </label>
                 <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
-                  暂不可用。
+                  实时显示解析结果，网络不稳定时可关闭。
                 </p>
               </div>
-              <button
-                id="deepseekThinkingToggle"
-                type="button"
-                className="nd-toggle"
-                aria-pressed={false}
-                disabled
-              >
-                <span className="nd-toggle-knob" />
-              </button>
+              <Switch
+                id="useStreamToggle"
+                aria-label="流式输出"
+                checked={streamEnabled}
+                onCheckedChange={setStreamEnabled}
+              />
             </div>
           </div>
-        )}
+
+          {selectedProvider === 'deepseek' && (
+            <div className="settings-unavailable-row">
+              <span>深度思考</span><span>暂不可用</span>
+            </div>
+          )}
+        </div>
 
         <div className="settings-actions">
           <button
