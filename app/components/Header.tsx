@@ -17,7 +17,9 @@ export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
 
   return (
     <header className="app-header mx-auto flex w-full max-w-[1480px] items-center px-4 py-4 sm:px-9 sm:py-5">
-      <div className="flex min-w-0 items-center">
+      {/* 整页导航以重置当前输入、解析和聊天状态。 */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+      <a href="/" className="brand-home flex min-w-0 items-center" aria-label="返回首页" title="返回首页">
         <Image
           src="/logo/logo-text.png"
           alt="日本語文章解析"
@@ -36,7 +38,7 @@ export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
           sizes="(min-width: 640px) 290px, 210px"
           className="brand-logo brand-logo-dark h-9 w-auto max-w-[210px] object-contain sm:h-11 sm:max-w-[290px]"
         />
-      </div>
+      </a>
       <div className="flex-1" />
       <div className="glass-toolbar flex items-center gap-1 sm:gap-2">
         <span

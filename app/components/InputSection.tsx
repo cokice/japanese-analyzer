@@ -556,7 +556,7 @@ export default function InputSection({
           )}
         </div>
 
-        <div className="mt-3.5 flex items-center">
+        <div className="input-action-bar mt-3.5 flex items-center">
           {/* 左侧工具按钮区域 */}
           <div className="input-tools flex items-center gap-2">
             {/* 上传图片按钮 */}
