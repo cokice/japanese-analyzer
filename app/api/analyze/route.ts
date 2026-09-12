@@ -1,3 +1,5 @@
+import { getResponseLanguageInstruction } from '../../lib/languagePrompts';
+import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
@@ -5,6 +7,7 @@ import { requireApiSession } from '../_utils/sessionAuth';
 
 export async function POST(req: NextRequest) {
   try {
+    const locale = normalizeLocale(req.headers.get('X-App-Locale'));
     const authError = requireApiSession(req);
     if (authError) return authError;
 
@@ -38,7 +41,7 @@ export async function POST(req: NextRequest) {
     // 构建发送到AI服务的请求
     const payload = withProviderControls(providerConfig.provider, {
       model: providerConfig.model,
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "system", content: getResponseLanguageInstruction(locale) }, { role: "user", content: prompt }],
       stream: stream,
     }, {
       structuredOutput: 'analysisTokens',

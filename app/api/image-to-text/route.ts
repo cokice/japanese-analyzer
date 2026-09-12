@@ -1,3 +1,5 @@
+import { getImageExtractionPrompt } from '../../lib/languagePrompts';
+import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
@@ -6,6 +8,7 @@ import { getImageRecognitionModelName } from '../../lib/aiModels';
 
 export async function POST(req: NextRequest) {
   try {
+    const locale = normalizeLocale(req.headers.get('X-App-Locale'));
     const authError = requireApiSession(req);
     if (authError) return authError;
 
@@ -50,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 优化提示词，避免换行符
-    const defaultPrompt = "请只执行 OCR：提取并返回这张图片中的所有日文文字。保持原始文字与顺序，不要分析图片内容，不要输出换行符，用空格替代；不要添加解释、说明或 Markdown。";
+    const defaultPrompt = getImageExtractionPrompt(locale);
     const imageModel = getImageRecognitionModelName(providerConfig.provider, providerConfig.model);
 
     // 构建发送到AI服务的请求

@@ -1,5 +1,6 @@
 'use client';
 
+import { useLanguage } from './contexts/LanguageContext';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import InputSection from './components/InputSection';
@@ -16,6 +17,7 @@ import { useWordDetail } from './hooks/useWordDetail';
 import { AnalyzeStreamParser } from './utils/analyzeStreamParser';
 import { selectWordDetailContext } from './utils/wordDetailContext';
 import { createRequestMetrics, trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
+import { localizeError } from './i18n';
 import { InvalidResponseError } from './utils/requestErrors';
 import {
   analyzeSentence,
@@ -34,6 +36,7 @@ import { ReasoningSummaryController } from './utils/reasoningSummary';
 import { ReasoningTextStore } from './utils/reasoningTextStore';
 
 export default function Home() {
+  const { t, locale } = useLanguage();
   const [currentSentence, setCurrentSentence] = useState('');
   const [analyzedTokens, setAnalyzedTokens] = useState<TokenData[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -61,7 +64,7 @@ export default function Home() {
   const reasoningTextStore = reasoningTextStoreRef.current;
   const [deepseekReasoningDone, setDeepseekReasoningDone] = useState(true);
   const [deepseekReasoningSummaryHistory, setDeepseekReasoningSummaryHistory] = useState<string[]>([]);
-  const [deepseekReasoningCompletionLabel, setDeepseekReasoningCompletionLabel] = useState('已深度思考');
+  const [deepseekReasoningCompletionLabel, setDeepseekReasoningCompletionLabel] = useState(t("已深度思考"));
   const reasoningSummaryControllerRef = useRef<ReasoningSummaryController | null>(null);
   const analysisAbortControllerRef = useRef<AbortController | null>(null);
   const [ttsProvider, setTtsProvider] = useState<TTSProvider>('edge');
@@ -85,6 +88,21 @@ export default function Home() {
     fetchWordDetails,
     clearWordDetail,
   } = useWordDetail({ userApiKey, aiProvider, aiModel, useStream });
+
+  useEffect(() => {
+    analysisAbortControllerRef.current?.abort('language-change');
+    analysisAbortControllerRef.current = null;
+    reasoningSummaryControllerRef.current?.cancel();
+    setIsAnalyzing(false);
+    setAnalysisError('');
+    setAuthError('');
+    setSelectedIndex(null);
+    reasoningTextStore.reset();
+    hasDeepseekReasoningRef.current = false;
+    setHasDeepseekReasoning(false);
+    setDeepseekReasoningDone(true);
+    setDeepseekReasoningSummaryHistory([]);
+  }, [locale, reasoningTextStore]);
 
   // 侧栏在 lg(1024px) 以上显示，以下使用模态
   useEffect(() => {
@@ -178,7 +196,7 @@ export default function Home() {
     setHasDeepseekReasoning(false);
     setDeepseekReasoningDone(true);
     setDeepseekReasoningSummaryHistory([]);
-    setDeepseekReasoningCompletionLabel('已深度思考');
+    setDeepseekReasoningCompletionLabel(t("已深度思考"));
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;
   };
@@ -206,11 +224,11 @@ export default function Home() {
         setIsAuthenticated(true);
         localStorage.removeItem('isAuthenticated');
       } else {
-        setAuthError(data.message || '验证失败');
+        setAuthError(localizeError(data.message || "验证失败", locale));
       }
     } catch (error) {
       console.error('验证过程中出错:', error);
-      setAuthError('验证过程中发生错误，请重试');
+      setAuthError(t("验证过程中发生错误，请重试"));
     }
   };
 
@@ -275,7 +293,7 @@ export default function Home() {
     setHasDeepseekReasoning(false);
     setDeepseekReasoningDone(!deepseekThinkingActive);
     setDeepseekReasoningSummaryHistory([]);
-    setDeepseekReasoningCompletionLabel('已深度思考');
+    setDeepseekReasoningCompletionLabel(t("已深度思考"));
     reasoningSummaryControllerRef.current?.cancel();
     const reasoningSummaryController = deepseekThinkingActive
       ? new ReasoningSummaryController({
@@ -325,7 +343,7 @@ export default function Home() {
         }
       },
       onContentStart: () => {
-        if (isCurrentAnalysis()) finishReasoningStatus('已深度思考');
+        if (isCurrentAnalysis()) finishReasoningStatus(t("已深度思考"));
       },
     };
 
@@ -344,7 +362,7 @@ export default function Home() {
               }
             }
             if (isDone) {
-              finishReasoningStatus('已深度思考');
+              finishReasoningStatus(t("已深度思考"));
               setIsAnalyzing(false);
               analysisAbortControllerRef.current = null;
               try {
@@ -355,16 +373,16 @@ export default function Home() {
               } catch (error) {
                 metrics.fail(new InvalidResponseError('Invalid analysis result'));
                 console.error('Final stream analysis parse error:', error);
-                setAnalysisError('解析结果JSON格式错误');
+                setAnalysisError(t("解析结果JSON格式错误"));
               }
             }
           },
           (error) => {
             if (!isCurrentAnalysis()) return;
             metrics.fail(error);
-            finishReasoningStatus('深度思考已中止');
+            finishReasoningStatus(t("深度思考已中止"));
             console.error('Stream analysis error:', error);
-            setAnalysisError(error.message || '流式解析错误');
+            setAnalysisError(error.message || t("流式解析错误"));
             setAnalyzedTokens([]);
             setIsAnalyzing(false);
             analysisAbortControllerRef.current = null;
@@ -387,16 +405,16 @@ export default function Home() {
         metrics.firstResult();
         setAnalyzedTokens(tokens);
         metrics.succeed();
-        finishReasoningStatus('已深度思考');
+        finishReasoningStatus(t("已深度思考"));
         setIsAnalyzing(false);
         analysisAbortControllerRef.current = null;
       }
     } catch (error) {
       if (!isCurrentAnalysis()) return;
       metrics.fail(error);
-      finishReasoningStatus('深度思考已中止');
+      finishReasoningStatus(t("深度思考已中止"));
       console.error('Analysis error:', error);
-      setAnalysisError(error instanceof Error ? error.message : '未知错误');
+      setAnalysisError(error instanceof Error ? error.message : t("未知错误"));
       setAnalyzedTokens([]);
       setIsAnalyzing(false);
       analysisAbortControllerRef.current = null;
@@ -414,7 +432,7 @@ export default function Home() {
     reasoningSummaryControllerRef.current = null;
     setIsAnalyzing(false);
     setAnalysisError('');
-    setDeepseekReasoningCompletionLabel('已终止思考');
+    setDeepseekReasoningCompletionLabel(t("已终止思考"));
     setDeepseekReasoningDone(true);
   };
 
@@ -440,10 +458,10 @@ export default function Home() {
         <div className="flex min-h-screen flex-col items-center justify-center p-4 transition-colors duration-200">
           <div className="mb-8 text-center">
             <h1 className="mb-3 text-3xl font-semibold tracking-wide" style={{ color: 'var(--ink)' }}>
-              日本語文章解析
+              {t("日本語文章解析")}
             </h1>
             <p className="text-base" style={{ color: 'var(--ink-3)' }}>
-              AI驱动・深入理解日语句子结构与词义
+              {t("AI驱动・深入理解日语句子结构与词义")}
             </p>
           </div>
         </div>
@@ -515,7 +533,7 @@ export default function Home() {
                   >
                     !
                   </span>
-                  <span>解析错误：{analysisError}</span>
+                  <span>{t("解析错误：")}{localizeError(analysisError, locale)}</span>
                 </div>
               </div>
             )}
@@ -557,7 +575,7 @@ export default function Home() {
         </main>
 
         <footer className="px-4 pb-6 pt-1 text-center text-xs sm:px-9" style={{ color: 'var(--ink-3)' }}>
-          AI也可能会犯错，请核查重要信息。
+          {t("AI也可能会犯错，请核查重要信息。")}
         </footer>
 
         {/* 设置模态框 */}
@@ -585,7 +603,7 @@ export default function Home() {
           <div className="word-detail-modal-content">
             <button
               className="modal-close-button"
-              title="关闭详情"
+              title={t("关闭详情")}
               onClick={handleCloseWordDetail}
             >
               &times;
@@ -607,6 +625,7 @@ export default function Home() {
 
       {/* AI聊天助手 */}
       <AIChat
+        hidden={isSettingsModalOpen}
         userApiKey={userApiKey}
         aiProvider={aiProvider}
         aiModel={aiModel}

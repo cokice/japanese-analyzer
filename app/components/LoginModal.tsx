@@ -1,5 +1,7 @@
 'use client';
 
+import { LANGUAGE_LABELS, LOCALES, normalizeLocale } from '../i18n';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useState } from 'react';
 import { Icon } from './Icons';
 
@@ -10,6 +12,7 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) {
+  const { t, locale, setLocale } = useLanguage();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,10 +60,13 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
             {Icon.lock}
           </div>
           <h2 className="mb-2 text-2xl font-semibold" style={{ color: 'var(--ink)' }}>
-            访问验证
+            {t("访问验证")}
           </h2>
+          <select aria-label={t("语言")} className="nd-input mt-3 text-sm" value={locale} onChange={(event) => setLocale(normalizeLocale(event.target.value))}>
+              {LOCALES.map((value) => <option key={value} value={value}>{LANGUAGE_LABELS[value]}</option>)}
+            </select>
           <p className="m-0 text-sm" style={{ color: 'var(--ink-3)' }}>
-            请输入访问密码以继续使用
+            {t("请输入访问密码以继续使用")}
           </p>
         </div>
 
@@ -70,7 +76,7 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="请输入访问密码"
+              placeholder={t("请输入访问密码")}
               className="nd-input pr-12"
               disabled={isLoading}
               autoFocus
@@ -81,7 +87,7 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
               className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-[8px] transition-colors hover:text-[var(--primary)]"
               style={{ color: 'var(--ink-3)' }}
               disabled={isLoading}
-              aria-label={showPassword ? '隐藏密码' : '显示密码'}
+              aria-label={showPassword ? t("隐藏密码") : t("显示密码")}
             >
               {showPassword ? Icon.eyeOff : Icon.eye}
             </button>
@@ -114,16 +120,16 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
             {isLoading ? (
               <>
                 <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0, borderLeftColor: '#fff' }} />
-                <span>验证中...</span>
+                <span>{t("验证中...")}</span>
               </>
             ) : (
-              <span>验证密码</span>
+              <span>{t("验证密码")}</span>
             )}
           </button>
         </form>
 
         <p className="mb-0 mt-5 text-center text-xs" style={{ color: 'var(--ink-3)' }}>
-          请联系管理员获取访问密码
+          {t("请联系管理员获取访问密码")}
         </p>
       </div>
     </div>

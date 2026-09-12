@@ -1,5 +1,6 @@
 'use client';
 
+import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useMemo } from 'react';
 import { WordDetail } from '../services/api';
 import { getPosGroup, normalizePosBase, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
@@ -44,6 +45,7 @@ function DetailSection({ label, children }: { label: string; children: React.Rea
 }
 
 export function WordDetailPlaceholder() {
+  const { t } = useLanguage();
   return (
     <section className="word-detail-panel-empty">
       <div
@@ -53,10 +55,10 @@ export function WordDetailPlaceholder() {
         {Icon.book}
       </div>
       <p className="m-0 text-sm leading-7">
-        <span className="font-medium" style={{ color: 'var(--ink-2)' }}>点击带下划线的词汇</span>
+        <span className="font-medium" style={{ color: 'var(--ink-2)' }}>{t("点击带下划线的词汇")}</span>
         <br />
         <span className="text-xs" style={{ color: 'var(--ink-3)' }}>
-          这里会显示读音、释义和用法
+          {t("这里会显示读音、释义和用法")}
         </span>
       </p>
     </section>
@@ -108,6 +110,7 @@ export default function WordDetailPanel({
   onRefresh,
   hideClose = false,
 }: WordDetailPanelProps) {
+  const { t, errorText } = useLanguage();
   const [isExplanationExpanded, setIsExplanationExpanded] = useState(false);
   const [showExpandButton, setShowExpandButton] = useState(false);
 
@@ -139,7 +142,7 @@ export default function WordDetailPanel({
       <section className="word-detail-panel">
         <div className="flex items-center justify-center py-10">
           <div className="loading-spinner"></div>
-          <span className="ml-2 text-sm" style={{ color: 'var(--ink-3)' }}>正在查询释义...</span>
+          <span className="ml-2 text-sm" style={{ color: 'var(--ink-3)' }}>{t("正在查询释义...")}</span>
         </div>
       </section>
     );
@@ -150,12 +153,12 @@ export default function WordDetailPanel({
       <section className="word-detail-panel">
         <div className="p-5">
           <div className={`mb-3 flex items-center justify-between gap-3${hideClose ? ' pr-[34px]' : ''}`}>
-            <h3 className="m-0 text-base font-semibold" style={{ color: 'var(--pos-p)' }}>释义暂不可用</h3>
+            <h3 className="m-0 text-base font-semibold" style={{ color: 'var(--pos-p)' }}>{t("释义暂不可用")}</h3>
             {onRefresh && (
               <button
                 type="button"
-                title="刷新释义"
-                aria-label="刷新释义"
+                title={t("刷新释义")}
+                aria-label={t("刷新释义")}
                 className="dictionary-icon-btn"
                 onClick={onRefresh}
               >
@@ -163,7 +166,7 @@ export default function WordDetailPanel({
               </button>
             )}
           </div>
-          <p className="m-0 text-sm" style={{ color: 'var(--ink-2)' }}>{streamError}</p>
+          <p className="m-0 text-sm" style={{ color: 'var(--ink-2)' }}>{errorText(streamError)}</p>
           {streamContent && (
             <div
               className="mono mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-[10px] p-3 text-xs"
@@ -174,7 +177,7 @@ export default function WordDetailPanel({
           )}
           {!hideClose && (
             <div className="mt-4 flex justify-end">
-              <button className="nd-soft-btn" onClick={onClose}>关闭</button>
+              <button className="nd-soft-btn" onClick={onClose}>{t("关闭")}</button>
             </div>
           )}
         </div>
@@ -215,8 +218,8 @@ export default function WordDetailPanel({
             </h2>
             <button
               type="button"
-              title="朗读发音"
-              aria-label="朗读发音"
+              title={t("朗读发音")}
+              aria-label={t("朗读发音")}
               className="dictionary-icon-btn dictionary-pronunciation"
               onClick={() => handleWordSpeak(display)}
             >
@@ -227,8 +230,8 @@ export default function WordDetailPanel({
             {onRefresh ? (
               <button
                 type="button"
-                title="刷新释义"
-                aria-label="刷新释义"
+                title={t("刷新释义")}
+                aria-label={t("刷新释义")}
                 className="dictionary-icon-btn"
                 onClick={onRefresh}
               >
@@ -242,7 +245,7 @@ export default function WordDetailPanel({
               </span>
             )}
             {!hideClose && (
-              <button type="button" onClick={onClose} title="关闭" aria-label="关闭" className="dictionary-icon-btn">
+              <button type="button" onClick={onClose} title={t("关闭")} aria-label={t("关闭")} className="dictionary-icon-btn">
                 <I w={16}><path d="M6 6l12 12M18 6L6 18" /></I>
               </button>
             )}
@@ -266,7 +269,7 @@ export default function WordDetailPanel({
             style={{ color: 'var(--ink-2)' }}
           >
             <span className="h-1 w-1 rounded-full" style={{ background: accent }} aria-hidden="true" />
-            {posLabel}
+            {t(posLabel)}
           </span>
           {posDetail && (
             <span
@@ -282,7 +285,7 @@ export default function WordDetailPanel({
               className="jp w-full pt-1 text-xs"
               style={{ color: 'var(--ink-2)' }}
             >
-              原形 <span lang="ja">{wordDetail.dictionaryForm}</span>
+              {t("原形")}<span lang="ja">{wordDetail.dictionaryForm}</span>
             </span>
           )}
         </div>
@@ -291,14 +294,14 @@ export default function WordDetailPanel({
       {/* 正文 */}
       <div className="px-5 pb-5 pt-1">
         <p
-          className={`dictionary-definition m-0 text-[16px] font-medium leading-relaxed ${wordDetail.chineseTranslation === '加载中...' ? 'animate-pulse' : ''}`}
+          className={`dictionary-definition m-0 text-[16px] font-medium leading-relaxed ${wordDetail.chineseTranslation === t("加载中...") ? 'animate-pulse' : ''}`}
           style={{ color: 'var(--ink)' }}
         >
           {wordDetail.chineseTranslation}
         </p>
 
         {wordDetail.explanation && (
-          <DetailSection label="本句用法">
+          <DetailSection label={t("本句用法")}>
             <div className="flow-markdown word-detail-explanation text-[13px] leading-relaxed">
               {explanationContent(wordDetail.explanation)}
             </div>
@@ -308,20 +311,20 @@ export default function WordDetailPanel({
                 className="mt-3 cursor-pointer border-none bg-transparent text-sm font-medium"
                 style={{ color: 'var(--primary)' }}
               >
-                {isExplanationExpanded ? '收起 ▲' : '展开全文 ▼'}
+                {isExplanationExpanded ? t("收起 ▲") : t("展开全文 ▼")}
               </button>
             )}
           </DetailSection>
         )}
         {wordDetail.conjugation && (
-          <DetailSection label="词形">
+          <DetailSection label={t("词形")}>
             <p className="dictionary-conjugation m-0 text-[13px] leading-7" style={{ color: 'var(--ink-2)' }}>
               {wordDetail.conjugation}
             </p>
           </DetailSection>
         )}
         {wordDetail.example && wordDetail.exampleTranslation && (
-          <DetailSection label="例句">
+          <DetailSection label={t("例句")}>
             <div className="dictionary-example">
               <p lang="ja" className="jp m-0 text-sm leading-7" style={{ color: 'var(--ink)' }}>{wordDetail.example}</p>
               <p className="m-0 mt-1 text-xs leading-6" style={{ color: 'var(--ink-2)' }}>{wordDetail.exampleTranslation}</p>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { translateText, streamTranslateText } from '../services/api';
 import type { AIModelName, AIProvider } from '../services/api';
@@ -28,6 +29,7 @@ export default function TranslationSection({
   trigger,
   analysisSignal
 }: TranslationSectionProps) {
+  const { t, errorText } = useLanguage();
   const requestRef = useRef<AbortController | null>(null);
   const [translation, setTranslation] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -53,20 +55,20 @@ export default function TranslationSection({
         await streamTranslateText(japaneseText, (chunk) => {
           if (isCurrent()) setTranslation(chunk);
         }, (error) => {
-          if (isCurrent()) setTranslation(`翻译时发生错误: ${error.message}。`);
+          if (isCurrent()) setTranslation(t("翻译时发生错误: {0}。", errorText(error.message)));
         }, userApiKey, aiProvider, aiModel, signal);
       } else {
         const text = await translateText(japaneseText, userApiKey, aiProvider, aiModel, signal);
         if (isCurrent()) setTranslation(text);
       }
     } catch (error) {
-      if (isCurrent()) setTranslation(`翻译时发生错误: ${error instanceof Error ? error.message : '未知错误'}。`);
+      if (isCurrent()) setTranslation(t("翻译时发生错误: {0}。", error instanceof Error ? errorText(error.message) : t("未知错误")));
     } finally {
       if (requestRef.current === controller) {
         setIsLoading(false); requestRef.current = null;
       }
     }
-  }, [japaneseText, userApiKey, aiProvider, aiModel, useStream, analysisSignal]);
+  }, [japaneseText, userApiKey, aiProvider, aiModel, useStream, analysisSignal, t, errorText]);
 
   const handleCopy = () => {
     if (!translation) return;
@@ -102,7 +104,7 @@ export default function TranslationSection({
   return (
     <section id="fullTranslationCard" className="translation-section">
       <div className="translation-heading flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h2 className="m-0 text-sm font-medium" style={{ color: 'var(--ink-2)' }}>中文译文</h2>
+        <h2 className="m-0 text-sm font-medium" style={{ color: 'var(--ink-2)' }}>{t("中文译文")}</h2>
         <div className="translation-actions flex items-center gap-1">
           <button
             id="translateSentenceButton"
@@ -111,7 +113,7 @@ export default function TranslationSection({
             disabled={isLoading}
           >
             {Icon.refresh}
-            <span>{isLoading ? '翻译中' : translation ? '重新翻译' : '翻译'}</span>
+            <span>{isLoading ? t("翻译中") : translation ? t("重新翻译") : t("翻译")}</span>
           </button>
           <button
             onClick={handleCopy}
@@ -119,7 +121,7 @@ export default function TranslationSection({
             style={copied ? { color: 'var(--primary)' } : undefined}
             disabled={!translation}
           >
-            {Icon.copy}<span>{copied ? '已复制' : '复制'}</span>
+            {Icon.copy}<span>{copied ? t("已复制") : t("复制")}</span>
           </button>
           <button
             id="toggleFullTranslationButton"
@@ -128,7 +130,7 @@ export default function TranslationSection({
             aria-expanded={isVisible}
             aria-controls="translationContent"
           >
-            <span>{isVisible ? '收起' : '展开'}</span>
+            <span>{isVisible ? t("收起") : t("展开")}</span>
           </button>
         </div>
       </div>
@@ -137,9 +139,9 @@ export default function TranslationSection({
         {/* 包含子元素的外边距，避免高度测量遗漏译文顶部间距。 */}
         <AutoAnimateHeight duration={300} contentClassName="flow-root">
           {isVisible ? (
-            <div className="translation-scroll-region flow-root" role="region" aria-label="中文译文正文" tabIndex={0}>
+            <div className="translation-scroll-region flow-root" role="region" aria-label={t("中文译文正文")} tabIndex={0}>
               {isLoading && !translation ? (
-                <ThinkingIndicator label="翻译中" />
+                <ThinkingIndicator label={t("翻译中")} />
               ) : translation ? (
                 <div
                   className="flow-markdown full-translation-markdown mt-2 text-[16px] leading-7"
@@ -162,7 +164,7 @@ export default function TranslationSection({
                   className="mb-0 mt-2 whitespace-pre-wrap text-[16px] leading-7"
                   style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
                 >
-                  {translation || <span style={{ color: 'var(--ink-3)' }}>解析后将自动翻译。</span>}
+                  {translation || <span style={{ color: 'var(--ink-3)' }}>{t("解析后将自动翻译。")}</span>}
                 </p>
               )}
             </div>

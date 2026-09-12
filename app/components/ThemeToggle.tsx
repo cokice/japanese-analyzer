@@ -1,5 +1,6 @@
 'use client';
 
+import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { Icon } from './Icons';
@@ -11,6 +12,7 @@ const THEME_OPTIONS = [
 ] as const;
 
 export default function ThemeToggle() {
+  const { t } = useLanguage();
   const { theme, actualTheme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -29,14 +31,14 @@ export default function ThemeToggle() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  const currentLabel = THEME_OPTIONS.find((option) => option.value === theme)?.label || '跟随系统';
+  const currentLabel = THEME_OPTIONS.find((option) => option.value === theme)?.label || t("跟随系统");
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        title={`切换主题 - ${currentLabel}`}
+        title={t("切换主题 - {0}", t(currentLabel))}
         className="grid h-10 w-10 place-items-center rounded-[10px] border border-transparent transition-colors hover:border-[var(--line)] hover:text-[var(--primary)]"
         style={{ color: 'var(--ink-2)' }}
       >
@@ -69,14 +71,14 @@ export default function ThemeToggle() {
                 }}
               >
                 <span className="grid h-5 w-5 place-items-center">{option.icon}</span>
-                <span>{option.label}</span>
+                <span>{t(option.label)}</span>
               </button>
             );
           })}
 
           {theme === 'system' && (
             <div className="mt-1 border-t px-3 py-2 text-xs" style={{ borderColor: 'var(--line)', color: 'var(--ink-3)' }}>
-              当前：{actualTheme === 'dark' ? '暗色' : '亮色'}模式
+              {t("当前：{0}", t(actualTheme === 'dark' ? '暗色模式' : '亮色模式'))}
             </div>
           )}
         </div>

@@ -8,6 +8,7 @@ import "@fontsource/noto-sans-jp/japanese-700.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import "./globals.css";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 export const metadata: Metadata = {
@@ -80,7 +81,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased transition-colors duration-200">
         <ThemeProvider>
-          {children}
+          <LanguageProvider>{children}</LanguageProvider>
         </ThemeProvider>
         <Script src="/api/umami/script" strategy="afterInteractive" />
       </body>

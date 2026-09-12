@@ -1,5 +1,7 @@
 'use client';
 
+import { useLanguage } from "../contexts/LanguageContext";
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getWordDetails, parseWordDetailResponseContent, streamWordDetails, type WordDetail, type AIModelName, type AIProvider } from '../services/api';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
@@ -29,6 +31,7 @@ function partialField(content: string, name: string, completeOnly = false): stri
 }
 
 export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = true }: UseWordDetailOptions) {
+  const { t, locale } = useLanguage();
   const [wordDetail, setWordDetail] = useState<WordDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreamLoading, setIsStreamLoading] = useState(false);
@@ -49,12 +52,12 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
     cacheRef.current.clear();
     clearWordDetail();
     return () => { activeRef.current?.controller.abort(); activeRef.current = null; };
-  }, [userApiKey, aiProvider, aiModel, useStream, clearWordDetail]);
+  }, [userApiKey, aiProvider, aiModel, useStream, clearWordDetail, locale]);
 
   const fetchWordDetails = useCallback(async (
     word: string, pos: string, sentence: string, furigana?: string, options: FetchWordDetailsOptions = {}
   ) => {
-    const key = JSON.stringify([aiProvider, aiModel, sentence, word, pos, furigana || '']);
+    const key = JSON.stringify([locale, aiProvider, aiModel, sentence, word, pos, furigana || '']);
     if (!options.force && activeRef.current?.key === key) return;
     activeRef.current?.controller.abort();
     activeRef.current = null;
@@ -68,7 +71,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
     activeRef.current = { key, controller };
     const isCurrent = () => activeRef.current?.controller === controller && !signal.aborted;
     const context = { word, pos, furigana };
-    setWordDetail({ originalWord: word, pos, furigana: furigana || '', romaji: getLocalRomaji(word, furigana, pos), chineseTranslation: '加载中...', explanation: '' });
+    setWordDetail({ originalWord: word, pos, furigana: furigana || '', romaji: getLocalRomaji(word, furigana, pos), chineseTranslation: t("加载中..."), explanation: '' });
     setIsLoading(!useStream); setIsStreamLoading(useStream);
 
     const finish = (detail: WordDetail) => {
@@ -80,7 +83,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
     };
     const fail = (error: Error) => {
       if (!isCurrent()) return;
-      setStreamError(error.message || '查询释义失败');
+      setStreamError(error.message || t("查询释义失败"));
       setIsLoading(false); setIsStreamLoading(false); activeRef.current = null;
     };
     try {
@@ -94,7 +97,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
           setWordDetail({
             originalWord: word, pos: correctedPos, furigana: correctedReading,
             romaji: getLocalRomaji(word, correctedReading, correctedPos),
-            chineseTranslation: partialField(content, 'chineseTranslation') || '加载中...',
+            chineseTranslation: partialField(content, 'chineseTranslation') || t("加载中..."),
             dictionaryForm: partialField(content, 'dictionaryForm'),
             explanation: partialField(content, 'explanation'),
             conjugation: partialField(content, 'conjugation'),
@@ -106,9 +109,9 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
         finish(await getWordDetails(word, pos, sentence, furigana, userApiKey, aiProvider, aiModel, signal));
       }
     } catch (error) {
-      if (isCurrent()) fail(error instanceof Error ? error : new Error('查询释义失败'));
+      if (isCurrent()) fail(error instanceof Error ? error : new Error(t("查询释义失败")));
     }
-  }, [userApiKey, aiProvider, aiModel, useStream]);
+  }, [userApiKey, aiProvider, aiModel, useStream, locale, t]);
 
   return { wordDetail, isLoading, isStreamLoading, streamContent, streamError, fetchWordDetails, clearWordDetail };
 }

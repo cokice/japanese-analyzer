@@ -1,5 +1,6 @@
 'use client';
 
+import { useLanguage } from '../contexts/LanguageContext';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   useEffect,
@@ -28,6 +29,7 @@ export default function ReasoningStream({
   summaryHistory,
   completionLabel = '已深度思考',
 }: ReasoningStreamProps) {
+  const { t } = useLanguage();
   const revision = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
@@ -120,7 +122,7 @@ export default function ReasoningStream({
     followTailRef.current = distanceFromBottom < SCROLL_BOTTOM_THRESHOLD;
   };
 
-  const doneText = `${completionLabel}（用时 ${elapsedSeconds} 秒）`;
+  const doneText = t("{0}（用时 {1} 秒）", t(completionLabel), elapsedSeconds);
   const virtualItems = rowVirtualizer.getVirtualItems();
 
   return (
@@ -145,10 +147,9 @@ export default function ReasoningStream({
         {!done && (
           <span
             className="reasoning-stream-elapsed"
-            aria-label={`已思考 ${elapsedSeconds} 秒`}
+            aria-label={t("已思考 {0} 秒", elapsedSeconds)}
           >
-            {elapsedSeconds} 秒
-          </span>
+            {elapsedSeconds} {t("秒")}</span>
         )}
         <svg
           className={`reasoning-stream-chevron${expanded ? ' is-expanded' : ''}`}
@@ -171,8 +172,8 @@ export default function ReasoningStream({
             >
               {done && archivedSummaries.length > 0 && (
                 <section className="reasoning-archive-section reasoning-archive-summary">
-                  <h3 className="reasoning-archive-heading">思考摘要</h3>
-                  <ol className="reasoning-summary-history" aria-label="完整思考摘要历史">
+                  <h3 className="reasoning-archive-heading">{t("思考摘要")}</h3>
+                  <ol className="reasoning-summary-history" aria-label={t("完整思考摘要历史")}>
                     {archivedSummaries.map((historyItem, index) => (
                       <li key={`${index}-${historyItem}`} className="reasoning-summary-history-item">
                         <span className="reasoning-summary-history-check" aria-hidden="true">✓</span>
@@ -184,7 +185,7 @@ export default function ReasoningStream({
               )}
               <section className={`reasoning-archive-section reasoning-archive-process${reviewMode ? ' is-review' : ''}`}>
                 {reviewMode && (
-                  <h3 className="reasoning-archive-heading">完整思考过程</h3>
+                  <h3 className="reasoning-archive-heading">{t("完整思考过程")}</h3>
                 )}
                 <div
                   ref={scrollWindowRef}
