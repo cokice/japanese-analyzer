@@ -3,6 +3,8 @@ import { kanaToRomaji, getLocalRomaji } from '../app/utils/romaji';
 import { AnalyzeStreamParser } from '../app/utils/analyzeStreamParser';
 import { parseAnalyzeResponseContent, parseWordDetailResponseContent, readOpenAIContentStream, getWordDetails, streamWordDetails, streamTranslateText } from '../app/services/api';
 import { getStructuredResponseFormat } from '../app/api/_utils/providerConfig';
+import { runAnalysisUrlTests } from './analysisUrls.test';
+import './pastedText.test';
 
 for (const [reading, expected] of [
   ['としょかん','toshokan'], ['よんだ','yonda'], ['きょう','kyou'], ['がっこう','gakkou'],
@@ -106,4 +108,5 @@ export async function runLocalOutputTests() {
     stopped.abort();await Promise.all([stopWord,stopTranslation]);
     assert.strictEqual(callbacks,0,'请求头尚未返回时也可取消，且不触发错误或内容回调');
   } finally { globalThis.fetch=originalFetch; }
+  await runAnalysisUrlTests();
 }

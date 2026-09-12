@@ -85,7 +85,7 @@ export function areReasoningSummariesSimilar(left: string, right: string): boole
   return (2 * overlap) / (leftBigrams.length + rightBigrams.length) >= 0.78;
 }
 
-export function sanitizeReasoningSummary(value: string, maxChars = 30): string {
+export function sanitizeReasoningSummary(value: string, maxChars = 100): string {
   const cleaned = value
     .replace(/```(?:text|markdown|md)?/gi, ' ')
     .replace(/```/g, ' ')

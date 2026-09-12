@@ -1,5 +1,7 @@
 'use client';
 
+import { getImageExtractionPrompt } from '../lib/languagePrompts';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
 import type { AIProvider, TTSProvider } from '../services/api';
@@ -14,6 +16,7 @@ import {
 import { Icon } from './Icons';
 import { TextShimmer } from '@/components/ui/text-shimmer';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
+import { normalizePastedText } from '../utils/pastedText';
 
 interface InputSectionProps {
   onAnalyze: (text: string, usage?: AnalyzeUsageMetadata) => void;
@@ -71,6 +74,7 @@ export default function InputSection({
   onTtsProviderChange,
   isAnalyzing = false
 }: InputSectionProps) {
+  const { t, locale, errorText } = useLanguage();
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -223,7 +227,7 @@ export default function InputSection({
 
   const startAnalysis = (text: string, usage: AnalyzeUsageMetadata) => {
     if (!text.trim()) {
-      alert('请输入日语句子！');
+      alert(t("请输入日语句子！"));
       return;
     }
 
@@ -307,22 +311,22 @@ export default function InputSection({
   // 根据文本长度估算合成时间
   const getEstimatedTime = (text: string): string => {
     const length = text.length;
-    if (length <= 20) return '5-10秒';
-    if (length <= 50) return '10-20秒';
-    if (length <= 100) return '20-30秒';
-    return '30-60秒';
+    if (length <= 20) return t("5-10秒");
+    if (length <= 50) return t("10-20秒");
+    if (length <= 100) return t("20-30秒");
+    return t("30-60秒");
   };
 
   // 处理图片识别的通用函数
   const processImageFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      setUploadStatus('请上传图片文件！');
+      setUploadStatus(t("请上传图片文件！"));
       setUploadStatusClass('mt-2 text-sm');
       return;
     }
 
     setIsImageUploading(true);
-    setUploadStatus('正在上传并识别图片中的文字...');
+    setUploadStatus(t("正在上传并识别图片中的文字..."));
     setUploadStatusClass('mt-2 text-sm');
 
     try {
@@ -330,7 +334,7 @@ export default function InputSection({
       const compressedImageData = await compressImage(file);
 
       // 优化提示词，明确不要换行符
-      const imageExtractionPrompt = "请只执行 OCR：提取并返回这张图片中的所有日文文字。保持原始文字与顺序，不要分析图片内容，不要输出换行符，用空格替代；不要添加解释、说明或 Markdown。";
+      const imageExtractionPrompt = getImageExtractionPrompt(locale);
 
       if (useStream) {
         // 使用流式API进行图片文字提取
@@ -342,13 +346,13 @@ export default function InputSection({
             if (isDone) {
               markImageRecognitionUsed();
               setIsImageUploading(false);
-              setUploadStatus('文字提取成功！请确认后点击"解析"。');
+              setUploadStatus(t("文字提取成功！请确认后点击\"解析\"。"));
               setUploadStatusClass('mt-2 text-sm');
             }
           },
           (error) => {
             console.error('Error during streaming image text extraction:', error);
-            setUploadStatus(`提取时发生错误: ${error.message || '未知错误'}。`);
+            setUploadStatus(t("提取时发生错误: {0}。", errorText(error.message || "未知错误")));
             setUploadStatusClass('mt-2 text-sm');
             setIsImageUploading(false);
           },
@@ -361,13 +365,13 @@ export default function InputSection({
         const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, aiProvider);
         setInputText(extractedText);
         markImageRecognitionUsed();
-        setUploadStatus('文字提取成功！请确认后点击"解析"。');
+        setUploadStatus(t("文字提取成功！请确认后点击\"解析\"。"));
         setUploadStatusClass('mt-2 text-sm');
         setIsImageUploading(false);
       }
     } catch (error) {
       console.error('Error during image text extraction:', error);
-      setUploadStatus(`提取时发生错误: ${error instanceof Error ? error.message : '未知错误'}。`);
+      setUploadStatus(t("提取时发生错误: {0}。", error instanceof Error ? errorText(error.message) : t("未知错误")));
       setUploadStatusClass('mt-2 text-sm');
       setIsImageUploading(false);
     }
@@ -385,6 +389,24 @@ export default function InputSection({
 
   // 处理粘贴事件
   const handlePaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const plainText = event.clipboardData.getData('text/plain');
+    const html = event.clipboardData.getData('text/html');
+    const pasted = plainText || html ? normalizePastedText(plainText, html) : '';
+    if (pasted || plainText) {
+      event.preventDefault();
+      if (!pasted) return;
+      const input = event.currentTarget;
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      // Native insertion keeps the browser's undo history when available.
+      if (document.execCommand('insertText', false, pasted)) {
+        handleInputTextChange(input.value);
+        return;
+      }
+      handleInputTextChange(input.value.slice(0, start) + pasted + input.value.slice(end));
+      requestAnimationFrame(() => input.setSelectionRange(start + pasted.length, start + pasted.length));
+      return;
+    }
     const items = event.clipboardData?.items;
     if (!items) return;
 
@@ -397,7 +419,7 @@ export default function InputSection({
 
         const file = item.getAsFile();
         if (file) {
-          setUploadStatus('检测到粘贴的图片，正在识别...');
+          setUploadStatus(t("检测到粘贴的图片，正在识别..."));
           setUploadStatusClass('mt-2 text-sm');
           await processImageFile(file);
         }
@@ -437,7 +459,7 @@ export default function InputSection({
           // 在canvas上绘制压缩后的图片
           const ctx = canvas.getContext('2d');
           if (!ctx) {
-            reject(new Error('无法创建canvas上下文'));
+            reject(new Error(t("无法创建canvas上下文")));
             return;
           }
           ctx.drawImage(img, 0, 0, width, height);
@@ -447,10 +469,10 @@ export default function InputSection({
           const dataUrl = canvas.toDataURL(file.type, quality);
           resolve(dataUrl);
         };
-        img.onerror = () => reject(new Error('图片加载失败'));
+        img.onerror = () => reject(new Error(t("图片加载失败")));
         img.src = e.target?.result as string;
       };
-      reader.onerror = () => reject(new Error('无法读取文件'));
+      reader.onerror = () => reject(new Error(t("无法读取文件")));
       reader.readAsDataURL(file);
     });
   };
@@ -505,17 +527,17 @@ export default function InputSection({
         <div className="relative">
           {showFirstVisitExample && (
             <div className="first-visit-example-kicker">
-              第一次来？从这个句子开始
+              {t("第一次来？从这个句子开始")}
             </div>
           )}
           <textarea
             id="japaneseInput"
-            aria-label="日语原文"
+            aria-label={t("日语原文")}
             ref={japaneseInputRef}
             lang="ja"
             className={`jp w-full resize-none border-none bg-transparent outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''} ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
             rows={3}
-            placeholder="输入日语句子"
+            placeholder={t("输入日语句子")}
             value={inputText}
             onChange={(e) => handleInputTextChange(e.target.value)}
             onScroll={(event) => {
@@ -534,7 +556,7 @@ export default function InputSection({
           ></textarea>
           {showFirstVisitExample && (
             <div id="firstVisitExampleHint" className="first-visit-example-hint" role="status">
-              点击「解析」试试
+              {t("点击「解析」试试")}
             </div>
           )}
           {showInputShimmer && (
@@ -565,8 +587,8 @@ export default function InputSection({
               className="input-tool-button"
               onClick={() => document.getElementById('imageUploadInput')?.click()}
               disabled={isImageUploading}
-              title="上传图片提取文字"
-              aria-label="上传图片提取文字"
+              title={t("上传图片提取文字")}
+              aria-label={t("上传图片提取文字")}
             >
               {isImageUploading
                 ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
@@ -582,10 +604,10 @@ export default function InputSection({
                   onClick={handleSpeak}
                   disabled={!inputText.trim() || isLoading || isSpeaking}
                   title={inputText.trim() ?
-                    `朗读文本（约 ${getEstimatedTime(inputText)}）` :
-                    '请先输入文本'
+                    t("朗读文本（约 {0}）", getEstimatedTime(inputText)) :
+                    t("请先输入文本")
                   }
-                  aria-label="朗读文本"
+                  aria-label={t("朗读文本")}
                 >
                   {isSpeaking
                     ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
@@ -596,8 +618,8 @@ export default function InputSection({
                   className="input-tool-button input-tool-disclosure"
                   onClick={() => setShowTtsDropdown(!showTtsDropdown)}
                   disabled={isLoading || isSpeaking}
-                  title="语音设置"
-                  aria-label="语音设置"
+                  title={t("语音设置")}
+                  aria-label={t("语音设置")}
                   aria-expanded={showTtsDropdown}
                   aria-controls="inputVoiceSettings"
                 >
@@ -609,18 +631,18 @@ export default function InputSection({
               {showTtsDropdown && (
                 <div
                   id="inputVoiceSettings"
-                  className="input-voice-menu absolute bottom-full z-20 mb-2 rounded-2xl p-4"
+                  className="input-voice-menu absolute top-full z-20 mt-2 rounded-2xl p-4"
                   style={{
                     background: 'var(--bg-2)',
                     border: '1px solid var(--line)',
                     boxShadow: '0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06)',
                   }}
                 >
-                  <div className="mb-3 text-sm font-medium" style={{ color: 'var(--ink)' }}>语音设置</div>
+                  <div className="mb-3 text-sm font-medium" style={{ color: 'var(--ink)' }}>{t("语音设置")}</div>
 
                   {/* TTS提供商选择 */}
                   <div className="mb-3">
-                    <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>语音引擎</label>
+                    <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音引擎")}</label>
                     <div className="segmented-control grid grid-cols-2 gap-1 rounded-xl p-1">
                       {(['edge', 'gemini'] as const).map((provider) => (
                         <button
@@ -642,7 +664,7 @@ export default function InputSection({
                   {ttsProvider === 'edge' && (
                     <>
                       <div className="mb-3">
-                        <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>语音性别</label>
+                        <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音性别")}</label>
                         <select
                           value={selectedGender}
                           onChange={(e) => handleGenderChange(e.target.value as 'male' | 'female')}
@@ -650,7 +672,7 @@ export default function InputSection({
                         >
                           {TTS_GENDERS.map((gender) => (
                             <option key={gender.value} value={gender.value}>
-                              {gender.label}
+                              {t(gender.label)}
                             </option>
                           ))}
                         </select>
@@ -658,12 +680,12 @@ export default function InputSection({
 
                       <div className="mb-2">
                         <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
-                          语速 · {getRateLabel(selectedRate)}
+                          {t("语速 ·")} {t(getRateLabel(selectedRate))}
                         </label>
                         <input
                           type="range"
-                          aria-label="语速"
-                          aria-valuetext={getRateLabel(selectedRate)}
+                          aria-label={t("语速")}
+                          aria-valuetext={t(getRateLabel(selectedRate))}
                           min="-100"
                           max="100"
                           step="10"
@@ -673,9 +695,9 @@ export default function InputSection({
                           style={{ background: 'var(--line-2)', accentColor: 'var(--primary)' }}
                         />
                         <div className="mt-1 flex justify-between text-xs" style={{ color: 'var(--ink-3)' }}>
-                          <span>慢</span>
-                          <span>正常</span>
-                          <span>快</span>
+                          <span>{t("慢")}</span>
+                          <span>{t("正常")}</span>
+                          <span>{t("快")}</span>
                         </div>
                       </div>
                     </>
@@ -685,7 +707,7 @@ export default function InputSection({
                   {ttsProvider === 'gemini' && (
                     <>
                       <div className="mb-3">
-                        <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>语音选择</label>
+                        <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音选择")}</label>
                         <select
                           value={selectedVoice}
                           onChange={(e) => handleVoiceChange(e.target.value)}
@@ -693,14 +715,14 @@ export default function InputSection({
                         >
                           {GEMINI_VOICES.map((voice) => (
                             <option key={voice.value} value={voice.value}>
-                              {voice.label}
+                              {t(voice.label)}
                             </option>
                           ))}
                         </select>
                       </div>
 
                       <div className="mb-2">
-                        <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>语音风格</label>
+                        <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音风格")}</label>
                         <select
                           value={selectedStyle}
                           onChange={(e) => handleStyleChange(e.target.value)}
@@ -708,7 +730,7 @@ export default function InputSection({
                         >
                           {TTS_STYLES.map((style) => (
                             <option key={style.value} value={style.value}>
-                              {style.label}
+                              {t(style.label)}
                             </option>
                           ))}
                         </select>
@@ -732,8 +754,8 @@ export default function InputSection({
                 setShowFirstVisitExample(false);
                 clearUsageMetadata();
               }}
-              title="清空内容"
-              aria-label="清空内容"
+              title={t("清空内容")}
+              aria-label={t("清空内容")}
             >
               {Icon.xSm}
             </button>
@@ -759,7 +781,7 @@ export default function InputSection({
         />
       </section>
 
-      {uploadStatus && <div id="imageUploadStatus" className={uploadStatusClass}>{uploadStatus}</div>}
+      {uploadStatus && <div id="imageUploadStatus" className={uploadStatusClass}>{errorText(uploadStatus)}</div>}
 
       {ttsAudioUrl && (
         <div className="mt-4">
@@ -779,9 +801,9 @@ export default function InputSection({
           className="mt-4 rounded-xl p-4 text-sm"
           style={{ background: 'var(--primary-soft)', color: 'var(--ink-2)' }}
         >
-          <p className="m-0 font-medium">正在准备朗读…</p>
+          <p className="m-0 font-medium">{t("正在准备朗读…")}</p>
           <p className="mb-0 mt-1 text-xs" style={{ color: 'var(--ink-3)' }}>
-            预计需要 {getEstimatedTime(inputText)}
+            {t("预计需要")} {getEstimatedTime(inputText)}
           </p>
         </div>
       )}

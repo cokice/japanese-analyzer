@@ -1,5 +1,6 @@
 'use client';
 
+import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useRef, useState } from 'react';
 import { AssistantModalPrimitive, TextMessagePartProvider } from '@assistant-ui/react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -14,21 +15,33 @@ interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  welcome?: boolean;
+  error?: boolean;
 }
 
 interface AIChatProps {
+  hidden?: boolean;
   userApiKey?: string;
   aiProvider: AIProvider;
   aiModel: AIModelName;
   currentSentence?: string;
 }
 
-export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentence }: AIChatProps) {
+export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentence, hidden = false }: AIChatProps) {
+  const { t, locale, errorText } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const requestRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setIsLoading(false);
+    setMessages(current => current.filter(message => message.content || message.role === 'user'));
+    return () => { requestRef.current?.abort(); };
+  }, [locale]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shouldReduceMotion = useReducedMotion();
@@ -74,20 +87,24 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       const welcomeContent = currentSentence
-        ? '可以问我这句话的语法和用法。'
-        : '想了解哪个词，或哪一句日语？';
+        ? "可以问我这句话的语法和用法。"
+        : "想了解哪个词，或哪一句日语？";
 
       setMessages([{
         id: Date.now().toString(),
         role: 'assistant',
+        welcome: true,
         content: welcomeContent
       }]);
     }
-  }, [isOpen, messages.length, currentSentence]);
+  }, [isOpen, messages.length, currentSentence, t]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
-    const metrics = createRequestMetrics('chat', aiProvider, aiModel, true);
+    const controller = new AbortController();
+    requestRef.current = controller;
+    const isCurrent = () => requestRef.current === controller && !controller.signal.aborted;
+    const metrics = createRequestMetrics('chat', aiProvider, aiModel, true, controller.signal);
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -113,19 +130,18 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
         .filter((msg) => msg.id !== userMessage.id)
         .map((msg) => ({
           role: msg.role,
-          content: msg.content
+          content: msg.welcome ? t(msg.content) : msg.content
         }));
 
       if (currentSentence) {
         const hasContextAlready = messages.some((msg) =>
-          msg.content.includes(currentSentence) ||
-          msg.content.includes('我正在分析这个日语句子')
+          msg.content.includes(currentSentence)
         );
 
         if (!hasContextAlready) {
           apiMessages.push({
             role: 'user',
-            content: `请注意：我正在分析这个日语句子：「${currentSentence}」。请在后续回答中结合这个句子的语境来解释相关的日语问题。`
+            content: t("请注意：我正在分析这个日语句子：「{0}」。请在后续回答中结合这个句子的语境来解释相关的日语问题。", currentSentence)
           });
         }
       }
@@ -138,6 +154,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
       await streamChat(
         apiMessages,
         (chunk, isDone) => {
+          if (!isCurrent()) return;
           if (chunk.trim()) metrics.firstResult();
           setMessages((prev) => prev.map((msg) =>
             msg.id === assistantMessageId
@@ -151,25 +168,28 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
           }
         },
         (error) => {
+          if (!isCurrent()) return;
           metrics.fail(error);
           console.error('Chat error:', error);
           setMessages((prev) => prev.map((msg) =>
             msg.id === assistantMessageId
-              ? { ...msg, content: `抱歉，聊天时出现错误：${error.message}` }
+              ? { ...msg, error: true, content: `抱歉，聊天时出现错误：${error.message}` }
               : msg
           ));
           setIsLoading(false);
         },
         userApiKey,
         aiProvider,
-        aiModel
+        aiModel,
+        controller.signal
       );
     } catch (error) {
+      if (!isCurrent()) return;
       metrics.fail(error);
       console.error('Chat error:', error);
       setMessages((prev) => prev.map((msg) =>
         msg.id === assistantMessageId
-          ? { ...msg, content: `抱歉，聊天时出现错误：${error instanceof Error ? error.message : '未知错误'}` }
+          ? { ...msg, error: true, content: `抱歉，聊天时出现错误：${error instanceof Error ? error.message : "未知错误"}` }
           : msg
       ));
       setIsLoading(false);
@@ -210,9 +230,9 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
           {Icon.chat}
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="m-0 text-sm font-semibold" style={{ color: 'var(--ink)' }}>AI 日语助手</h3>
+          <h3 className="m-0 text-sm font-semibold" style={{ color: 'var(--ink)' }}>{t("AI 日语助手")}</h3>
           <p className="m-0 mt-0.5 truncate text-xs" style={{ color: 'var(--ink-3)' }}>
-            {currentSentence ? '结合当前句子回答' : '语法、词汇和学习问题'}
+            {currentSentence ? t("结合当前句子回答") : t("语法、词汇和学习问题")}
           </p>
         </div>
         <button
@@ -221,7 +241,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
             setIsOpen(true);
           } : openExpanded}
           className="dictionary-icon-btn"
-          title={expanded ? '收缩窗口' : '展开窗口'}
+          title={expanded ? t("收缩窗口") : t("展开窗口")}
           type="button"
         >
           {expanded ? Icon.compress : Icon.expand}
@@ -229,7 +249,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
         <button
           onClick={closeChat}
           className="dictionary-icon-btn"
-          title="关闭聊天"
+          title={t("关闭聊天")}
           type="button"
         >
           {Icon.xSm}
@@ -254,7 +274,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
                     <div className="whitespace-pre-wrap">{message.content}</div>
                   ) : (
                     <div className="ai-chat-markdown max-w-none">
-                      <TextMessagePartProvider text={message.content} isRunning={isRunningAssistant}>
+                      <TextMessagePartProvider text={message.welcome ? t(message.content) : message.error ? errorText(message.content) : message.content} isRunning={isRunningAssistant}>
                         <MarkdownText />
                       </TextMessagePartProvider>
                     </div>
@@ -275,8 +295,8 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            aria-label="日语问题"
-            placeholder="问一个日语问题…"
+            aria-label={t("日语问题")}
+            placeholder={t("问一个日语问题…")}
             className="chat-input min-h-[36px] min-w-0 flex-1 resize-none"
             rows={expanded ? 2 : 1}
             disabled={isLoading}
@@ -286,7 +306,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
             disabled={!inputValue.trim() || isLoading}
             className="nd-primary-btn chat-send-button"
             type="button"
-            title="发送"
+            title={t("发送")}
           >
             {Icon.send}
           </button>
@@ -294,6 +314,8 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
       </div>
     </>
   );
+
+  if (hidden) return null;
 
   return (
     <>
@@ -331,9 +353,9 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
             <AssistantModalPrimitive.Trigger asChild>
               <button
                 className="nd-fab assistant-modal-trigger"
-                title="AI 日语助手"
+                title={t("AI 日语助手")}
                 type="button"
-                aria-label={isOpen ? '关闭 AI 日语助手' : '打开 AI 日语助手'}
+                aria-label={isOpen ? t("关闭 AI 日语助手") : t("打开 AI 日语助手")}
               >
                 <AnimatePresence initial={false} mode="wait">
                   {isOpen ? (

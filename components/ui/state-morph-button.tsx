@@ -2,6 +2,8 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
+import { useLanguage } from "@/app/contexts/LanguageContext";
+
 import { cn } from "@/lib/utils";
 
 export type StateMorphButtonState = "idle" | "loading" | "success";
@@ -59,6 +61,7 @@ export function StateMorphButton({
   disabled,
   className,
 }: StateMorphButtonProps) {
+  const { t } = useLanguage();
   const reduceMotion = useReducedMotion();
   return (
     <button
@@ -67,8 +70,8 @@ export function StateMorphButton({
       className={cn("nd-primary-btn state-morph-btn", className)}
       onClick={onClick}
       disabled={disabled}
-      aria-label={state === "loading" ? "终止解析" : undefined}
-      title={state === "loading" ? "终止解析" : undefined}
+      aria-label={state === "loading" ? t("终止解析") : undefined}
+      title={state === "loading" ? t("终止解析") : undefined}
     >
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
@@ -81,7 +84,7 @@ export function StateMorphButton({
         >
           {state === "loading" && <StopIcon />}
           {state === "success" && <CheckIcon />}
-          <span>{labels[state]}</span>
+          <span>{t(labels[state])}</span>
         </motion.span>
       </AnimatePresence>
     </button>

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "tsx tests/api.test.ts"
+    "test": "tsx tests/api.test.ts && tsx tests/i18n.test.ts"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.14.16",
@@ -21,6 +21,7 @@
     "autoprefixer": "^10.4.21",
     "clsx": "^2.1.1",
     "flowtoken": "^1.0.40",
+    "mdast-util-from-markdown": "^2.0.3",
     "motion": "^12.40.0",
     "next": "15.5.9",
     "postcss": "^8.5.6",

@@ -1,5 +1,6 @@
 'use client';
 
+import { useLanguage } from '../contexts/LanguageContext';
 import { containsKanji, getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEND_GROUPS } from '../utils/helpers';
 import { TokenData } from '../services/api';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
@@ -51,6 +52,7 @@ export default function AnalysisResult({
   onWordClick,
   selectedIndex,
 }: AnalysisResultProps) {
+  const { t } = useLanguage();
   if (!tokens || tokens.length === 0) {
     return null;
   }
@@ -63,16 +65,16 @@ export default function AnalysisResult({
     <section className="analysis-card relative">
       {/* 标题行 */}
       <div className="analysis-heading mb-4 flex flex-wrap items-center gap-y-2">
-        <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>解析结果</h2>
+        <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>{t("解析结果")}</h2>
         <div className="flex-1" />
         <div className="analysis-display-options flex items-center gap-4 sm:gap-[18px]">
           <label className="inline-flex cursor-pointer items-center gap-2">
-            <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>假名</span>
-            <Toggle on={showFurigana} onChange={onShowFuriganaChange} ariaLabel="显示假名" />
+            <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>{t("假名")}</span>
+            <Toggle on={showFurigana} onChange={onShowFuriganaChange} ariaLabel={t("显示假名")} />
           </label>
           <label className="inline-flex cursor-pointer items-center gap-2">
-            <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>罗马音</span>
-            <Toggle on={showRomaji} onChange={onShowRomajiChange} ariaLabel="显示罗马音" />
+            <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>{t("罗马音")}</span>
+            <Toggle on={showRomaji} onChange={onShowRomajiChange} ariaLabel={t("显示罗马音")} />
           </label>
         </div>
       </div>
@@ -83,7 +85,7 @@ export default function AnalysisResult({
           id="analyzedSentenceOutput"
           lang="ja"
           role="region"
-          aria-label="日文解析正文"
+          aria-label={t("日文解析正文")}
           tabIndex={0}
           data-furigana={showFurigana}
           data-romaji={showRomaji}
@@ -148,7 +150,7 @@ export default function AnalysisResult({
       <div className="analysis-footer">
         {/* 提示 */}
         <div className="analysis-hint">
-          点击词汇查看释义
+          {t("点击词汇查看释义")}
         </div>
 
         {/* 词性图例 */}
@@ -156,7 +158,7 @@ export default function AnalysisResult({
           {legendGroups.map((g) => (
             <span key={g} className="legend-item">
               <span className="legend-swatch" style={{ background: POS_GROUP_COLORS[g] }} />
-              {POS_GROUP_LABELS[g]}
+              {t(POS_GROUP_LABELS[g])}
             </span>
           ))}
         </div>

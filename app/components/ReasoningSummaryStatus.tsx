@@ -1,5 +1,6 @@
 'use client';
 
+import { useLanguage } from '../contexts/LanguageContext';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
 interface ReasoningSummaryStatusProps {
@@ -15,10 +16,11 @@ export default function ReasoningSummaryStatus({
   done,
   doneText,
 }: ReasoningSummaryStatusProps) {
+  const { t } = useLanguage();
   const reduceMotion = useReducedMotion();
-  const displaySummaries = summaries.length > 0 ? summaries : ['正在分析…'];
+  const displaySummaries = summaries.length > 0 ? summaries : [t("正在分析…")];
   const visibleSummaries = displaySummaries.slice(-VISIBLE_SUMMARY_COUNT);
-  const currentSummary = visibleSummaries.at(-1) ?? '正在分析…';
+  const currentSummary = visibleSummaries.at(-1) ?? t("正在分析…");
 
   return (
     <div

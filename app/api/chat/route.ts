@@ -1,3 +1,5 @@
+import { getChatSystemPrompt } from '../../lib/languagePrompts';
+import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
@@ -5,6 +7,7 @@ import { requireApiSession } from '../_utils/sessionAuth';
 
 export async function POST(req: NextRequest) {
   try {
+    const locale = normalizeLocale(req.headers.get('X-App-Locale'));
     const authError = requireApiSession(req);
     if (authError) return authError;
 
@@ -27,23 +30,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 构建系统提示词，让AI专注于日语学习辅助
-    const systemPrompt = `你是一个专业的日语学习助手。请用中文回答用户关于日语的问题，包括但不限于：
-
-1. 日语语法解释和例句
-2. 词汇含义、用法和变位
-3. 日语文化和习俗
-4. 学习方法和建议
-5. 日语句子的翻译和解析
-6. 敬语的使用方法
-7. 日语考试相关问题
-
-请确保回答：
-- 准确专业
-- 通俗易懂
-- 提供具体例句
-- 适合中文母语者学习
-
-如果用户问的不是日语相关问题，请礼貌地引导他们询问日语学习相关的内容。`;
+    const systemPrompt = getChatSystemPrompt(locale);
 
     const fullMessages = [
       { role: "system", content: systemPrompt },
@@ -60,6 +47,7 @@ export async function POST(req: NextRequest) {
       url: providerConfig.apiUrl,
       apiKey: providerConfig.apiKey,
       payload,
+      signal: req.signal,
     });
 
     if (!proxied.ok) {
@@ -90,6 +78,10 @@ export async function POST(req: NextRequest) {
         { error: { message: error.message } },
         { status: error.status }
       );
+    }
+
+    if (req.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      return new Response(null, { status: 499 });
     }
 
     console.error('Server error (Chat):', error);

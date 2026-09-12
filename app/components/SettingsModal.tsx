@@ -1,5 +1,6 @@
 'use client';
 
+import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useState } from 'react';
 import { DEEPSEEK_MODEL_OPTIONS, GEMINI_MODEL_OPTIONS, getModelName, type AIModelName, type AIProvider } from '../services/api';
 import { Icon } from './Icons';
@@ -36,6 +37,7 @@ export default function SettingsModal({
   isModalOpen,
   onModalClose
 }: SettingsModalProps) {
+  const { t } = useLanguage();
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(aiProvider);
   const [selectedModel, setSelectedModel] = useState<AIModelName>(getModelName(aiProvider, aiModel));
   const [geminiKey, setGeminiKey] = useState(geminiApiKey);
@@ -97,25 +99,25 @@ export default function SettingsModal({
           type="button"
           className="settings-modal-close-button"
           onClick={onModalClose}
-          aria-label="关闭设置"
+          aria-label={t("关闭设置")}
         >
           {Icon.x}
         </button>
 
         <div className="mb-5">
           <div className="mb-1 flex items-center gap-2">
-            <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>模型与 API</h3>
+            <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>{t("模型与 API")}</h3>
           </div>
           <p className="m-0 text-sm leading-6" style={{ color: 'var(--ink-3)' }}>
-            使用默认配置，或填写自己的 API 密钥。
+            {t("使用默认配置，或填写自己的 API 密钥。")}
           </p>
         </div>
 
-        <div className="settings-group" role="group" aria-label="模型配置">
-          <p className="settings-group-label">模型配置</p>
+        <div className="settings-group" role="group" aria-label={t("模型配置")}>
+          <p className="settings-group-label">{t("模型配置")}</p>
           <div className="mb-4">
             <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-              模型服务
+              {t("模型服务")}
             </label>
             <div className="segmented-control grid grid-cols-2 gap-1 rounded-[12px] p-1">
               {(['gemini', 'deepseek'] as AIProvider[]).map((provider) => {
@@ -143,7 +145,7 @@ export default function SettingsModal({
 
           <div className="mb-4">
             <label htmlFor="modalModelSelect" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-              模型版本
+              {t("模型版本")}
             </label>
             <select
               id="modalModelSelect"
@@ -159,34 +161,33 @@ export default function SettingsModal({
 
           <div className="mb-4">
             <label htmlFor="modalApiKeyInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-              {PROVIDER_LABELS[selectedProvider]} API 密钥（可选）
-            </label>
+              {PROVIDER_LABELS[selectedProvider]} {t("API 密钥（可选）")}</label>
             <input
               type="password"
               id="modalApiKeyInput"
               className="nd-input"
-              placeholder="留空使用默认配置"
+              placeholder={t("留空使用默认配置")}
               value={currentApiKey}
               onChange={(e) => setCurrentApiKey(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="settings-group" role="group" aria-label="输出方式">
-          <p className="settings-group-label">输出方式</p>
+        <div className="settings-group" role="group" aria-label={t("输出方式")}>
+          <p className="settings-group-label">{t("输出方式")}</p>
           <div className="settings-option-row">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <label htmlFor="useStreamToggle" className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-                  流式输出
+                  {t("流式输出")}
                 </label>
                 <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
-                  实时显示解析结果，网络不稳定时可关闭。
+                  {t("实时显示解析结果，网络不稳定时可关闭。")}
                 </p>
               </div>
               <Switch
                 id="useStreamToggle"
-                aria-label="流式输出"
+                aria-label={t("流式输出")}
                 checked={streamEnabled}
                 onCheckedChange={setStreamEnabled}
               />
@@ -195,7 +196,7 @@ export default function SettingsModal({
 
           {selectedProvider === 'deepseek' && (
             <div className="settings-unavailable-row">
-              <span>深度思考</span><span>暂不可用</span>
+              <span>{t("深度思考")}</span><span>{t("暂不可用")}</span>
             </div>
           )}
         </div>
@@ -207,18 +208,18 @@ export default function SettingsModal({
             onClick={handleSaveSettings}
             type="button"
           >
-            <span>保存设置</span>
+            <span>{t("保存设置")}</span>
           </button>
         </div>
 
         {status && (
           <div id="settingsStatus" className="mt-3 text-center text-sm" style={{ color: 'var(--primary)' }}>
-            {status}
+            {t(status)}
           </div>
         )}
 
         <p className="mb-0 mt-4 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
-          密钥保存在此浏览器中，随请求发送用于调用模型。留空则使用默认配置。
+          {t("密钥保存在此浏览器中，随请求发送用于调用模型。留空则使用默认配置。")}
         </p>
       </div>
     </div>

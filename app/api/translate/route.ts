@@ -1,3 +1,5 @@
+import { getTranslationSystemPrompt } from '../../lib/languagePrompts';
+import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
@@ -5,6 +7,7 @@ import { requireApiSession } from '../_utils/sessionAuth';
 
 export async function POST(req: NextRequest) {
   try {
+    const locale = normalizeLocale(req.headers.get('X-App-Locale'));
     const authError = requireApiSession(req);
     if (authError) return authError;
 
@@ -27,15 +30,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 构建翻译请求
-    const translationPrompt = `请将以下日文文本翻译成简体中文。重要：请务必保持与原文完全相同的段落和换行结构。
-
-原文：
-${text}
-
-    请仅返回翻译后的中文文本。`;
+    const translationPrompt = getTranslationSystemPrompt(locale);
     const payload = withProviderControls(providerConfig.provider, {
       model: providerConfig.model,
-      messages: [{ role: "user", content: translationPrompt }],
+      messages: [{ role: "system", content: translationPrompt }, { role: "user", content: text }],
       stream: stream
     });
 

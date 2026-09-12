@@ -1,11 +1,13 @@
+import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
 import { requireApiSession } from '../_utils/sessionAuth';
-import { WORD_DETAIL_SYSTEM_PROMPT } from '../../lib/wordDetailPrompt';
+import { getWordDetailSystemPrompt } from '../../lib/wordDetailPrompt';
 
 export async function POST(req: NextRequest) {
   try {
+    const locale = normalizeLocale(req.headers.get('X-App-Locale'));
     const authError = requireApiSession(req);
     if (authError) return authError;
 
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
     const payload = withProviderControls(providerConfig.provider, {
       model: providerConfig.model,
       messages: [
-        { role: "system", content: WORD_DETAIL_SYSTEM_PROMPT },
+        { role: "system", content: getWordDetailSystemPrompt(locale) },
         { role: "user", content: JSON.stringify({ word, pos, sentence, furigana: furigana || "" }) },
       ],
       stream: useStream,

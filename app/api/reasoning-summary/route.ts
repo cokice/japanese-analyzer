@@ -1,3 +1,5 @@
+import { getReasoningSummaryPrompt } from '../../lib/languagePrompts';
+import { normalizeLocale } from '../../i18n';
 import { DEEPSEEK_MODEL_NAME } from '../../lib/aiModels';
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeReasoningSummary } from '../../utils/reasoningSummary';
@@ -5,7 +7,6 @@ import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
 import { requireApiSession } from '../_utils/sessionAuth';
 
-const SUMMARY_PROMPT = '以下是一个 AI 模型思考过程的最新片段。用一句 8-15 字的中文现在进行时短语,描述它此刻正在做的事。只输出这个短语,不要标点结尾,不要概括全文。例:正在辨析谓语的使役被动形态';
 const SUMMARY_MODEL = DEEPSEEK_MODEL_NAME;
 const SUMMARY_SNIPPET_CHARS = 800;
 
@@ -21,6 +22,7 @@ function extractAssistantText(data: unknown): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const locale = normalizeLocale(req.headers.get('X-App-Locale'));
     const authError = requireApiSession(req);
     if (authError) return authError;
 
@@ -51,11 +53,11 @@ export async function POST(req: NextRequest) {
     const payload = withProviderControls('deepseek', {
       model: providerConfig.model,
       messages: [
-        { role: 'system', content: SUMMARY_PROMPT },
+        { role: 'system', content: getReasoningSummaryPrompt(locale) },
         { role: 'user', content: reasoningSnippet },
       ],
       stream: false,
-      max_tokens: 30,
+      max_tokens: 60,
     }, { enableThinking: false });
 
     const proxied = await proxyOpenAICompatibleRequest({
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await proxied.response.json();
-    const summary = sanitizeReasoningSummary(extractAssistantText(data));
+    const summary = sanitizeReasoningSummary(extractAssistantText(data), locale === 'en' || locale === 'ko' ? 100 : 30);
     if (!summary) {
       return NextResponse.json(
         { error: { message: 'DeepSeek 没有返回有效的思考摘要' } },

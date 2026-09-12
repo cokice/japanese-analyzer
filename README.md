@@ -1,8 +1,8 @@
 # 日本語文章解析
 
-🌐 **语言 / Language:** [简体中文](README.md) | [日本語](README.ja.md)
+🌐 [简体中文](README.md) | [繁體中文](README.zh-TW.md) | [English](README.en.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
-面向中文学习者的日语句子解析工具。输入一句日语，应用会拆解词汇、读音、罗马音、词性、整句翻译和单词详解，并提供图片识别、朗读和 AI 日语助手。
+支持简体中文、繁体中文、英文和韩语的日语句子解析工具。输入一句日语，应用会拆解词汇、读音、罗马音、词性、整句翻译和单词详解，并提供图片识别、朗读和 AI 日语助手。
 
 体验链接：[在线体验](https://nihongodemo.howen.ink/)。
 
@@ -22,6 +22,8 @@
 </p>
 
 ## 界面预览
+
+以下截图以简体中文界面示范。实际使用时，可通过右上角地球图标切换语言。
 
 ### 主界面 · 解析与词典
 
@@ -43,11 +45,15 @@
 
 ## 功能
 
-- 句子解析：分词、假名、罗马音、词性标记和中文释义。
+- 语言切换：点击右上角地球图标，选择简体中文、繁体中文、English 或 한국어，立即生效并在浏览器中记住选择；界面、翻译、词条和 AI 回答同步切换。
+- 繁体中文使用自然的惯用词汇和表达，不只转换字形。日语原文、读音和例句保持日语；已有聊天消息保留原语言，新回复使用所选语言。
+- 句子解析：分词、假名、罗马音、词性标记和释义。
 - 单词详解：点击词汇查看读音、释义、语法角色和上下文解释。
-- 整句翻译：生成中文整句翻译，方便快速理解语境。
+- 整句翻译：按所选语言生成整句翻译，保留原文段落与换行；切换语言后自动重新翻译。
+- 纯文本粘贴：去掉网页样式、Markdown 格式和链接地址，保留链接显示的文字与段落换行；单独出现的网址也会移除。粘贴图片仍可启动 OCR。
+- 长文与链接处理：长文分段解析；输入中仍存在的网址由程序保留原样，避免模型重复生成冗长编码。完整结果会检查原文还原情况，并补回模型遗漏的空白。
 - 图片识别：上传或粘贴图片提取日语文字；DeepSeek 文本解析与 OCR 统一使用 `deepseek-flash`，Gemini 使用所选模型。
-- 朗读：支持 Edge TTS 和 Gemini TTS。
+- 朗读：支持 Edge TTS 和 Gemini TTS；声音设置菜单向下展开。
 - AI 日语助手：围绕日语语法、词汇、文化和当前句子提问。
 - 双模型服务商：文本模型支持 Gemini 和 DeepSeek，默认使用 DeepSeek。
 - 本地浏览器设置：用户可以在设置弹窗中为 Gemini / DeepSeek 分别填入自己的 API Key。
@@ -57,11 +63,13 @@
 
 ## 模型说明
 
+以下为本项目配置使用的模型标识。
+
 | 能力 | 默认模型 / 服务 | 说明 |
 | --- | --- | --- |
-| 文本解析 | `deepseek-flash` | 默认文本服务商是 DeepSeek，统一使用 V4.1 Flash；DeepSeek 请求默认关闭思考模式。 |
+| 文本解析 | `deepseek-flash` | 默认文本服务商是 DeepSeek；思考模式默认关闭，设置中的切换功能暂不可用。 |
 | Gemini 文本解析 | `gemini-flash-latest` / `gemini-flash-lite-latest` | 可在设置中切换 Gemini Flash / Flash-Lite；Flash 使用 Low 推理档，Flash-Lite 使用 Minimal。 |
-| 图片识别 | `deepseek-flash` / Gemini | 选择 DeepSeek 时，图片 OCR 与文字解析统一使用原生多模态的 V4.1 Flash；OCR 固定关闭思考。 |
+| 图片识别 | `deepseek-flash` / Gemini | 选择 DeepSeek 时，图片 OCR 与文字解析使用同一模型；OCR 固定关闭思考。 |
 | 朗读 | Edge TTS / Gemini TTS | 默认使用 Edge TTS；Gemini TTS 需要 Gemini API Key。 |
 
 ## 快速开始
@@ -108,6 +116,14 @@ npm run dev
 ```
 
 打开 [http://127.0.0.1:3000](http://127.0.0.1:3000)。
+
+如需从局域网中的其他设备体验：
+
+```bash
+npm run dev -- --hostname 0.0.0.0 --port 3100
+```
+
+在其他设备打开 `http://<电脑的局域网IP>:3100`。
 
 ## 环境变量
 
@@ -280,12 +296,18 @@ docker run -d \
 
 ```bash
 npm run dev      # 本地开发
-npm test         # 运行 API / provider 配置测试
+npm test         # API、语言、解析和粘贴回归测试
+npm run lint     # 检查仓库代码
 npm run build    # 生产构建，发布前建议先跑
 npm start        # 启动生产服务，需要先完成构建
 npx tsc --noEmit  # TypeScript 类型检查
-npx eslint app tests  # 检查应用源码与测试
 ```
+
+## 问题排查与贡献
+
+- 复制的文章解析失败时，可重新粘贴以移除格式和链接地址。如果仍然失败，请在 Issue 中提供服务商、模型、界面语言及可复现的原文示例，不要附带 API Key。
+- 语言选择分别保存在各个浏览器中，通过地球图标切换即可，无需开启浏览器翻译。
+- 欢迎通过 Issue 反馈问题和功能建议，或提交 Pull Request。
 
 ## 致谢
 
