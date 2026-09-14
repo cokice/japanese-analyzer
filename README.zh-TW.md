@@ -156,4 +156,8 @@ npx tsc --noEmit     # 僅執行型別檢查
 
 ## 致謝與授權
 
-感謝 [LINUX DO](https://linux.do/) 社群的支持。本專案採用 [MIT License](./LICENSE) 授權。
+感謝 [LINUX DO](https://linux.do/) 社群的支持。本專案自 `mit-final` 之後的授權切換提交起，整體採用 [GNU AGPL v3，僅第 3 版（AGPL-3.0-only）](./LICENSE)。
+
+`mit-final`（`fb57ddc`）及先前以 MIT 發布的程式碼仍保留原有 MIT 授權，詳見 [歷史 MIT 授權條款](./LICENSES/MIT-legacy.txt)、[授權範圍與部署說明](./LICENSING.md)及 [版權聲明](./NOTICE)。
+
+AGPL 允許商業使用；散布適用作品，或修改後透過網路提供服務時，請依授權條款提供對應原始碼。

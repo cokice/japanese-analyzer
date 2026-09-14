@@ -156,4 +156,8 @@ npx tsc --noEmit     # Type check only
 
 ## Acknowledgments and license
 
-Thanks to the [LINUX DO](https://linux.do/) community for its support. Released under the [MIT License](./LICENSE).
+Thanks to the [LINUX DO](https://linux.do/) community for its support. Starting with the license-transition commit after `mit-final`, the project as a whole is distributed under the [GNU AGPL v3 only (AGPL-3.0-only)](./LICENSE).
+
+Code previously released under MIT, including `mit-final` (`fb57ddc`), retains its existing MIT grant. See the [legacy MIT license](./LICENSES/MIT-legacy.txt), [licensing and deployment notes](./LICENSING.md), and [copyright notices](./NOTICE).
+
+Commercial use is permitted. When distributing covered works or offering a modified version over a network, provide the corresponding source as required by the license.
