@@ -1,0 +1,34 @@
+japanese-analyzer
+Copyright (c) 2025 Howen
+Copyright (c) 2026 Howen and contributors
+
+Project source: https://github.com/cokice/japanese-analyzer
+Contributor attribution is retained in the source files and Git history.
+
+Starting with the license-transition commit after the mit-final tag, the
+project as a whole is distributed under the GNU Affero General Public License,
+version 3 only (SPDX-License-Identifier: AGPL-3.0-only). See LICENSE.
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of version 3 of the GNU Affero General Public License as published
+by the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for details.
+
+Historical MIT material
+-----------------------
+The mit-final tag identifies commit:
+fb57ddca483f3bfe816a3ca8e59d6d5208ef7c64
+
+Material previously released under MIT remains available under that original
+grant. Its original copyright and permission notice is preserved verbatim in
+LICENSES/MIT-legacy.txt. This transition does not revoke existing MIT grants,
+claim exclusive ownership of contributors' work, or make unchanged historical
+MIT material exclusively AGPL-licensed. See LICENSING.md for the scope.
+
+Third-party components
+----------------------
+Dependencies, fonts, and other third-party materials retain their respective
+licenses and notices. The project-wide license does not replace those terms.

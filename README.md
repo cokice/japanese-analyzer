@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" /></a>
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg" /></a>
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black" />
   <img alt="React" src="https://img.shields.io/badge/React-19-61dafb" />
   <a href="https://linux.do/"><img alt="LINUX DO" src="https://img.shields.io/badge/LINUX%20DO-%E6%96%B0%E7%9A%84%E7%90%86%E6%83%B3%E5%9E%8B%E7%A4%BE%E5%8C%BA-f8c12c" /></a>
@@ -315,4 +315,8 @@ npx tsc --noEmit  # TypeScript 类型检查
 
 ## 许可证
 
-本项目基于 [MIT License](./LICENSE) 发布。
+本项目自 `mit-final` 之后的许可证切换提交起，整体采用 [GNU AGPL v3，仅第 3 版（AGPL-3.0-only）](./LICENSE)。
+
+`mit-final`（`fb57ddc`）及此前按 MIT 发布的代码仍保留原有 MIT 授权，详见 [历史 MIT 许可证](./LICENSES/MIT-legacy.txt) 和 [授权范围与部署说明](./LICENSING.md)。版权及来源声明见 [NOTICE](./NOTICE)。
+
+AGPL 允许商业使用；分发适用作品、或修改后通过网络提供服务时，请按许可证要求提供对应源码。

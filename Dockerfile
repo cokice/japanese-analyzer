@@ -25,6 +25,8 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/LICENSE /app/NOTICE /app/LICENSING.md ./
+COPY --from=builder /app/LICENSES ./LICENSES
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 

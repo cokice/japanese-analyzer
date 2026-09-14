@@ -156,4 +156,8 @@ npx tsc --noEmit     # 타입 검사만 실행
 
 ## 감사 및 라이선스
 
-[LINUX DO](https://linux.do/) 커뮤니티의 지원에 감사드립니다. 이 프로젝트는 [MIT License](./LICENSE)로 배포됩니다.
+[LINUX DO](https://linux.do/) 커뮤니티의 지원에 감사드립니다. 이 프로젝트는 `mit-final` 이후 라이선스 전환 커밋부터 프로젝트 전체에 [GNU AGPL v3 전용(AGPL-3.0-only)](./LICENSE)을 적용하여 배포합니다.
+
+`mit-final`(`fb57ddc`)을 포함하여 이미 MIT로 공개된 코드에는 기존 MIT 이용 허가가 계속 유효합니다. [기존 MIT 라이선스](./LICENSES/MIT-legacy.txt), [라이선스 및 배포 안내](./LICENSING.md), [저작권 고지](./NOTICE)를 확인하세요.
+
+AGPL은 상업적 이용을 허용합니다. 적용 대상 저작물을 배포하거나 수정한 버전을 네트워크로 제공하는 경우, 라이선스 조건에 따라 해당 소스 코드를 제공해야 합니다.
