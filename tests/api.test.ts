@@ -1,4 +1,5 @@
 import assert from 'assert';
+import './analysisHistory.test';
 import './readingLayout.test';
 import './wordDetailContext.test';
 import './wordDetailDictionary.test';

@@ -25,6 +25,8 @@ export const I = ({ children, w = 18, sw = 1.7, fill = 'none' }: IconWrapProps) 
 );
 
 export const Icon = {
+  return: <I><path d="m9 10-5 5 5 5M4 15h11a5 5 0 0 0 5-5V4" /></I>,
+  trash: <I><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></I>,
   photo: <I w={20} sw={1.6}><rect x="3.5" y="4" width="17" height="16" rx="3" /><circle cx="8.5" cy="9" r="1.5" /><path d="m4 16 4.5-4 3.5 3 4-5 4.5 6" /></I>,
   camera: <I><path d="M4 8h3l1.5-2h7L17 8h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></I>,
   mic: <I><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></I>,

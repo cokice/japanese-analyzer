@@ -1212,9 +1212,9 @@ export async function getWordDetails(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => null);
       console.error('API Error (Word Detail):', errorData);
-      throw new Error(`查询释义失败：${errorData.error?.message || response.statusText || '未知错误'}`);
+      throw new ApiRequestError(`查询释义失败：${errorData?.error?.message || `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`}`, response.status);
     }
 
     const result = await response.json();
@@ -1270,9 +1270,9 @@ export async function streamWordDetails(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => null);
       console.error('API Error (Stream Word Detail):', errorData);
-      onError(new Error(`流式查询释义失败：${errorData.error?.message || response.statusText || '未知错误'}`));
+      onError(new ApiRequestError(`流式查询释义失败：${errorData?.error?.message || `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`}`, response.status));
       return;
     }
     

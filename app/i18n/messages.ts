@@ -1,5 +1,9 @@
 // Simplified Chinese source text is the stable message key.
 export const messages = {
+  "历史记录": {"zh-TW": "歷史紀錄", "en": "History", "ko": "기록"},
+  "清空历史记录": {"zh-TW": "清空歷史紀錄", "en": "Clear history", "ko": "기록 지우기"},
+  "历史记录暂时无法保存到浏览器，刷新后可能丢失。": {"zh-TW": "歷史紀錄暫時無法儲存至瀏覽器，重新整理後可能遺失。", "en": "History cannot be saved to this browser right now and may be lost on refresh.", "ko": "현재 브라우저에 기록을 저장할 수 없어 새로고침하면 사라질 수 있습니다."},
+  "暂无历史记录，成功解析后会自动保存。": {"zh-TW": "尚無歷史紀錄，成功解析後會自動儲存。", "en": "No history yet. Texts are saved after a successful analysis.", "ko": "아직 기록이 없습니다. 분석이 완료되면 자동으로 저장됩니다."},
   "已深度思考": {"zh-TW": "已完成深入思考", "en": "Reasoning complete", "ko": "심층 사고 완료"},
   "验证失败": {"zh-TW": "驗證失敗", "en": "Authentication failed", "ko": "인증 실패"},
   "验证过程中发生错误，请重试": {"zh-TW": "驗證時發生錯誤，請再試一次", "en": "Authentication failed. Please try again.", "ko": "인증 중 오류가 발생했습니다. 다시 시도해 주세요."},
