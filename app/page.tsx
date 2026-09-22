@@ -14,6 +14,7 @@ import ThinkingIndicator from './components/ThinkingIndicator';
 import ReasoningStream from './components/ReasoningStream';
 import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
+import { useAnalysisHistory } from './hooks/useAnalysisHistory';
 import { AnalyzeStreamParser } from './utils/analyzeStreamParser';
 import { selectWordDetailContext } from './utils/wordDetailContext';
 import { createRequestMetrics, trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
@@ -37,6 +38,7 @@ import { ReasoningTextStore } from './utils/reasoningTextStore';
 
 export default function Home() {
   const { t, locale } = useLanguage();
+  const history = useAnalysisHistory();
   const [currentSentence, setCurrentSentence] = useState('');
   const [analyzedTokens, setAnalyzedTokens] = useState<TokenData[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -370,6 +372,7 @@ export default function Home() {
                 metrics.firstResult();
                 setAnalyzedTokens(tokens);
                 metrics.succeed();
+                history.record(text);
               } catch (error) {
                 metrics.fail(new InvalidResponseError('Invalid analysis result'));
                 console.error('Final stream analysis parse error:', error);
@@ -405,6 +408,7 @@ export default function Home() {
         metrics.firstResult();
         setAnalyzedTokens(tokens);
         metrics.succeed();
+        history.record(text);
         finishReasoningStatus(t("已深度思考"));
         setIsAnalyzing(false);
         analysisAbortControllerRef.current = null;
@@ -487,6 +491,7 @@ export default function Home() {
           {/* 主列 */}
           <div className="flex min-w-0 flex-col gap-[22px]">
             <InputSection
+              history={history}
               onAnalyze={handleAnalyze}
               onCancelAnalyze={handleCancelAnalysis}
               userApiKey={userApiKey}

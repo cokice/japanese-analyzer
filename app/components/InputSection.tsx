@@ -17,8 +17,11 @@ import { Icon } from './Icons';
 import { TextShimmer } from '@/components/ui/text-shimmer';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
 import { normalizePastedText } from '../utils/pastedText';
+import AnalysisHistory from './AnalysisHistory';
+import type { useAnalysisHistory } from '../hooks/useAnalysisHistory';
 
 interface InputSectionProps {
+  history: ReturnType<typeof useAnalysisHistory>;
   onAnalyze: (text: string, usage?: AnalyzeUsageMetadata) => void;
   onCancelAnalyze: () => void;
   userApiKey?: string;
@@ -64,6 +67,7 @@ const FIRST_VISIT_EXAMPLE_KEY = 'japaneseAnalyzer:firstVisitExampleSeen';
 const FIRST_VISIT_EXAMPLE = '天気がいいから、散歩しましょう';
 
 export default function InputSection({
+  history,
   onAnalyze,
   onCancelAnalyze,
   userApiKey,
@@ -770,6 +774,19 @@ export default function InputSection({
             className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
           />
         </div>
+
+        <AnalysisHistory
+          entries={history.entries}
+          storageUnavailable={history.storageUnavailable}
+          disabled={isAnalyzing || isImageUploading || isSpeaking}
+          onClear={history.clear}
+          onSelect={(text) => {
+            handleInputTextChange(text);
+            clearUsageMetadata();
+            setTtsAudioUrl(null);
+            japaneseInputRef.current?.focus();
+          }}
+        />
 
         {/* 隐藏的文件输入 */}
         <input

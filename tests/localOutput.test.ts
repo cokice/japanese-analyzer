@@ -94,6 +94,27 @@ export async function runLocalOutputTests() {
     let final='';
     await streamWordDetails('読んだ','動詞','本を読んだ。',(text,done)=>{if(done)final=text;},error=>{throw error;},'よんだ',undefined,'deepseek',undefined,signal);
     assert.strictEqual(final,JSON.stringify(compact));
+    // A server/proxy failure may return plain text, HTML, an empty body, or null.
+    // Preserve the HTTP error instead of surfacing a secondary JSON parse error.
+    const originalConsoleError = console.error;
+    try {
+      console.error = () => {};
+      for (const body of ['Internal Server Error', '<html>Bad Gateway</html>', '', 'null', '{"error":{"message":"upstream unavailable"}}']) {
+        globalThis.fetch = async () => new Response(body, { status: 500 });
+        const message = body.includes('upstream unavailable') ? 'upstream unavailable' : 'HTTP 500';
+        await assert.rejects(getWordDetails('本', '名詞', '本を読む。'), error => {
+          assert.ok(error instanceof Error);
+          assert.strictEqual(error.message, `查询释义失败：${message}`);
+          return true;
+        });
+        const failures: Error[] = [];
+        await streamWordDetails('本', '名詞', '本を読む。', () => assert.fail('Failed requests must not emit content'), error => failures.push(error));
+        assert.strictEqual(failures.length, 1);
+        assert.strictEqual(failures[0].message, `流式查询释义失败：${message}`);
+      }
+    } finally {
+      console.error = originalConsoleError;
+    }
     globalThis.fetch=async (_url, options)=>new Promise<Response>((_resolve,reject)=>{
       const requestSignal=options?.signal;
       assert.ok(requestSignal);
