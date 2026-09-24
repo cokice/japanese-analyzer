@@ -33,8 +33,10 @@ export async function GET(req: NextRequest) {
   const dateKey = getJstDateKey();
   try {
     const sentence = await getDailySentence(dateKey);
+    // 生成期间跨过了日本零点：这已是前一天的句子，不能让浏览器按新一天缓存
+    const stillToday = getJstDateKey() === dateKey;
     return NextResponse.json(sentence, {
-      headers: { 'Cache-Control': `private, max-age=${secondsUntilJstMidnight()}` },
+      headers: { 'Cache-Control': stillToday ? `private, max-age=${secondsUntilJstMidnight()}` : 'no-store' },
     });
   } catch (error) {
     // 前端收到非 200 时会改用内置备用句

@@ -534,6 +534,7 @@ export default function InputSection({
   };
   const showInputShimmer = isLoading && inputText.trim().length > 0;
 
+  // 输入框高度随内容自适应；compact 切换会重新挂载输入框，需要对新的 textarea 重新测量和监听
   useLayoutEffect(() => {
     const input = japaneseInputRef.current;
     if (!input) return;
@@ -557,7 +558,7 @@ export default function InputSection({
       observer.disconnect();
       window.removeEventListener('resize', resizeInput);
     };
-  }, [inputText, showFirstVisitExample]);
+  }, [compact, inputText, showFirstVisitExample]);
 
   useEffect(() => {
     if (!showInputShimmer) return;

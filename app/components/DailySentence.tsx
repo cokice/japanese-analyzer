@@ -59,6 +59,8 @@ export default function DailySentence({ onAnalyze, disabled = false }: DailySent
         if (!isDailySentence(data)) throw new Error('invalid daily sentence');
         if (disposed) return;
         setSentence(data);
+        // 跨零点时服务端可能返回前一天的句子：照常显示，但不缓存，下次打开重新获取
+        if (data.date !== dateKey) return;
         try {
           localStorage.setItem(DAILY_CACHE_KEY, JSON.stringify(data));
         } catch {

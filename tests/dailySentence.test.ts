@@ -25,6 +25,14 @@ const sample = DAILY_SENTENCES[0];
 assert.throws(() => validateDailySentence({ ...sample, tokens: sample.tokens.slice(1) }), /拼回原句/);
 assert.throws(() => validateDailySentence({ ...sample, translation: { ...sample.translation, ko: '' } }), /ko/);
 
+// 格式约束：必须以「。」结尾，不含数字、字母、引号、括号
+const withText = (text: string) => ({ ...sample, text, tokens: [{ word: text, pos: '名詞' }] });
+assert.throws(() => validateDailySentence(withText('朝7時に起きます。')), /数字/);
+assert.throws(() => validateDailySentence(withText('天気がいいから散歩しましょう')), /结尾/);
+assert.throws(() => validateDailySentence(withText('「おはよう」と言いました。')), /引号/);
+assert.throws(() => validateDailySentence(withText('Ｔシャツを買いました。')), /字母/);
+assert.doesNotThrow(() => validateDailySentence(withText('今日はいい天気ですね。')));
+
 // 相邻两天的提示词主题/语法不同，且带上当天日期与季节
 const today = buildDailySentencePrompt('2026-09-24');
 assert.notEqual(today, buildDailySentencePrompt('2026-09-25'));

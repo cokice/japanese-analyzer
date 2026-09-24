@@ -43,6 +43,9 @@ export function buildDailySentencePrompt(dateKey: string): string {
 {"text": "日语原句", "translations": {"zh-CN": "…", "zh-TW": "…", "en": "…", "ko": "…"}}`;
 }
 
+// 与提示词第 3 条一致：不含阿拉伯数字、拉丁字母、引号、括号（全角半角都算）
+const DISALLOWED_SENTENCE_CHARS = /[0-9０-９A-Za-zＡ-Ｚａ-ｚ「」『』（）()"'“”‘’]/;
+
 export class DailySentenceUnavailableError extends Error {}
 
 function pickProvider() {
@@ -90,6 +93,8 @@ function parseJsonObject(content: string): Record<string, unknown> {
 export function validateDailySentence(value: DailySentence): DailySentence {
   const text = value.text.trim();
   if (text.length < 6 || text.length > 40 || /[\n\r]/.test(text)) throw new Error(`今日一句长度或格式不合适：${text}`);
+  if (!text.endsWith('。')) throw new Error(`今日一句没有以「。」结尾：${text}`);
+  if (DISALLOWED_SENTENCE_CHARS.test(text)) throw new Error(`今日一句含数字、字母、引号或括号：${text}`);
   for (const locale of LOCALES) {
     if (!value.translation[locale]?.trim()) throw new Error(`今日一句缺少 ${locale} 译文`);
   }
