@@ -10,7 +10,6 @@ import SettingsModal from './components/SettingsModal';
 import Header from './components/Header';
 import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
-import ThinkingIndicator from './components/ThinkingIndicator';
 import ReasoningStream from './components/ReasoningStream';
 import WordDetailPanel from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
@@ -444,6 +443,12 @@ export default function Home() {
   };
 
   const isReading = !isEditingInput && (isAnalyzing || analyzedTokens.length > 0);
+  // 解析中：原句里还没解析到的部分，以灰字流光占住结果位置
+  const pendingText = (() => {
+    if (!isAnalyzing) return '';
+    const analyzed = analyzedTokens.map((token) => token.word).join('');
+    return currentSentence.startsWith(analyzed) ? currentSentence.slice(analyzed.length) : '';
+  })();
   // 首页：还没有解析任何句子，显示今日一句和最近记录
   const isHome = !isAnalyzing && !currentSentence;
 
@@ -555,14 +560,6 @@ export default function Home() {
                 />
               )}
 
-            {isAnalyzing
-              && (!analyzedTokens.length || !useStream)
-              && !(aiProvider === 'deepseek' && deepseekThinkingEnabled) && (
-              <div className="reading-surface">
-                <ThinkingIndicator className="py-6" />
-              </div>
-            )}
-
             {analysisError && (
               <div className="nd-card">
                 <div
@@ -586,10 +583,11 @@ export default function Home() {
 
             {(shouldShowAnalyzer() || currentSentence) && (
               <div className="reading-surface">
-                {shouldShowAnalyzer() && (
+                {(shouldShowAnalyzer() || pendingText) && (
                   <AnalysisResult
                     key={currentSentence}
                     tokens={analyzedTokens}
+                    pendingText={pendingText}
                     showFurigana={showFurigana}
                     onShowFuriganaChange={setShowFurigana}
                     showRomaji={showRomaji}

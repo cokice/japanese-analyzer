@@ -635,7 +635,8 @@ export default function InputSection({
   );
 
   return (
-    <div className="w-full">
+    // 阅读态整块吸顶：长文往下读时胶囊工具条一直在屏幕上方
+    <div className={compact ? 'w-full input-section-sticky' : 'w-full'}>
       {!compact && showSuggestions && (
         <DailySentence onAnalyze={analyzeSuggestion} disabled={isAnalyzing || isImageUploading} />
       )}

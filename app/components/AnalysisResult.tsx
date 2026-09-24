@@ -1,11 +1,12 @@
 'use client';
 
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { containsKanji, getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEND_GROUPS } from '../utils/helpers';
 import { TokenData } from '../services/api';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { Switch } from '@/components/ui/switch';
-import { groupReadingTokens } from '../utils/readingLayout';
+import { groupPendingChars, groupReadingTokens } from '../utils/readingLayout';
 
 interface AnalysisResultProps {
   tokens: TokenData[];
@@ -17,6 +18,8 @@ interface AnalysisResultProps {
   selectedIndex: number | null;
   /** 阅读态下开关由页面放在工具行里，这里不再重复显示 */
   showDisplayOptions?: boolean;
+  /** 解析中：原句里还没解析到的部分，接在已解析的词后面以灰字流光显示 */
+  pendingText?: string;
 }
 
 function Toggle({
@@ -70,6 +73,97 @@ export function DisplayOptions({
   );
 }
 
+// 超过这个长度的待解析文字不再逐字加动画，避免长文一次渲染过多节点
+const PENDING_ANIMATED_CHARS = 600;
+// 光带沿阅读顺序移动的速度（px/秒），以及读完一遍后的停顿
+const SCAN_SPEED_PX_PER_S = 420;
+const SCAN_PAUSE_MS = 700;
+
+function PendingText({ text, offset }: { text: string; offset: number }) {
+  const chars = Array.from(text);
+  const containerRef = useRef<HTMLSpanElement>(null);
+
+  const totalRef = useRef(0);
+
+  // 流光：一束光沿阅读顺序连续移动，每个字的亮度由它与光带的距离在 CSS 里连续计算（见 .is-pending）。
+  // 位置按整句算（已解析的词也占位），各行首尾相接；解析推进时剩余字的位置基本不变，光带不会跳回开头。
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const host = container?.parentElement;
+    if (!container || !host) return;
+
+    const measure = () => {
+      let lineTop: number | null = null;
+      let lineLeft = 0;
+      let lineStart = 0;
+      let lineEnd = 0;
+      host.querySelectorAll<HTMLElement>('.word-unit-wrapper').forEach((unit) => {
+        const rect = unit.getBoundingClientRect();
+        // 换行：各行首尾相接，下一行的位置接在上一行末尾之后
+        if (lineTop === null || Math.abs(rect.top - lineTop) > rect.height / 2) {
+          lineStart += lineEnd;
+          lineTop = rect.top;
+          lineLeft = rect.left;
+          lineEnd = 0;
+        }
+        lineEnd = Math.max(lineEnd, rect.right - lineLeft);
+        if (unit.classList.contains('is-pending')) {
+          unit.style.setProperty('--pos', String(Math.round(lineStart + rect.left - lineLeft + rect.width / 2)));
+        }
+      });
+      totalRef.current = lineStart + lineEnd;
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [text]);
+
+  // 光带只在挂载时启动一次，逐帧推进 --scan；读完一遍停顿后再来
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let frame = 0;
+    let passStart = performance.now();
+    const tick = (now: number) => {
+      const passMs = ((totalRef.current + 240) / SCAN_SPEED_PX_PER_S) * 1000;
+      const elapsed = now - passStart;
+      if (elapsed >= passMs + SCAN_PAUSE_MS) passStart = now;
+      const scan = elapsed < passMs ? (elapsed / 1000) * SCAN_SPEED_PX_PER_S - 120 : -99999;
+      container.style.setProperty('--scan', String(Math.round(scan)));
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    // display: contents 让这些字仍直接参与外层 flex 排版
+    <span ref={containerRef} className="contents">
+      {groupPendingChars(chars.slice(0, PENDING_ANIMATED_CHARS)).map((group) => {
+        // 以字符在整句中的位置作 key：前面的字被解析掉时，后面的字节点保持不变
+        const groupKey = offset + group[0].index;
+        if (group[0].char === '\n') return <span key={groupKey} className="reading-paragraph-break" />;
+        return (
+          <span key={groupKey} className="reading-word-group">
+            {group.map(({ char, index }) => (
+              <span key={offset + index} className="word-unit-wrapper is-pending">
+                <span className="furigana-text">{'\u00a0'}</span>
+                <span className="word-token">{char === ' ' ? '\u00a0' : char}</span>
+                <span className="pos-underline" />
+                <span className="romaji-text">{'\u00a0'}</span>
+              </span>
+            ))}
+          </span>
+        );
+      })}
+      {chars.length > PENDING_ANIMATED_CHARS && (
+        <span className="pending-rest">{chars.slice(PENDING_ANIMATED_CHARS).join('')}</span>
+      )}
+    </span>
+  );
+}
+
 const PUNCTUATION_ONLY_RE = /^[\s。、，,.!?？！:：;；「」『』（）()[\]【】〈〉《》…・･〜～\-—―]+$/;
 
 function isPunctuationToken(token: TokenData): boolean {
@@ -91,11 +185,13 @@ export default function AnalysisResult({
   onWordClick,
   selectedIndex,
   showDisplayOptions = true,
+  pendingText = '',
 }: AnalysisResultProps) {
   const { t } = useLanguage();
-  if (!tokens || tokens.length === 0) {
+  if ((!tokens || tokens.length === 0) && !pendingText) {
     return null;
   }
+  const analyzedLength = tokens.reduce((length, token) => length + Array.from(token.word).length, 0);
   const presentPosGroups = new Set(tokens
     .filter((token) => token.pos !== '改行' && !isPunctuationToken(token))
     .map((token) => getPosGroup(token.pos)));
@@ -181,11 +277,14 @@ export default function AnalysisResult({
               </span>
             );
           })}
+          {pendingText && <PendingText text={pendingText} offset={analyzedLength} />}
         </div>
+        {pendingText && <span className="sr-only" role="status">{t("思考中")}</span>}
       </AutoAnimateHeight>
 
       {/* 词性图例：放在正文下方作注脚 */}
-      <div className="pos-legend">
+      {/* 始终渲染以预留高度：解析中还没有词性时为空，避免第一个词出来时把译文往下推 */}
+      <div className="pos-legend" aria-hidden={legendGroups.length === 0}>
         {legendGroups.map((g) => (
           <span key={g} className="legend-item">
             <span className="legend-swatch" style={{ background: POS_GROUP_COLORS[g] }} />
