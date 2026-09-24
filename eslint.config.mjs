@@ -13,6 +13,7 @@ const eslintConfig = [
   {
     ignores: [
       ".next/**",
+      ".codex-dev/**",
       "node_modules/**",
       "next-env.d.ts",
       "tailwind.config.js",

@@ -1,4 +1,5 @@
 import {
+  UPSTREAM_ERROR_BODY_TIMEOUT_MS,
   UPSTREAM_STREAM_IDLE_TIMEOUT_MS,
   createUpstreamSignal,
   createUpstreamTimeoutController,
@@ -47,6 +48,31 @@ async function parseUpstreamError(response: Response): Promise<ParsedUpstreamErr
     return { message, raw: json };
   } catch {
     return { message: text || response.statusText || '处理请求时出错', raw: text };
+  }
+}
+
+// 上游返回错误状态码后，错误正文可能迟迟不来；超时返回 null，并中止上游连接。
+async function parseUpstreamErrorWithTimeout(
+  response: Response,
+  upstreamController: AbortController,
+  timeoutMs: number
+): Promise<ParsedUpstreamError | null> {
+  const parsing = parseUpstreamError(response);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<null>(resolve => {
+    timeout = setTimeout(() => resolve(null), timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([parsing, timedOut]);
+    if (result === null) {
+      // 超时后仍在读取的正文会因中止而失败，这里吞掉，避免未处理的 rejection。
+      parsing.catch(() => undefined);
+      upstreamController.abort(new DOMException('上游错误响应读取超时', 'TimeoutError'));
+    }
+    return result;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -134,6 +160,7 @@ export async function proxyOpenAICompatibleRequest(options: {
   apiKey: string;
   payload: Record<string, unknown>;
   signal?: AbortSignal;
+  errorBodyTimeoutMs?: number;
 }): Promise<
   | { ok: true; response: Response }
   | { ok: false; status: number; error: ParsedUpstreamError }
@@ -147,9 +174,12 @@ export async function proxyOpenAICompatibleRequest(options: {
     ? createUpstreamTimeoutController()
     : null;
   const timeoutSignal = streamConnectionTimeout?.controller.signal ?? createUpstreamSignal();
-  const upstreamSignal = options.signal && timeoutSignal
-    ? AbortSignal.any([options.signal, timeoutSignal])
-    : options.signal ?? timeoutSignal;
+  // 读取错误正文超时后用它中止上游连接。
+  const errorBodyController = new AbortController();
+  const upstreamSignal = AbortSignal.any(
+    [options.signal, timeoutSignal, errorBodyController.signal]
+      .filter((signal): signal is AbortSignal => Boolean(signal))
+  );
 
   let response: Response;
   try {
@@ -182,6 +212,23 @@ export async function proxyOpenAICompatibleRequest(options: {
     };
   }
 
-  const upstreamError = await parseUpstreamError(response);
+  const errorBodyTimeout = {
+    ok: false as const,
+    status: 504,
+    error: { message: '上游接口返回错误后长时间没有返回错误详情，请稍后重试。' },
+  };
+  let upstreamError: ParsedUpstreamError | null;
+  try {
+    upstreamError = await parseUpstreamErrorWithTimeout(
+      response,
+      errorBodyController,
+      options.errorBodyTimeoutMs ?? UPSTREAM_ERROR_BODY_TIMEOUT_MS
+    );
+  } catch (error) {
+    // 非流式请求的整体超时也可能在读取错误正文时触发；客户端主动取消则照常抛出。
+    if (isUpstreamTimeoutError(error) && !options.signal?.aborted) return errorBodyTimeout;
+    throw error;
+  }
+  if (!upstreamError) return errorBodyTimeout;
   return { ok: false, status: response.status, error: upstreamError };
 }

@@ -22,6 +22,8 @@ async function main() {
   assert.equal(createTranslator('en')('当前模型服务商：{0}', 'Gemini'), 'Current AI provider: Gemini');
   assert.equal(localizeError('流式翻译失败：未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥', 'en'), 'Streaming translation failed: No API key provided. Enter one in Settings or contact the administrator.');
   assert.equal(localizeError('第 2/3 段没有返回完整解析结果，请重试。', 'en'), 'Chunk 2/3 returned an incomplete analysis. Please try again.');
+  assert.equal(localizeError('翻译结果连接已结束，但没有收到完整结束信号，请重新生成。', 'en'), 'The translation disconnected before completion. Please try again.');
+  assert.equal(localizeError('图片文字提取连接已结束，但没有收到完整结束信号，请重新生成。', 'ko'), '이미지 글자 추출 완료 신호를 받기 전에 연결이 종료되었습니다. 다시 시도해 주세요.');
   assert.equal(localizeError('HTTP 429: upstream quota exceeded', 'zh-TW'), 'HTTP 429: upstream quota exceeded');
   for (const [key, translations] of Object.entries(messages)) {
     assert.deepEqual(Object.keys(translations).sort(), LOCALES.filter(locale => locale !== 'zh-CN').sort(), `Missing locale: ${key}`);

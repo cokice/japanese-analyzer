@@ -1167,6 +1167,11 @@ export async function streamTranslateText(
       signal,
       debounceMs: 60,
       parseWarning: 'Failed to parse streaming JSON chunk:',
+      validateFinalContent: content => {
+        if (!content.trim()) throw new InvalidResponseError('译文为空');
+      },
+      invalidContentMessage: '译文为空，请重试。',
+      completionLabel: '翻译结果',
     });
   } catch (error) {
     if (signal?.aborted || isAbortError(error)) return;
@@ -1405,6 +1410,11 @@ export async function streamExtractTextFromImage(
     await readOpenAIContentStream(response, onChunk, onError, {
       debounceMs: 16,
       parseWarning: 'Failed to parse streaming JSON chunk:',
+      validateFinalContent: content => {
+        if (!content.trim()) throw new InvalidResponseError('没有识别到图片中的文字');
+      },
+      invalidContentMessage: '没有识别到图片中的文字，请换一张图片重试。',
+      completionLabel: '图片文字提取',
     });
   } catch (error) {
     console.error('Error in stream extracting text from image:', error);
