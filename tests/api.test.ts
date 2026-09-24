@@ -33,7 +33,10 @@ import {
   resolveProviderConfig,
   withProviderControls
 } from '../app/api/_utils/providerConfig';
-import { wrapStreamingResponseWithIdleTimeout } from '../app/api/_utils/openaiProxy';
+import {
+  proxyOpenAICompatibleRequest,
+  wrapStreamingResponseWithIdleTimeout
+} from '../app/api/_utils/openaiProxy';
 import {
   buildUmamiLoaderScript,
   resolveUmamiConfig
@@ -798,6 +801,63 @@ for (const [legacyModel, latestModel] of [
   assert.strictEqual(getRequestProviderPayload('gemini', legacyModel).model, latestModel);
 }
 
+async function runOpenAIProxyErrorBodyTests() {
+  const originalFetch = globalThis.fetch;
+  try {
+    // 上游返回错误状态码、但错误正文迟迟不来时，应在超时后返回 504 并中止上游连接。
+    for (const stream of [true, false]) {
+      let upstreamSignal: AbortSignal | undefined;
+      globalThis.fetch = async (_url, init) => {
+        upstreamSignal = init?.signal ?? undefined;
+        return new Response(new ReadableStream<Uint8Array>({ start() {} }), { status: 502 });
+      };
+      // 挂起的 Promise 不会让 Node 保持运行，必须用定时器兜底，否则测试会静默退出。
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      const stalled = await Promise.race([
+        proxyOpenAICompatibleRequest({
+          url: 'https://upstream.example/chat/completions',
+          apiKey: 'test-key',
+          payload: { model: 'test', stream },
+          errorBodyTimeoutMs: 20,
+        }),
+        new Promise<never>((_resolve, reject) => {
+          deadline = setTimeout(
+            () => reject(new Error(`stream=${stream} 读错误正文不应一直挂起`)),
+            1_000
+          );
+        }),
+      ]).finally(() => clearTimeout(deadline));
+      assert.strictEqual(stalled.ok, false);
+      if (!stalled.ok) {
+        assert.strictEqual(stalled.status, 504);
+        assert.ok(stalled.error.message.includes('长时间没有返回错误详情'));
+      }
+      assert.strictEqual(upstreamSignal?.aborted, true, `stream=${stream} 超时后应中止上游连接`);
+    }
+
+    // 错误正文正常返回时仍按原样透传状态码和错误信息。
+    for (const stream of [true, false]) {
+      globalThis.fetch = async () => Response.json(
+        { error: { message: 'quota exceeded' } },
+        { status: 429 }
+      );
+      const failed = await proxyOpenAICompatibleRequest({
+        url: 'https://upstream.example/chat/completions',
+        apiKey: 'test-key',
+        payload: { model: 'test', stream },
+        errorBodyTimeoutMs: 1_000,
+      });
+      assert.strictEqual(failed.ok, false);
+      if (!failed.ok) {
+        assert.strictEqual(failed.status, 429);
+        assert.strictEqual(failed.error.message, 'quota exceeded');
+      }
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 async function runReasoningSummaryControllerTests() {
   const requestSnippets: string[] = [];
   const summaries: string[] = [];
@@ -897,6 +957,7 @@ Promise.all([
 ])
   .then(runLocalOutputTests)
   .then(runRequestMetricsTests)
+  .then(runOpenAIProxyErrorBodyTests)
   .then(() => {
     console.log('All tests passed');
   })

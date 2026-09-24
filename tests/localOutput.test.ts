@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { kanaToRomaji, getLocalRomaji } from '../app/utils/romaji';
 import { AnalyzeStreamParser } from '../app/utils/analyzeStreamParser';
-import { parseAnalyzeResponseContent, parseWordDetailResponseContent, readOpenAIContentStream, getWordDetails, streamWordDetails, streamTranslateText } from '../app/services/api';
+import { parseAnalyzeResponseContent, parseWordDetailResponseContent, readOpenAIContentStream, getWordDetails, streamWordDetails, streamTranslateText, streamExtractTextFromImage } from '../app/services/api';
 import { getStructuredResponseFormat } from '../app/api/_utils/providerConfig';
 import { runAnalysisUrlTests } from './analysisUrls.test';
 import './pastedText.test';
@@ -128,6 +128,38 @@ export async function runLocalOutputTests() {
     const stopTranslation=streamTranslateText('本を読んだ。',()=>callbacks++,()=>callbacks++,undefined,'deepseek',undefined,stopped.signal);
     stopped.abort();await Promise.all([stopWord,stopTranslation]);
     assert.strictEqual(callbacks,0,'请求头尚未返回时也可取消，且不触发错误或内容回调');
+
+    // 翻译和图片识别在流中途断开（没有 [DONE]）或内容为空时必须报错，不能把半截结果当成完整结果。
+    const streamOf=(...chunks:Uint8Array[])=>async ()=>new Response(new ReadableStream<Uint8Array>({start(c){for(const chunk of chunks)c.enqueue(chunk);c.close();}}));
+    const DONE=encoder.encode('data: [DONE]\n\n');
+    const partialStreamCases: {name:string;run:(onChunk:(text:string,done:boolean)=>void,onError:(error:Error)=>void)=>Promise<void>;label:string;empty:string}[]=[
+      {name:'翻译',run:(onChunk,onError)=>streamTranslateText('本を読んだ。',onChunk,onError,undefined,'deepseek'),label:'翻译结果',empty:'译文为空，请重试。'},
+      {name:'图片识别',run:(onChunk,onError)=>streamExtractTextFromImage('data:image/png;base64,dGVzdA==',onChunk,onError,undefined,undefined,'deepseek'),label:'图片文字提取',empty:'没有识别到图片中的文字，请换一张图片重试。'},
+    ];
+    for(const {name,run,label,empty} of partialStreamCases){
+      const collect=async ()=>{
+        const chunks:{text:string;done:boolean}[]=[];const errors:Error[]=[];
+        await run((text,done)=>chunks.push({text,done}),error=>errors.push(error));
+        return {chunks,errors};
+      };
+
+      globalThis.fetch=streamOf(event('半截'),event('结果'));
+      const cut=await collect();
+      assert.strictEqual(cut.errors.length,1,`${name}断流时应调用 onError`);
+      assert.strictEqual(cut.errors[0].message,`${label}连接已结束，但没有收到完整结束信号，请重新生成。`);
+      assert.ok(cut.chunks.every(chunk=>!chunk.done),`${name}断流时不得以完成状态回调`);
+
+      globalThis.fetch=streamOf(DONE);
+      const blank=await collect();
+      assert.strictEqual(blank.errors.length,1,`${name}结果为空时应调用 onError`);
+      assert.strictEqual(blank.errors[0].message,empty);
+      assert.ok(blank.chunks.every(chunk=>!chunk.done));
+
+      globalThis.fetch=streamOf(event('完整'),event('结果'),DONE);
+      const whole=await collect();
+      assert.deepStrictEqual(whole.errors,[],`${name}正常结束时不应报错`);
+      assert.deepStrictEqual(whole.chunks.at(-1),{text:'完整结果',done:true});
+    }
   } finally { globalThis.fetch=originalFetch; }
   await runAnalysisUrlTests();
 }

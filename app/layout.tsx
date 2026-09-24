@@ -2,9 +2,10 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "flowtoken/dist/styles.css";
 import "streamdown/styles.css";
-import "@fontsource/noto-sans-jp/japanese-400.css";
-import "@fontsource/noto-sans-jp/japanese-500.css";
-import "@fontsource/noto-sans-jp/japanese-700.css";
+// 按 unicode-range 切片的版本：浏览器只下载页面实际用到的分片，而不是约 1 MB 的整包。
+// 日文字体只用到 400/500；粗体都在系统界面字体上，不引入 700，省掉一份约 110 kB 的 @font-face 表。
+import "@fontsource/noto-sans-jp/400.css";
+import "@fontsource/noto-sans-jp/500.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import "./globals.css";
