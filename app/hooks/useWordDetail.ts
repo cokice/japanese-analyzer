@@ -3,12 +3,12 @@
 import { useLanguage } from "../contexts/LanguageContext";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getWordDetails, parseWordDetailResponseContent, streamWordDetails, type WordDetail, type AIModelName, type AIProvider } from '../services/api';
+import { getWordDetails, parseWordDetailResponseContent, streamWordDetails, type WordDetail, type WordDetailKind, type AIModelName, type AIProvider } from '../services/api';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
 import { getLocalRomaji } from '../utils/romaji';
 
 interface UseWordDetailOptions { userApiKey?: string; aiProvider: AIProvider; aiModel: AIModelName; useStream?: boolean; }
-interface FetchWordDetailsOptions { force?: boolean; }
+interface FetchWordDetailsOptions { force?: boolean; kind?: WordDetailKind; }
 
 function partialField(content: string, name: string, completeOnly = false): string {
   const match = new RegExp('"' + name + '"\\s*:\\s*"').exec(content);
@@ -57,7 +57,8 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
   const fetchWordDetails = useCallback(async (
     word: string, pos: string, sentence: string, furigana?: string, options: FetchWordDetailsOptions = {}
   ) => {
-    const key = JSON.stringify([locale, aiProvider, aiModel, sentence, word, pos, furigana || '']);
+    const kind = options.kind ?? 'word';
+    const key = JSON.stringify([locale, aiProvider, aiModel, kind, sentence, word, pos, furigana || '']);
     if (!options.force && activeRef.current?.key === key) return;
     activeRef.current?.controller.abort();
     activeRef.current = null;
@@ -70,8 +71,9 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
     const { signal } = controller;
     activeRef.current = { key, controller };
     const isCurrent = () => activeRef.current?.controller === controller && !signal.aborted;
-    const context = { word, pos, furigana };
-    setWordDetail({ originalWord: word, pos, furigana: furigana || '', romaji: getLocalRomaji(word, furigana, pos), chineseTranslation: t("加载中..."), explanation: '' });
+    const context = { word, pos, furigana, kind };
+    const phraseFields = kind === 'phrase' ? { kind, category: '', breakdown: '' } : {};
+    setWordDetail({ originalWord: word, pos, furigana: furigana || '', romaji: getLocalRomaji(word, furigana, pos), chineseTranslation: t("加载中..."), explanation: '', ...phraseFields });
     setIsLoading(!useStream); setIsStreamLoading(useStream);
 
     const finish = (detail: WordDetail) => {
@@ -103,10 +105,15 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
             conjugation: partialField(content, 'conjugation'),
             example: partialField(content, 'example'),
             exampleTranslation: partialField(content, 'exampleTranslation'),
+            ...(kind === 'phrase' ? {
+              kind,
+              category: partialField(content, 'category', true),
+              breakdown: partialField(content, 'breakdown'),
+            } : {}),
           });
-        }, fail, furigana, userApiKey, aiProvider, aiModel, signal);
+        }, fail, furigana, userApiKey, aiProvider, aiModel, signal, kind);
       } else {
-        finish(await getWordDetails(word, pos, sentence, furigana, userApiKey, aiProvider, aiModel, signal));
+        finish(await getWordDetails(word, pos, sentence, furigana, userApiKey, aiProvider, aiModel, signal, kind));
       }
     } catch (error) {
       if (isCurrent()) fail(error instanceof Error ? error : new Error(t("查询释义失败")));

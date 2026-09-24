@@ -2033,6 +2033,82 @@ body {
 @keyframes tokenIn { from { color: var(--ink-3); } to { color: var(--ink); } }
 @keyframes underlineIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
+/* 外层负外边距扩大裁切范围，内层等量内边距把文字放回原位（内层高度即动画高度） */
+.analysis-output-frame { margin: -8px -10px; }
+.analysis-output-frame-content { padding: 8px 10px; }
+/* 圈选多个词：选区内的词底色连成一整块，首尾圆角；拖动时不选中文字 */
+#analyzedSentenceOutput .word-token { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#analyzedSentenceOutput[data-selecting="true"] { cursor: text; }
+.word-unit-wrapper.in-range,
+.word-unit-wrapper.in-range:hover {
+  border-radius: 0;
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 12%, transparent);
+  clip-path: inset(-4px 0);
+}
+.word-unit-wrapper.in-range.range-start { border-radius: 10px 0 0 10px; clip-path: inset(-4px 0 -4px -4px round 10px 0 0 10px); }
+.word-unit-wrapper.in-range.range-end { border-radius: 0 10px 10px 0; clip-path: inset(-4px -4px -4px 0 round 0 10px 10px 0); }
+.word-unit-wrapper.in-range.range-start.range-end { border-radius: 10px; clip-path: none; }
+.word-unit-wrapper.in-range .word-token { color: var(--selection-ink, var(--primary)); }
+.word-unit-wrapper.range-anchor {
+  background: color-mix(in oklab, var(--primary) 16%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 16%, transparent);
+  animation: rangeAnchorPulse 1.4s ease-in-out infinite;
+}
+@keyframes rangeAnchorPulse { 50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--primary) 10%, transparent); } }
+.range-pick-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 10px 10px 10px 16px;
+  border-radius: 14px;
+  background: var(--bg-2);
+  box-shadow: var(--glass-shadow), 0 0 0 1px var(--glass-border), 0 12px 30px -12px rgba(20, 16, 40, 0.3);
+  transform: translateX(-50%);
+  animation: pickToastIn 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.range-pick-toast-text { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.4; }
+.range-pick-toast-text strong { color: var(--primary); font-weight: 600; }
+.range-pick-toast-text span { color: var(--ink-3); font-size: 12px; }
+@keyframes pickToastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.select-more-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 9px 12px;
+  border: 1px dashed var(--line-2);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+.select-more-btn:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--line-2)); color: var(--primary); background: var(--primary-soft); }
+.select-more-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.phrase-merge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 18px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
 /* 译文操作：悬停或聚焦时出现；触屏和收起状态下常驻 */
 .translation-actions {
   justify-content: flex-end;
@@ -2163,6 +2239,7 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .detail-rail, .translation-actions { transition: none; }
+  .word-unit-wrapper.range-anchor, .range-pick-toast,
   .reading-surface .word-unit-wrapper:not(.is-pending),
   .reading-surface .word-unit-wrapper:not(.is-pending) .pos-underline { animation: none; }
   .display-chip { transition: none; }

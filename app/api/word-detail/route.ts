@@ -4,6 +4,7 @@ import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
 import { requireApiSession } from '../_utils/sessionAuth';
 import { getWordDetailSystemPrompt } from '../../lib/wordDetailPrompt';
+import { getPhraseDetailSystemPrompt } from '../../lib/phraseDetailPrompt';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,7 +13,9 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     // 解析请求体
-    const { word, pos, sentence, furigana, model, apiUrl, useStream = false, provider } = await req.json();
+    const { word, pos, sentence, furigana, model, apiUrl, useStream = false, provider, kind } = await req.json();
+    // kind: 'phrase' 为用户圈选的多词短语，不需要词性
+    const isPhrase = kind === 'phrase';
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
     
     if (!providerConfig.apiKey) {
@@ -22,7 +25,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!word || !pos || !sentence) {
+    if (!word || (!pos && !isPhrase) || !sentence) {
       return NextResponse.json(
         { error: { message: '缺少必要的参数' } },
         { status: 400 }
@@ -32,11 +35,16 @@ export async function POST(req: NextRequest) {
     const payload = withProviderControls(providerConfig.provider, {
       model: providerConfig.model,
       messages: [
-        { role: "system", content: getWordDetailSystemPrompt(locale) },
-        { role: "user", content: JSON.stringify({ word, pos, sentence, furigana: furigana || "" }) },
+        { role: "system", content: isPhrase ? getPhraseDetailSystemPrompt(locale) : getWordDetailSystemPrompt(locale) },
+        {
+          role: "user",
+          content: JSON.stringify(isPhrase
+            ? { selection: word, sentence, furigana: furigana || "" }
+            : { word, pos, sentence, furigana: furigana || "" }),
+        },
       ],
       stream: useStream,
-    }, { structuredOutput: 'wordDetail' });
+    }, { structuredOutput: isPhrase ? 'phraseDetail' : 'wordDetail' });
 
     const proxied = await proxyOpenAICompatibleRequest({
       url: providerConfig.apiUrl,

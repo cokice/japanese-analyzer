@@ -1,6 +1,7 @@
 import assert from 'assert';
 import './analysisHistory.test';
 import './dailySentence.test';
+import './phraseRange.test';
 import './readingLayout.test';
 import './wordDetailContext.test';
 import './wordDetailDictionary.test';

@@ -16,6 +16,7 @@ import { useWordDetail } from './hooks/useWordDetail';
 import { useAnalysisHistory } from './hooks/useAnalysisHistory';
 import { AnalyzeStreamParser } from './utils/analyzeStreamParser';
 import { selectWordDetailContext } from './utils/wordDetailContext';
+import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRange, type PhraseRange } from './utils/phraseRange';
 import { createRequestMetrics, trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import { localizeError } from './i18n';
 import { InvalidResponseError } from './utils/requestErrors';
@@ -49,6 +50,10 @@ export default function Home() {
   const [showFurigana, setShowFurigana] = useState(true);
   // 解析开始后输入区收起，句子成为页面唯一主角；点「编辑原文」再展开
   const [isEditingInput, setIsEditingInput] = useState(true);
+  // 圈选的多词短语（与单个选中的词互斥）
+  const [selectedRange, setSelectedRange] = useState<PhraseRange | null>(null);
+  // 圈选起点：长按或详情里点「选中多个词」后设置，再点一个词即选中这一段
+  const [pickAnchor, setPickAnchor] = useState<number | null>(null);
   const [showRomaji, setShowRomaji] = useState(false);
 
   // API设置相关状态
@@ -100,6 +105,8 @@ export default function Home() {
     setAnalysisError('');
     setAuthError('');
     setSelectedIndex(null);
+    setSelectedRange(null);
+    setPickAnchor(null);
     reasoningTextStore.reset();
     hasDeepseekReasoningRef.current = false;
     setHasDeepseekReasoning(false);
@@ -240,6 +247,8 @@ export default function Home() {
 
   const handleCloseWordDetail = useCallback(() => {
     setSelectedIndex(null);
+    setSelectedRange(null);
+    setPickAnchor(null);
     clearWordDetail();
   }, [clearWordDetail]);
 
@@ -249,13 +258,38 @@ export default function Home() {
       handleCloseWordDetail();
       return;
     }
+    setSelectedRange(null);
     setSelectedIndex(index);
     trackWordDetailUsage(aiProvider, aiModel);
     const context = selectWordDetailContext(currentSentence, analyzedTokens, index);
     fetchWordDetails(token.word, token.pos, context, token.furigana);
   }, [aiProvider, aiModel, selectedIndex, currentSentence, analyzedTokens, fetchWordDetails, handleCloseWordDetail]);
 
+  const fetchPhraseDetails = useCallback((range: PhraseRange, force = false) => {
+    fetchWordDetails(
+      getPhraseText(analyzedTokens, range),
+      '',
+      selectWordDetailContext(currentSentence, analyzedTokens, range.start),
+      getPhraseReading(analyzedTokens, range),
+      { kind: 'phrase', force }
+    );
+  }, [analyzedTokens, currentSentence, fetchWordDetails]);
+
+  // 圈选多个词：拖动 / Shift 点击 / 手机长按后再点
+  const handleRangeSelect = useCallback((a: number, b: number) => {
+    const range = normalizePhraseRange(analyzedTokens, a, b);
+    if (!range) return;
+    setSelectedIndex(null);
+    setSelectedRange(range);
+    trackWordDetailUsage(aiProvider, aiModel);
+    fetchPhraseDetails(range);
+  }, [aiModel, aiProvider, analyzedTokens, fetchPhraseDetails]);
+
   const handleRefreshWordDetail = useCallback(() => {
+    if (selectedRange) {
+      fetchPhraseDetails(selectedRange, true);
+      return;
+    }
     if (selectedIndex === null) return;
 
     const token = analyzedTokens[selectedIndex];
@@ -268,7 +302,24 @@ export default function Home() {
       token.furigana,
       { force: true }
     );
-  }, [analyzedTokens, currentSentence, fetchWordDetails, selectedIndex]);
+  }, [analyzedTokens, currentSentence, fetchPhraseDetails, fetchWordDetails, selectedIndex, selectedRange]);
+
+  // 详情里的「选中多个词」：以当前词为起点进入圈选。手机上先收起弹窗，露出句子
+  const handleStartPick = useCallback(() => {
+    if (selectedIndex === null) return;
+    const anchor = selectedIndex;
+    if (!isDesktop) handleCloseWordDetail();
+    setPickAnchor(anchor);
+  }, [handleCloseWordDetail, isDesktop, selectedIndex]);
+
+  // AI 判断圈选的其实是一个被拆开的词时，合并回单个词项（只影响当前结果）
+  const canMergePhrase = selectedRange !== null && wordDetail?.kind === 'phrase' && wordDetail.category === '単語';
+  const handleMergePhrase = useCallback(() => {
+    if (!selectedRange || !wordDetail) return;
+    setAnalyzedTokens((tokens) => mergePhraseTokens(tokens, selectedRange, wordDetail));
+    setSelectedIndex(selectedRange.start);
+    setSelectedRange(null);
+  }, [selectedRange, wordDetail]);
 
   const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
     if (!text.trim()) return;
@@ -468,7 +519,7 @@ export default function Home() {
     setIsEditingInput(true);
   };
 
-  const hasWordDetail = selectedIndex !== null
+  const hasWordDetail = (selectedIndex !== null || selectedRange !== null)
     && (isWordDetailLoading || isWordDetailStreaming || wordDetail !== null || !!wordDetailStreamError);
 
   const wordDetailPanel = (
@@ -480,6 +531,8 @@ export default function Home() {
       streamContent={wordDetailStreamContent}
       onClose={handleCloseWordDetail}
       onRefresh={handleRefreshWordDetail}
+      onMerge={canMergePhrase ? handleMergePhrase : undefined}
+      onSelectMore={selectedIndex !== null ? handleStartPick : undefined}
     />
   );
 
@@ -594,6 +647,10 @@ export default function Home() {
                     onShowRomajiChange={setShowRomaji}
                     onWordClick={handleWordClick}
                     selectedIndex={selectedIndex}
+                    selectedRange={selectedRange}
+                    onRangeSelect={handleRangeSelect}
+                    pickAnchor={pickAnchor}
+                    onPickAnchorChange={setPickAnchor}
                     showDisplayOptions={!isReading}
                   />
                 )}
@@ -663,6 +720,8 @@ export default function Home() {
               streamContent={wordDetailStreamContent}
               onClose={handleCloseWordDetail}
               onRefresh={handleRefreshWordDetail}
+      onMerge={canMergePhrase ? handleMergePhrase : undefined}
+      onSelectMore={selectedIndex !== null ? handleStartPick : undefined}
               hideClose
             />
           </div>

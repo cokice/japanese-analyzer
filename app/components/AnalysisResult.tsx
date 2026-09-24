@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { containsKanji, getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEND_GROUPS } from '../utils/helpers';
 import { TokenData } from '../services/api';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { Switch } from '@/components/ui/switch';
 import { groupPendingChars, groupReadingTokens } from '../utils/readingLayout';
+import { isPunctuationToken, type PhraseRange } from '../utils/phraseRange';
+import { usePhraseSelection } from '../hooks/usePhraseSelection';
 
 interface AnalysisResultProps {
   tokens: TokenData[];
@@ -20,6 +22,35 @@ interface AnalysisResultProps {
   showDisplayOptions?: boolean;
   /** 解析中：原句里还没解析到的部分，接在已解析的词后面以灰字流光显示 */
   pendingText?: string;
+  /** 当前圈选的多词短语 */
+  selectedRange?: PhraseRange | null;
+  /** 圈选了多个词（拖动 / Shift 点击 / 长按后再点）；未提供则不支持圈选 */
+  onRangeSelect?: (a: number, b: number) => void;
+  /** 圈选起点：设置后再点一个词即选中这一段 */
+  pickAnchor?: number | null;
+  onPickAnchorChange?: (index: number | null) => void;
+}
+
+const noop = () => {};
+
+/** 圈选状态下浮在屏幕底部的提示；顺带教用户下次可以直接拖动或长按 */
+function PickHint({ onCancel }: { onCancel: () => void }) {
+  const { t } = useLanguage();
+  const [shortcut, setShortcut] = useState('');
+  useEffect(() => {
+    setShortcut(window.matchMedia('(pointer: coarse)').matches
+      ? t("下次也可以直接长按词语开始选")
+      : t("下次也可以直接拖过几个词"));
+  }, [t]);
+  return (
+    <div className="range-pick-toast" role="status">
+      <span className="range-pick-toast-text">
+        <strong>{t("再点一个词，选中这一段")}</strong>
+        {shortcut && <span>{shortcut}</span>}
+      </span>
+      <button type="button" className="nd-ghost-btn" onClick={onCancel}>{t("取消")}</button>
+    </div>
+  );
 }
 
 function Toggle({
@@ -164,18 +195,6 @@ function PendingText({ text, offset }: { text: string; offset: number }) {
   );
 }
 
-const PUNCTUATION_ONLY_RE = /^[\s。、，,.!?？！:：;；「」『』（）()[\]【】〈〉《》…・･〜～\-—―]+$/;
-
-function isPunctuationToken(token: TokenData): boolean {
-  const pos = token.pos || '';
-  return pos.includes('記号')
-    || pos.includes('標点')
-    || pos.includes('标点')
-    || pos.includes('句読点')
-    || pos.includes('符号')
-    || PUNCTUATION_ONLY_RE.test(token.word);
-}
-
 export default function AnalysisResult({
   tokens,
   showFurigana,
@@ -186,8 +205,19 @@ export default function AnalysisResult({
   selectedIndex,
   showDisplayOptions = true,
   pendingText = '',
+  selectedRange = null,
+  onRangeSelect,
+  pickAnchor = null,
+  onPickAnchorChange = noop,
 }: AnalysisResultProps) {
   const { t } = useLanguage();
+  const selection = usePhraseSelection({
+    // 解析进行中不支持圈选
+    onRangeSelect: pendingText ? undefined : onRangeSelect,
+    anchorIndex: selectedIndex ?? selectedRange?.start ?? null,
+    pickAnchor,
+    onPickAnchorChange,
+  });
   if ((!tokens || tokens.length === 0) && !pendingText) {
     return null;
   }
@@ -196,6 +226,8 @@ export default function AnalysisResult({
     .filter((token) => token.pos !== '改行' && !isPunctuationToken(token))
     .map((token) => getPosGroup(token.pos)));
   const legendGroups = [...POS_LEGEND_GROUPS, 'o' as const].filter((group) => presentPosGroups.has(group));
+  // 拖动中显示预览选区，否则显示已选中的短语
+  const highlightRange = selection.preview ?? selectedRange;
 
   return (
     <section className="analysis-card relative">
@@ -212,7 +244,8 @@ export default function AnalysisResult({
         </div>
       )}
 
-      <AutoAnimateHeight duration={300}>
+      {/* 高度动画容器会裁掉溢出内容，外框多留一圈空间，选中高亮和焦点框不被切 */}
+      <AutoAnimateHeight duration={300} className="analysis-output-frame" contentClassName="analysis-output-frame-content">
         {/* 分词结果 */}
         <div
           id="analyzedSentenceOutput"
@@ -222,6 +255,8 @@ export default function AnalysisResult({
           tabIndex={0}
           data-furigana={showFurigana}
           data-romaji={showRomaji}
+          data-selecting={selection.preview !== null || pickAnchor !== null}
+          {...selection.containerProps}
         >
           {groupReadingTokens(tokens).map((group) => {
             if (group[0].token.pos === '改行') {
@@ -232,6 +267,10 @@ export default function AnalysisResult({
                 {group.map(({ token, index }) => {
                   const isPunct = isPunctuationToken(token);
                   const isActive = selectedIndex === index;
+                  const inRange = !!highlightRange && index >= highlightRange.start && index <= highlightRange.end;
+                  const rangeClass = inRange
+                    ? ` in-range${index === highlightRange.start ? ' range-start' : ''}${index === highlightRange.end ? ' range-end' : ''}`
+                    : '';
                   const hasFurigana = !!token.furigana
                     && token.furigana !== token.word
                     && containsKanji(token.word)
@@ -241,7 +280,8 @@ export default function AnalysisResult({
                   return (
                     <span
                       key={index}
-                      className={`word-unit-wrapper ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}`}
+                      data-token-index={index}
+                      className={`word-unit-wrapper ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}${rangeClass}${pickAnchor === index ? ' range-anchor' : ''}`}
                     >
                       {!isPunct && (
                         <span className="furigana-text" aria-hidden={!showFurigana || !furiganaText} style={{ opacity: showFurigana && furiganaText ? 1 : 0 }}>
@@ -254,8 +294,10 @@ export default function AnalysisResult({
                         <button
                           type="button"
                           className="word-token"
-                          aria-pressed={isActive}
-                          onClick={() => onWordClick(token, index)}
+                          aria-pressed={isActive || inRange}
+                          onClick={() => {
+                            if (!selection.handleTokenClick(index)) onWordClick(token, index);
+                          }}
                         >
                           {token.word}
                         </button>
@@ -280,6 +322,7 @@ export default function AnalysisResult({
           {pendingText && <PendingText text={pendingText} offset={analyzedLength} />}
         </div>
         {pendingText && <span className="sr-only" role="status">{t("思考中")}</span>}
+        {pickAnchor !== null && <PickHint onCancel={selection.cancelPick} />}
       </AutoAnimateHeight>
 
       {/* 词性图例：放在正文下方作注脚 */}

@@ -50,7 +50,15 @@ export interface WordDetail {
   conjugation?: string;
   example?: string;
   exampleTranslation?: string;
+  /** phrase：用户圈选的多词短语 */
+  kind?: WordDetailKind;
+  /** 短语类别：単語（被拆开的一个词）| 文法形式 | 慣用表現 | 連語 */
+  category?: string;
+  /** 短语的构成拆解 */
+  breakdown?: string;
 }
+
+export type WordDetailKind = 'word' | 'phrase';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -321,7 +329,7 @@ function formatChunkReasoning(
 }
 
 const requiredWordDetailFields = ['chineseTranslation', 'dictionaryForm', 'explanation'] as const;
-const optionalWordDetailFields = ['originalWord', 'pos', 'furigana', 'romaji', 'conjugation', 'example', 'exampleTranslation'] as const;
+const optionalWordDetailFields = ['originalWord', 'pos', 'furigana', 'romaji', 'conjugation', 'example', 'exampleTranslation', 'category', 'breakdown'] as const;
 const wordDetailFields = [...requiredWordDetailFields, ...optionalWordDetailFields] as const;
 
 type WordDetailField = typeof wordDetailFields[number];
@@ -422,7 +430,7 @@ function parseLooseWordDetailObject(content: string): Record<WordDetailField, st
   return values as Record<WordDetailField, string>;
 }
 
-export interface WordDetailContext { word: string; pos: string; furigana?: string; }
+export interface WordDetailContext { word: string; pos: string; furigana?: string; kind?: WordDetailKind; }
 
 export function parseWordDetailResponseContent(content: string, context?: WordDetailContext): WordDetail {
   let parsed: unknown;
@@ -448,6 +456,11 @@ export function parseWordDetailResponseContent(content: string, context?: WordDe
     conjugation: normalizeEscapedLineBreaks(detail.conjugation || ''),
     example: normalizeEscapedLineBreaks(detail.example || ''),
     exampleTranslation: normalizeEscapedLineBreaks(detail.exampleTranslation || ''),
+    ...(context?.kind === 'phrase' ? {
+      kind: 'phrase' as const,
+      category: detail.category?.trim() || '',
+      breakdown: normalizeEscapedLineBreaks(detail.breakdown || ''),
+    } : {}),
   };
 }
 
@@ -1154,7 +1167,8 @@ export async function getWordDetails(
   userApiKey?: string,
   provider: AIProvider = DEFAULT_AI_PROVIDER,
   model?: string | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  kind: WordDetailKind = 'word'
 ): Promise<WordDetail> {
   try {
     const apiUrl = getApiEndpoint('/word-detail');
@@ -1169,6 +1183,7 @@ export async function getWordDetails(
         pos, 
         sentence, 
         furigana, 
+        kind,
         ...getRequestProviderPayload(provider, model)
       })
     });
@@ -1184,7 +1199,7 @@ export async function getWordDetails(
     if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
       const responseContent = result.choices[0].message.content;
       try {
-        return parseWordDetailResponseContent(responseContent, { word, pos, furigana });
+        return parseWordDetailResponseContent(responseContent, { word, pos, furigana, kind });
       } catch (e) {
         console.error("Failed to parse JSON from word detail response:", e, responseContent);
         throw new Error('释义结果JSON格式错误');
@@ -1211,7 +1226,8 @@ export async function streamWordDetails(
   userApiKey?: string,
   provider: AIProvider = DEFAULT_AI_PROVIDER,
   model?: string | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  kind: WordDetailKind = 'word'
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/word-detail');
@@ -1226,6 +1242,7 @@ export async function streamWordDetails(
         pos, 
         sentence, 
         furigana, 
+        kind,
         ...getRequestProviderPayload(provider, model),
         useStream: true
       })
@@ -1242,7 +1259,7 @@ export async function streamWordDetails(
       signal,
       debounceMs: 50,
       parseWarning: '解析流式数据时出错:',
-      validateFinalContent: content => parseWordDetailResponseContent(content, { word, pos, furigana }),
+      validateFinalContent: content => parseWordDetailResponseContent(content, { word, pos, furigana, kind }),
       invalidContentMessage: '词语详解没有完整生成，请重新生成。',
       completionLabel: '词语详解',
     });

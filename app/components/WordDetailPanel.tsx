@@ -15,9 +15,21 @@ interface WordDetailPanelProps {
   streamContent: string;
   onClose: () => void;
   onRefresh?: () => void;
+  /** 圈选的短语被 AI 判断为一个被拆开的词时，可合并回单个词 */
+  onMerge?: () => void;
+  /** 以当前词为起点，进入圈选多个词 */
+  onSelectMore?: () => void;
   /* 不在面板中显示关闭按钮（移动端模态自带关闭时） */
   hideClose?: boolean;
 }
+
+// 短语类别（AI 返回的日文标签）→ 界面文案
+const PHRASE_CATEGORY_LABELS: Record<string, string> = {
+  単語: '一个词',
+  文法形式: '语法结构',
+  慣用表現: '惯用表达',
+  連語: '词组',
+};
 
 // 朗读单词（Edge TTS，失败回退系统 TTS）
 async function handleWordSpeak(word: string) {
@@ -108,6 +120,8 @@ export default function WordDetailPanel({
   streamContent,
   onClose,
   onRefresh,
+  onMerge,
+  onSelectMore,
   hideClose = false,
 }: WordDetailPanelProps) {
   const { t, errorText } = useLanguage();
@@ -187,6 +201,9 @@ export default function WordDetailPanel({
 
   if (!wordDetail) return null;
 
+  const isPhrase = wordDetail.kind === 'phrase';
+  const phraseCategory = wordDetail.category ? PHRASE_CATEGORY_LABELS[wordDetail.category] : '';
+
   const posGroup = getPosGroup(wordDetail.pos || '');
   const accent = POS_GROUP_COLORS[posGroup];
   const display = (wordDetail.originalWord || '').replace(/[、。]/g, '');
@@ -211,7 +228,9 @@ export default function WordDetailPanel({
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5">
             <h2
               lang="ja"
-              className="jp m-0 min-w-0 text-[28px] font-medium leading-snug tracking-[.5px] sm:text-[30px]"
+              className={`jp m-0 min-w-0 font-medium leading-snug tracking-[.5px] ${isPhrase && Array.from(display).length > 5
+                ? 'text-[22px] sm:text-[24px]'
+                : 'text-[28px] sm:text-[30px]'}`}
               style={{ color: 'var(--ink)' }}
             >
               {display}
@@ -263,6 +282,19 @@ export default function WordDetailPanel({
         </div>
 
         {/* 标签行 */}
+        {isPhrase ? (
+          <div className="word-detail-meta mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--ink-2)' }}>
+              <span className="h-1 w-1 rounded-full" style={{ background: 'var(--primary)' }} aria-hidden="true" />
+              {t(phraseCategory || '短语')}
+            </span>
+            {wordDetail.dictionaryForm && wordDetail.dictionaryForm !== wordDetail.originalWord && (
+              <span className="jp text-xs" style={{ color: 'var(--ink-2)' }}>
+                {t("形式")}<span lang="ja">{wordDetail.dictionaryForm}</span>
+              </span>
+            )}
+          </div>
+        ) : (
         <div className="word-detail-meta mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span
             className="inline-flex items-center gap-1.5 text-xs"
@@ -289,6 +321,7 @@ export default function WordDetailPanel({
             </span>
           )}
         </div>
+        )}
       </div>
 
       {/* 正文 */}
@@ -316,6 +349,13 @@ export default function WordDetailPanel({
             )}
           </DetailSection>
         )}
+        {isPhrase && wordDetail.breakdown && (
+          <DetailSection label={t("构成")}>
+            <p lang="ja" className="dictionary-conjugation m-0 text-[13px] leading-7" style={{ color: 'var(--ink-2)' }}>
+              {wordDetail.breakdown}
+            </p>
+          </DetailSection>
+        )}
         {wordDetail.conjugation && (
           <DetailSection label={t("词形")}>
             <p className="dictionary-conjugation m-0 text-[13px] leading-7" style={{ color: 'var(--ink-2)' }}>
@@ -330,6 +370,18 @@ export default function WordDetailPanel({
               <p className="m-0 mt-1 text-xs leading-6" style={{ color: 'var(--ink-2)' }}>{wordDetail.exampleTranslation}</p>
             </div>
           </DetailSection>
+        )}
+        {onMerge && !isStreamLoading && (
+          <div className="phrase-merge">
+            <span>{t("这几个词其实是一个词")}</span>
+            <button type="button" className="nd-soft-btn" onClick={onMerge}>{t("合并为一个词")}</button>
+          </div>
+        )}
+        {!isPhrase && onSelectMore && (
+          <button type="button" className="select-more-btn" onClick={onSelectMore}>
+            {Icon.plus}
+            <span>{t("选中多个词一起解析")}</span>
+          </button>
         )}
       </div>
     </section>
