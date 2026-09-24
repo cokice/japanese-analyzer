@@ -4,7 +4,7 @@ import { useLanguage } from './contexts/LanguageContext';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import InputSection from './components/InputSection';
-import AnalysisResult from './components/AnalysisResult';
+import AnalysisResult, { DisplayOptions } from './components/AnalysisResult';
 import TranslationSection from './components/TranslationSection';
 import SettingsModal from './components/SettingsModal';
 import Header from './components/Header';
@@ -12,7 +12,7 @@ import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import ReasoningStream from './components/ReasoningStream';
-import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
+import WordDetailPanel from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
 import { useAnalysisHistory } from './hooks/useAnalysisHistory';
 import { AnalyzeStreamParser } from './utils/analyzeStreamParser';
@@ -48,6 +48,8 @@ export default function Home() {
   const [analysisSignal, setAnalysisSignal] = useState<AbortSignal>();
   const [translationTrigger, setTranslationTrigger] = useState(0);
   const [showFurigana, setShowFurigana] = useState(true);
+  // 解析开始后输入区收起，句子成为页面唯一主角；点「编辑原文」再展开
+  const [isEditingInput, setIsEditingInput] = useState(true);
   const [showRomaji, setShowRomaji] = useState(false);
 
   // API设置相关状态
@@ -285,6 +287,7 @@ export default function Home() {
     trackAnalyzeUsage(aiProvider, usage, aiModel);
     const metrics = createRequestMetrics('analyze', aiProvider, aiModel, useStream, analysisAbortController.signal);
     setIsAnalyzing(true);
+    setIsEditingInput(false);
     setAnalysisError('');
     setCurrentSentence(text);
     setTranslationTrigger(Date.now());
@@ -440,6 +443,26 @@ export default function Home() {
     setDeepseekReasoningDone(true);
   };
 
+  const isReading = !isEditingInput && (isAnalyzing || analyzedTokens.length > 0);
+  // 首页：还没有解析任何句子，显示今日一句和最近记录
+  const isHome = !isAnalyzing && !currentSentence;
+
+  // 「新句子」：清空当前解析，回到首页
+  const handleStartOver = () => {
+    handleCloseWordDetail();
+    reasoningSummaryControllerRef.current?.cancel();
+    reasoningSummaryControllerRef.current = null;
+    reasoningTextStore.reset();
+    hasDeepseekReasoningRef.current = false;
+    setHasDeepseekReasoning(false);
+    setDeepseekReasoningDone(true);
+    setDeepseekReasoningSummaryHistory([]);
+    setAnalyzedTokens([]);
+    setCurrentSentence('');
+    setAnalysisError('');
+    setIsEditingInput(true);
+  };
+
   const hasWordDetail = selectedIndex !== null
     && (isWordDetailLoading || isWordDetailStreaming || wordDetail !== null || !!wordDetailStreamError);
 
@@ -487,10 +510,19 @@ export default function Home() {
           onSettingsClick={() => setIsSettingsModalOpen(true)}
         />
 
-        <main className="mx-auto grid w-full max-w-[1480px] flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 lg:grid-cols-[minmax(0,1fr)_360px]">
+        {/* 阅读列居中；点词后详情栏从右侧展开，主列随之左移。 */}
+        <main
+          className="app-main mx-auto flex w-full max-w-[1240px] flex-1 items-start justify-center px-4 pb-6 pt-2 sm:px-9"
+          data-detail-open={isDesktop && hasWordDetail}
+        >
           {/* 主列 */}
-          <div className="flex min-w-0 flex-col gap-[22px]">
+          <div className="app-column relative flex w-full min-w-0 max-w-[780px] flex-col gap-[22px]" data-home={isHome}>
             <InputSection
+              compact={isReading}
+              showSuggestions={isHome}
+              onNewSentence={handleStartOver}
+              onExpand={() => setIsEditingInput(true)}
+              onCollapse={analyzedTokens.length > 0 ? () => setIsEditingInput(false) : undefined}
               history={history}
               onAnalyze={handleAnalyze}
               onCancelAnalyze={handleCancelAnalysis}
@@ -501,6 +533,15 @@ export default function Home() {
               ttsProvider={ttsProvider}
               onTtsProviderChange={handleTtsProviderChange}
               isAnalyzing={isAnalyzing}
+              compactExtras={shouldShowAnalyzer() && (
+                <DisplayOptions
+                  variant="chips"
+                  showFurigana={showFurigana}
+                  onShowFuriganaChange={setShowFurigana}
+                  showRomaji={showRomaji}
+                  onShowRomajiChange={setShowRomaji}
+                />
+              )}
             />
 
             {aiProvider === 'deepseek'
@@ -517,7 +558,7 @@ export default function Home() {
             {isAnalyzing
               && (!analyzedTokens.length || !useStream)
               && !(aiProvider === 'deepseek' && deepseekThinkingEnabled) && (
-              <div className="nd-card">
+              <div className="reading-surface">
                 <ThinkingIndicator className="py-6" />
               </div>
             )}
@@ -544,7 +585,7 @@ export default function Home() {
             )}
 
             {(shouldShowAnalyzer() || currentSentence) && (
-              <div className="nd-card reading-card">
+              <div className="reading-surface">
                 {shouldShowAnalyzer() && (
                   <AnalysisResult
                     key={currentSentence}
@@ -555,6 +596,7 @@ export default function Home() {
                     onShowRomajiChange={setShowRomaji}
                     onWordClick={handleWordClick}
                     selectedIndex={selectedIndex}
+                    showDisplayOptions={!isReading}
                   />
                 )}
 
@@ -573,9 +615,11 @@ export default function Home() {
             )}
           </div>
 
-          {/* 侧栏：词汇详情（桌面端） */}
-          <aside className="sticky top-4 hidden flex-col gap-4 self-start lg:flex">
-            {isDesktop && hasWordDetail ? wordDetailPanel : <WordDetailPlaceholder />}
+          {/* 侧栏：词汇详情（桌面端），未选词时收起不占位 */}
+          <aside className="detail-rail sticky top-4 hidden self-start lg:block">
+            <div className="detail-rail-inner">
+              {isDesktop && hasWordDetail && wordDetailPanel}
+            </div>
           </aside>
         </main>
 

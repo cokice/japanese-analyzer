@@ -15,6 +15,8 @@ interface AnalysisResultProps {
   onShowRomajiChange: (show: boolean) => void;
   onWordClick: (token: TokenData, index: number) => void;
   selectedIndex: number | null;
+  /** 阅读态下开关由页面放在工具行里，这里不再重复显示 */
+  showDisplayOptions?: boolean;
 }
 
 function Toggle({
@@ -28,6 +30,43 @@ function Toggle({
 }) {
   return (
     <Switch checked={on} onCheckedChange={onChange} aria-label={ariaLabel} />
+  );
+}
+
+export function DisplayOptions({
+  showFurigana,
+  onShowFuriganaChange,
+  showRomaji,
+  onShowRomajiChange,
+  variant = 'switch',
+}: Pick<AnalysisResultProps, 'showFurigana' | 'onShowFuriganaChange' | 'showRomaji' | 'onShowRomajiChange'> & {
+  /** chips：阅读态胶囊里用的紧凑标签样式 */
+  variant?: 'switch' | 'chips';
+}) {
+  const { t } = useLanguage();
+  if (variant === 'chips') {
+    return (
+      <div className="display-chips">
+        <button type="button" className="display-chip" aria-pressed={showFurigana} aria-label={t("显示假名")} onClick={() => onShowFuriganaChange(!showFurigana)}>
+          {t("假名")}
+        </button>
+        <button type="button" className="display-chip" aria-pressed={showRomaji} aria-label={t("显示罗马音")} onClick={() => onShowRomajiChange(!showRomaji)}>
+          {t("罗马音")}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="analysis-display-options flex items-center gap-4 sm:gap-[18px]">
+      <label className="inline-flex cursor-pointer items-center gap-2">
+        <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>{t("假名")}</span>
+        <Toggle on={showFurigana} onChange={onShowFuriganaChange} ariaLabel={t("显示假名")} />
+      </label>
+      <label className="inline-flex cursor-pointer items-center gap-2">
+        <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>{t("罗马音")}</span>
+        <Toggle on={showRomaji} onChange={onShowRomajiChange} ariaLabel={t("显示罗马音")} />
+      </label>
+    </div>
   );
 }
 
@@ -51,6 +90,7 @@ export default function AnalysisResult({
   onShowRomajiChange,
   onWordClick,
   selectedIndex,
+  showDisplayOptions = true,
 }: AnalysisResultProps) {
   const { t } = useLanguage();
   if (!tokens || tokens.length === 0) {
@@ -63,21 +103,18 @@ export default function AnalysisResult({
 
   return (
     <section className="analysis-card relative">
-      {/* 标题行 */}
-      <div className="analysis-heading mb-4 flex flex-wrap items-center gap-y-2">
-        <h2 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>{t("解析结果")}</h2>
-        <div className="flex-1" />
-        <div className="analysis-display-options flex items-center gap-4 sm:gap-[18px]">
-          <label className="inline-flex cursor-pointer items-center gap-2">
-            <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>{t("假名")}</span>
-            <Toggle on={showFurigana} onChange={onShowFuriganaChange} ariaLabel={t("显示假名")} />
-          </label>
-          <label className="inline-flex cursor-pointer items-center gap-2">
-            <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>{t("罗马音")}</span>
-            <Toggle on={showRomaji} onChange={onShowRomajiChange} ariaLabel={t("显示罗马音")} />
-          </label>
+      <h2 className="sr-only">{t("解析结果")}</h2>
+
+      {showDisplayOptions && (
+        <div className="analysis-heading mb-4 flex flex-wrap items-center justify-end gap-y-2">
+          <DisplayOptions
+            showFurigana={showFurigana}
+            onShowFuriganaChange={onShowFuriganaChange}
+            showRomaji={showRomaji}
+            onShowRomajiChange={onShowRomajiChange}
+          />
         </div>
-      </div>
+      )}
 
       <AutoAnimateHeight duration={300}>
         {/* 分词结果 */}
@@ -147,21 +184,14 @@ export default function AnalysisResult({
         </div>
       </AutoAnimateHeight>
 
-      <div className="analysis-footer">
-        {/* 提示 */}
-        <div className="analysis-hint">
-          {t("点击词汇查看释义")}
-        </div>
-
-        {/* 词性图例 */}
-        <div className="pos-legend">
-          {legendGroups.map((g) => (
-            <span key={g} className="legend-item">
-              <span className="legend-swatch" style={{ background: POS_GROUP_COLORS[g] }} />
-              {t(POS_GROUP_LABELS[g])}
-            </span>
-          ))}
-        </div>
+      {/* 词性图例：放在正文下方作注脚 */}
+      <div className="pos-legend">
+        {legendGroups.map((g) => (
+          <span key={g} className="legend-item">
+            <span className="legend-swatch" style={{ background: POS_GROUP_COLORS[g] }} />
+            {t(POS_GROUP_LABELS[g])}
+          </span>
+        ))}
       </div>
     </section>
   );

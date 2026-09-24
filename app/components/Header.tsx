@@ -19,7 +19,7 @@ export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
   const providerLabel = PROVIDER_LABELS[aiProvider];
 
   return (
-    <header className="app-header mx-auto flex w-full max-w-[1480px] items-center px-4 py-4 sm:px-9 sm:py-5">
+    <header className="app-header mx-auto flex w-full max-w-[1240px] items-center px-4 py-4 sm:px-9 sm:py-5">
       {/* 整页导航以重置当前输入、解析和聊天状态。 */}
       {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a href="/" className="brand-home flex min-w-0 items-center" aria-label={t("返回首页")} title={t("返回首页")}>

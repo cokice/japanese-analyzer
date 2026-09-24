@@ -7,7 +7,7 @@ import {
   type AIProvider,
 } from '../../lib/aiModels';
 
-export type StructuredOutputKind = 'analysisTokens' | 'wordDetail';
+export type StructuredOutputKind = 'analysisTokens' | 'wordDetail' | 'dailySentence';
 export { DEFAULT_AI_PROVIDER, normalizeAIProvider };
 export type { AIProvider };
 
@@ -43,6 +43,16 @@ function getDefaultApiKey(provider: AIProvider): string {
   }
 
   return process.env.GEMINI_API_KEY || '';
+}
+
+/** 只用服务器环境变量里的密钥（不带用户密钥），供服务端自发的请求使用 */
+export function resolveServerProviderConfig(provider: AIProvider) {
+  return {
+    provider,
+    apiKey: getDefaultApiKey(provider),
+    apiUrl: getDefaultApiUrl(provider),
+    model: getModelName(provider),
+  };
 }
 
 export function resolveProviderConfig(
@@ -117,6 +127,26 @@ const wordDetailSchema = {
   additionalProperties: false,
 } as const;
 
+const dailySentenceSchema = {
+  type: 'object',
+  properties: {
+    text: { type: 'string' },
+    translations: {
+      type: 'object',
+      properties: {
+        'zh-CN': { type: 'string' },
+        'zh-TW': { type: 'string' },
+        en: { type: 'string' },
+        ko: { type: 'string' },
+      },
+      required: ['zh-CN', 'zh-TW', 'en', 'ko'],
+      additionalProperties: false,
+    },
+  },
+  required: ['text', 'translations'],
+  additionalProperties: false,
+} as const;
+
 const structuredOutputSchemas = {
   analysisTokens: {
     name: 'japanese_sentence_analysis',
@@ -125,6 +155,10 @@ const structuredOutputSchemas = {
   wordDetail: {
     name: 'japanese_word_detail',
     schema: wordDetailSchema,
+  },
+  dailySentence: {
+    name: 'japanese_daily_sentence',
+    schema: dailySentenceSchema,
   },
 } as const;
 
