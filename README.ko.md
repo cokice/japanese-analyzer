@@ -1,162 +1,184 @@
-# 일본어 문장 분석기
-
-🌐 [简体中文](README.md) | [繁體中文](README.zh-TW.md) | [English](README.en.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
-
-중국어 간체·번체, 영어, 한국어 인터페이스를 지원하는 일본어 학습 도구입니다. 일본어 문장을 입력하면 단어, 후리가나, 로마자, 품사, 번역과 자세한 설명을 확인할 수 있습니다. 이미지 속 글자 인식, 음성 읽기, AI 일본어 도우미도 제공합니다.
-
-[온라인 체험](https://nihongodemo.howen.ink/) · [온라인 문서](https://doc.howen.ink/)
-
 <p align="center">
-  <img src="./public/logo/logo-text.png" alt="일본어 문장 분석기" width="360" />
+  <img src="./public/logo/logo-text.png" alt="일본어 문장 분석기" width="340" />
 </p>
 
-## 화면 미리 보기
-
-아래 이미지는 중국어 간체 화면입니다. 앱의 지구본 아이콘에서 언어를 변경할 수 있습니다.
-
-![문장 분석, 번역과 단어 설명](./docs/images/app-home.png)
-![다크 모드](./docs/images/app-dark.png)
-![모델 및 API 설정](./docs/images/provider-settings.png)
-
 <p align="center">
-  <img src="./docs/images/mobile-chat.png" alt="모바일 AI 일본어 도우미" width="390" />
+  <b>일본어 문장, 한 단어씩 읽기.</b><br />
+  형태소, 후리가나, 뜻, 번역을 한 번의 클릭으로.
 </p>
 
-## 주요 기능
+<p align="center">
+  <a href="https://nihongodemo.howen.ink/">온라인 체험</a> ·
+  <a href="https://doc.howen.ink/">문서</a> ·
+  <a href="#빠른-시작">로컬 실행</a> ·
+  <a href="#ai-에이전트로-배포">AI로 배포하기</a>
+</p>
 
-- **언어 선택:** 오른쪽 위 지구본 아이콘에서 简体中文, 繁體中文, English, 한국어를 선택합니다. 화면 문구, 번역, 단어 설명과 새 AI 답변에 선택한 언어가 적용되며, 브라우저에 저장됩니다. 중국어 번체는 글자만 변환하지 않고 자연스러운 어휘와 표현을 사용합니다.
-- **일본어 분석:** 일본 학교 문법에 따라 단어를 나누고 품사와 후리가나를 표시합니다. 로마자는 앱에서 생성하며, 인터페이스 언어와 관계없이 일본어 원문과 읽기는 그대로 유지됩니다.
-- **문맥에 맞는 단어 설명:** 단어를 누르면 뜻, 사전형, 활용, 문장 속 역할과 번역이 포함된 예문을 볼 수 있습니다.
-- **문장 번역:** 문단과 줄바꿈을 유지합니다. 언어를 바꾸면 다시 번역하며, 기존 채팅 메시지는 원래 언어로 남습니다.
-- **일반 텍스트 붙여넣기:** 웹페이지 스타일, Markdown 서식과 링크 주소를 제거하고 링크에 표시된 글자와 문단 구분을 남깁니다. 단독 웹 주소도 제거합니다. 이미지를 붙여넣으면 기존처럼 OCR을 실행합니다.
-- **긴 글과 링크 처리:** 긴 글을 나누어 분석합니다. 입력에 남아 있는 URL은 앱에서 보존하므로 모델이 긴 인코딩 문자열을 다시 생성할 필요가 없습니다. 불완전한 결과는 계속 검증합니다.
-- **이미지 OCR:** 이미지를 업로드하거나 붙여넣어 선택한 제공 업체로 일본어를 추출합니다.
-- **음성 읽기:** Edge TTS와 Gemini TTS를 지원하며, 음성 설정 메뉴는 버튼 아래로 열립니다.
-- **AI 일본어 도우미:** 문법, 어휘, 문화, 공부 방법과 현재 문장에 관해 질문할 수 있습니다.
-- **모델 설정:** DeepSeek와 Gemini를 전환하고 스트리밍 출력을 설정할 수 있습니다. 제공 업체별 API 키를 브라우저에 따로 저장할 수도 있습니다.
-- 라이트·다크·시스템 테마, 선택적 접속 비밀번호와 Umami 통계, Vercel 및 Docker 배포를 지원합니다.
+<p align="center">
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg" /></a>
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black" />
+  <img alt="React" src="https://img.shields.io/badge/React-19-61dafb" />
+  <a href="https://linux.do/"><img alt="LINUX DO" src="https://img.shields.io/badge/LINUX%20DO-%E6%96%B0%E7%9A%84%E7%90%86%E6%83%B3%E5%9E%8B%E7%A4%BE%E5%8C%BA-f8c12c" /></a>
+</p>
+
+<p align="center">
+  <a href="README.md">简体中文</a> · <a href="README.zh-TW.md">繁體中文</a> · <a href="README.en.md">English</a> · 한국어 · <a href="README.ja.md">日本語</a>
+</p>
+
+![분석 결과와 사전 설명](./docs/images/app-home.png)
+
+## 무엇을 할 수 있나요
+
+**문장 읽기**
+- 일본어를 입력하거나 붙여넣으면 단어마다 후리가나, 로마자, 품사를 표시하고 문장 전체 번역을 보여 줍니다
+- 단어를 클릭하면 그 문장 안에서의 뜻, 용법, 활용과 예문을 볼 수 있습니다
+- 여러 단어를 드래그하거나(설명 화면의 「여러 단어 함께 선택」도 가능) 문법 형식이나 관용 표현을 하나로 묶어 설명받을 수 있고, 잘못 나뉜 단어는 한 번에 합칠 수 있습니다
+
+**편의 기능**
+- 홈 화면의 「오늘의 문장」은 일본 시간 기준으로 매일 바뀌며, 클릭하면 바로 분석합니다
+- 긴 글은 나누어 분석하고, 웹 페이지나 Markdown을 붙여넣으면 서식과 링크를 자동으로 정리합니다
+- 이미지 인식: 스크린샷을 올리거나 붙여넣어 일본어 텍스트를 추출합니다
+- 원문 읽어 주기(Edge TTS / Gemini TTS)와 현재 문장을 이해하는 AI 일본어 도우미
+
+**인터페이스**
+- 중국어 간체·번체, English, 한국어 — 화면, 번역, 설명이 함께 바뀝니다
+- 라이트 / 다크 모드, 데스크톱과 모바일 모두 지원
+- 최근 분석 기록은 브라우저에 저장됩니다
+
+<table>
+  <tr>
+    <td width="62%"><img src="./docs/images/app-dark.png" alt="다크 모드" /></td>
+    <td width="38%"><img src="./docs/images/mobile-chat.png" alt="모바일 AI 일본어 도우미" /></td>
+  </tr>
+</table>
 
 ## 모델
 
-아래는 이 저장소에서 사용하는 모델 식별자입니다.
-
-| 용도 | 모델 / 서비스 | 동작 |
+| 용도 | 기본값 | 선택 |
 | --- | --- | --- |
-| 기본 텍스트 처리 | DeepSeek `deepseek-flash` | 사고 모드는 꺼져 있으며 현재 설정에서 전환할 수 없습니다. |
-| Gemini 텍스트 처리 | `gemini-flash-latest` / `gemini-flash-lite-latest` | Flash와 Flash-Lite를 선택할 수 있습니다. 추론 수준은 각각 Low와 Minimal입니다. |
-| 이미지 OCR | `deepseek-flash` / 선택한 Gemini 모델 | DeepSeek는 텍스트와 같은 모델을 사용하며 OCR에서는 사고 모드를 끕니다. |
-| 음성 읽기 | Edge TTS / `gemini-3.1-flash-tts-preview` | 기본값은 Edge TTS입니다. Gemini TTS에는 Gemini API 키가 필요합니다. |
+| 분석, 번역, 설명 | DeepSeek `deepseek-flash` | Gemini `gemini-flash-latest` / `gemini-flash-lite-latest` |
+| 이미지 인식 | 선택한 텍스트 모델과 동일 | — |
+| 읽어 주기 | Edge TTS | Gemini TTS(Gemini 키 필요) |
+
+서버에 설정한 키는 모든 방문자가 함께 사용합니다. 사용자는 설정에서 자신의 키를 입력할 수도 있으며, 키는 해당 브라우저에 저장되고 요청할 때 이 앱의 서버를 거쳐 모델 제공 업체로 전달됩니다.
 
 ## 빠른 시작
 
-Docker 이미지와 같은 Node.js 22를 사용하세요.
+Node.js 22가 필요합니다.
 
 ```bash
 git clone https://github.com/cokice/japanese-analyzer.git
 cd japanese-analyzer
 npm ci
-cp .env.example .env.local
+cp .env.example .env.local   # Windows: Copy-Item .env.example .env.local
 ```
 
-Windows PowerShell에서는 마지막 명령 대신 `Copy-Item .env.example .env.local`을 사용합니다.
-
-기본 제공 업체를 사용하려면 `.env.local`에 `DEEPSEEK_API_KEY`를 입력하세요. Gemini 텍스트 처리, OCR 또는 음성을 사용하려면 `GEMINI_API_KEY`도 설정합니다. API 주소를 비워 두면 기본 엔드포인트를 사용합니다.
+`.env.local`에 키를 하나 이상 입력한 뒤 실행합니다:
 
 ```env
 DEEPSEEK_API_KEY=your_deepseek_api_key
-DEEPSEEK_API_URL=
-GEMINI_API_KEY=
-GEMINI_API_URL=
-CODE=
-NEXT_PUBLIC_UMAMI_SRC=
-NEXT_PUBLIC_UMAMI_WEBSITE_ID=
 ```
 
 ```bash
 npm run dev
 ```
 
-[http://127.0.0.1:3000](http://127.0.0.1:3000)을 엽니다. 같은 로컬 네트워크의 다른 기기에서 테스트하려면 다음과 같이 실행하세요.
-
-```bash
-npm run dev -- --hostname 0.0.0.0 --port 3100
-```
-
-다른 기기에서 `http://<컴퓨터의-LAN-IP>:3100`에 접속합니다.
+<http://localhost:3000>을 엽니다. 같은 네트워크의 휴대폰에서 접속하려면 `npm run dev -- --hostname 0.0.0.0`으로 실행한 뒤 `http://컴퓨터IP:3000`을 여세요.
 
 ## 환경 변수
 
-| 변수 | 용도 |
+| 변수 | 설명 |
 | --- | --- |
-| `DEEPSEEK_API_KEY` | DeepSeek 텍스트 처리와 OCR에 사용할 서버 기본 API 키입니다. |
-| `DEEPSEEK_API_URL` | 선택적 OpenAI 호환 API 주소입니다. 기본값은 `https://api.deepseek.com/chat/completions`입니다. |
-| `GEMINI_API_KEY` | Gemini 텍스트 처리, OCR과 TTS에 사용할 서버 기본 API 키입니다. |
-| `GEMINI_API_URL` | 선택적 OpenAI 호환 API 주소입니다. 기본값은 `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`입니다. |
-| `CODE` | 선택적 접속 비밀번호입니다. 비워 두면 비밀번호를 묻지 않습니다. |
-| `NEXT_PUBLIC_UMAMI_SRC` | 선택적 Umami 스크립트 주소입니다. 예: `https://cloud.umami.is/script.js`. |
-| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami 웹사이트 ID입니다. 스크립트 주소와 함께 설정해야 통계가 활성화됩니다. |
+| `DEEPSEEK_API_KEY` | 권장. 기본 분석, 번역, 이미지 인식 |
+| `GEMINI_API_KEY` | 선택. Gemini 텍스트 모델, 이미지 인식, Gemini TTS |
+| `DEEPSEEK_API_URL` / `GEMINI_API_URL` | 선택. OpenAI 호환 엔드포인트, 비워 두면 공식 주소 사용 |
+| `CODE` | 선택. 접속 비밀번호, 비워 두면 비밀번호 없이 사용 |
+| `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 선택. 둘 다 입력하면 Umami 통계 사용 |
 
-서버 API 키는 프런트엔드에 공개하지 않습니다. 사용자는 오른쪽 위 설정에서 자신의 키를 입력할 수도 있습니다. 이 키는 해당 브라우저에 저장되며 API 요청 시 이 앱의 서버로 전송됩니다. API 엔드포인트는 서버에서 설정합니다. Gemini TTS는 별도의 공식 음성 API를 사용하므로 `GEMINI_API_URL`의 영향을 받지 않습니다.
+키는 서버에서만 사용되며 브라우저로 전달되지 않습니다. 「오늘의 문장」은 서버 키로 생성하며, 키가 없으면 내장 예문을 보여 줍니다.
 
-Umami는 실행 시 환경 변수를 읽습니다. 기능 사용, 제공 업체, 모델, 스트리밍 여부, 요청 시간, 첫 결과 표시 시간과 정해진 오류·취소 분류를 기록합니다. 이벤트에 원문, 채팅 메시지나 답변, 이미지, 번역, 원시 오류 메시지 또는 API 키를 포함하지 않습니다. 로컬 환경 변수 파일은 Git에서 제외되며 커밋하지 않아야 합니다.
+<details>
+<summary>Umami가 기록하는 내용</summary>
 
-## Vercel 배포
+기능 사용 여부, 사용한 제공 업체와 모델, 성공 여부, 소요 시간만 기록합니다. 원문, 번역, 채팅 내용, 이미지, 원본 오류 메시지, API 키는 **포함하지 않습니다**.
+
+- 사용 이벤트: `analyze_sentence`, `image_text_extract`, `tts_speech`, `word_detail_click`
+- 분석 결과: `analyze_success`, `analyze_error`, `analyze_cancel`(`duration_ms`, `first_result_ms` 포함, 실패 시 `error_category`만 기록)
+- 채팅: `chat_send`, `chat_success`, `chat_error`
+
+</details>
+
+## 배포
+
+### AI 에이전트로 배포
+
+아래 문장을 Claude Code, Codex, Cursor 같은 AI 코딩 도우미에게 보내세요. 배포 위치와 필요한 키를 먼저 물어본 뒤 설치와 확인을 마치고 접속 주소를 알려 줍니다:
+
+```text
+https://raw.githubusercontent.com/cokice/japanese-analyzer/master/docs/agent-deploy.md 를 읽고 그 단계에 따라 japanese-analyzer를 배포해 줘.
+```
+
+Linux 서버(Docker, 도메인·HTTPS 설정 선택 가능), Vercel, 로컬 실행을 지원합니다. 에이전트가 따르는 절차는 [docs/agent-deploy.md](./docs/agent-deploy.md)에 있습니다.
+
+### Vercel
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer)
 
-1. 저장소를 포크하거나 Vercel로 가져옵니다.
-2. **Settings → Environment Variables**에서 기본 제공 업체용 `DEEPSEEK_API_KEY`를 설정합니다.
-3. 필요에 따라 `GEMINI_API_KEY`, `CODE`와 두 Umami 변수를 추가합니다.
-4. 배포합니다. 환경 변수를 변경했다면 다시 배포하세요.
+저장소를 가져온 뒤 `Settings → Environment Variables`에 환경 변수를 입력하고 다시 배포하면 됩니다.
 
-## Docker 배포
+### Docker
 
-Docker Hub 이미지 `howenhowen/japanese-analyzer:latest`는 `linux/amd64`와 `linux/arm64`를 지원합니다. 저장소 루트에서 실행하세요.
+`howenhowen/japanese-analyzer` 이미지는 `amd64`와 `arm64`를 지원하며, 컨테이너는 `3002` 포트를 사용합니다.
 
 ```bash
-cp .env.production.example .env.production
-# .env.production을 열어 필요한 API 키를 설정합니다.
+cp .env.production.example .env.production   # 키 입력
 docker compose -f docker-compose.hub.yml up -d
 ```
 
-Windows PowerShell에서는 `Copy-Item .env.production.example .env.production`으로 템플릿을 복사합니다. 호스트와 컨테이너 포트는 모두 `3002`입니다. 실행 후 `http://<서버-IP>:3002`에 접속하세요.
-
-이미지를 업데이트하고 컨테이너를 다시 만들거나 로그를 확인하려면 다음 명령을 사용합니다.
+최신 버전으로 업데이트:
 
 ```bash
 docker compose -f docker-compose.hub.yml pull
 docker compose -f docker-compose.hub.yml up -d
-docker compose -f docker-compose.hub.yml logs -f
 ```
 
-같은 환경 변수 파일로 컨테이너를 직접 실행할 수도 있습니다.
+<details>
+<summary>Compose 없이 docker run 사용</summary>
 
 ```bash
-docker run -d --name japanese-analyzer --restart unless-stopped \
-  --env-file .env.production -p 3002:3002 \
+docker run -d \
+  --name japanese-analyzer \
+  --restart unless-stopped \
+  -p 3002:3002 \
+  -e DEEPSEEK_API_KEY="your_deepseek_api_key" \
+  -e GEMINI_API_KEY="" \
+  -e CODE="" \
   howenhowen/japanese-analyzer:latest
 ```
 
-## 개발 명령
+업데이트할 때는 새 이미지를 `docker pull`로 받고, `docker rm -f japanese-analyzer`로 기존 컨테이너를 삭제한 뒤 위 명령을 다시 실행합니다.
+
+</details>
+
+## 개발
 
 ```bash
 npm run dev          # 개발 서버
-npm test             # API, 다국어, 분석 및 붙여넣기 회귀 테스트
-npm run lint         # 저장소 린트 검사
-npm run build        # 프로덕션 빌드 및 타입 검사
-npm start            # 빌드된 프로덕션 앱 실행
-npx tsc --noEmit     # 타입 검사만 실행
+npm test             # 단위 및 API 테스트
+npm run lint         # 코드 검사
+npx tsc --noEmit     # 타입 검사
+npm run build        # 프로덕션 빌드
 ```
 
-## 문제 해결 및 기여
+버그나 제안은 [Issue](https://github.com/cokice/japanese-analyzer/issues)로 알려 주세요. Pull Request도 환영합니다. 분석 문제를 신고할 때는 제공 업체, 모델, 화면 언어, 재현 가능한 예문을 함께 적어 주시고 API 키는 넣지 마세요.
 
-- 복사한 글을 분석하다 오류가 나면 다시 붙여넣어 서식과 링크 주소를 제거하세요. 계속 실패하면 제공 업체, 모델, 화면 언어와 재현 가능한 예문을 Issue에 첨부해 주세요. API 키는 포함하지 마세요.
-- 언어 설정은 브라우저마다 따로 저장됩니다. 지구본 아이콘으로 변경할 수 있으며 브라우저 번역 기능은 필요하지 않습니다.
-- 버그 신고, 기능 제안과 Pull Request를 환영합니다.
+## 감사의 말
 
-## 감사 및 라이선스
+[LINUX DO](https://linux.do/) 커뮤니티의 지원에 감사드립니다.
 
-[LINUX DO](https://linux.do/) 커뮤니티의 지원에 감사드립니다. 이 프로젝트는 `mit-final` 이후 라이선스 전환 커밋부터 프로젝트 전체에 [GNU AGPL v3 전용(AGPL-3.0-only)](./LICENSE)을 적용하여 배포합니다.
+## 라이선스
+
+이 프로젝트는 `mit-final` 이후 라이선스 전환 커밋부터 프로젝트 전체에 [GNU AGPL v3 전용(AGPL-3.0-only)](./LICENSE)을 적용하여 배포합니다.
 
 `mit-final`(`fb57ddc`)을 포함하여 이미 MIT로 공개된 코드에는 기존 MIT 이용 허가가 계속 유효합니다. [기존 MIT 라이선스](./LICENSES/MIT-legacy.txt), [라이선스 및 배포 안내](./LICENSING.md), [저작권 고지](./NOTICE)를 확인하세요.
 

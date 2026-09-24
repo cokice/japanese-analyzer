@@ -1,162 +1,184 @@
-# Japanese Sentence Analyzer
-
-🌐 [简体中文](README.md) | [繁體中文](README.zh-TW.md) | [English](README.en.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
-
-A Japanese learning tool with Simplified Chinese, Traditional Chinese, English, and Korean interfaces. Analyze Japanese sentences, look up vocabulary in context, translate passages, extract text from images, and practice with an AI assistant.
-
-[Live demo](https://nihongodemo.howen.ink/) · [Online documentation](https://doc.howen.ink/)
-
 <p align="center">
-  <img src="./public/logo/logo-text.png" alt="Japanese Sentence Analyzer" width="360" />
+  <img src="./public/logo/logo-text.png" alt="Japanese Sentence Analyzer" width="340" />
 </p>
 
-## Screenshots
-
-The screenshots show the Simplified Chinese interface. Use the globe icon to change the language in the app.
-
-![Sentence analysis, translation, and vocabulary details](./docs/images/app-home.png)
-![Dark mode](./docs/images/app-dark.png)
-![Model and API settings](./docs/images/provider-settings.png)
-
 <p align="center">
-  <img src="./docs/images/mobile-chat.png" alt="AI Japanese assistant on mobile" width="390" />
+  <b>Read Japanese, one word at a time.</b><br />
+  Word breaks, readings, meanings, and translation — one tap away.
 </p>
 
-## Features
+<p align="center">
+  <a href="https://nihongodemo.howen.ink/">Live demo</a> ·
+  <a href="https://doc.howen.ink/">Docs</a> ·
+  <a href="#quick-start">Run locally</a> ·
+  <a href="#deploy-with-an-ai-agent">Deploy with an AI agent</a>
+</p>
 
-- **Language selection:** use the globe icon in the top-right toolbar to choose 简体中文, 繁體中文, English, or 한국어. The browser remembers your choice. Interface text, translations, vocabulary explanations, and new AI replies use the selected language. Traditional Chinese uses natural vocabulary and phrasing, rather than character conversion alone.
-- **Japanese analysis:** word segmentation based on Japanese school grammar, part-of-speech labels, kana readings, and locally generated romaji. Japanese source text and readings remain Japanese in every interface language.
-- **Vocabulary in context:** click a word for its meaning, dictionary form, conjugation, grammatical role, and examples with translations.
-- **Passage translation:** preserve paragraphs and line breaks; changing the language refreshes the translation. Existing chat messages keep their original language.
-- **Plain-text paste:** remove rich-text styling, Markdown formatting, and link destinations while retaining visible link labels and paragraph breaks. Bare web addresses are removed. Pasting an image still starts OCR.
-- **Long passages and links:** analyze long passages in chunks. URLs that remain in the input are preserved locally instead of asking the model to reproduce long encoded addresses; incomplete output is still rejected.
-- **Image OCR:** upload or paste an image to extract Japanese text using the selected provider.
-- **Read aloud:** choose Edge TTS or Gemini TTS. The voice settings menu opens below its button.
-- **AI Japanese assistant:** ask about grammar, vocabulary, culture, study methods, and the current sentence.
-- **Provider settings:** switch between DeepSeek and Gemini, choose streaming output, and optionally save a separate API key for each provider in your browser.
-- Light, dark, and system themes; optional access password and Umami analytics; Vercel and Docker deployment.
+<p align="center">
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg" /></a>
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black" />
+  <img alt="React" src="https://img.shields.io/badge/React-19-61dafb" />
+  <a href="https://linux.do/"><img alt="LINUX DO" src="https://img.shields.io/badge/LINUX%20DO-%E6%96%B0%E7%9A%84%E7%90%86%E6%83%B3%E5%9E%8B%E7%A4%BE%E5%8C%BA-f8c12c" /></a>
+</p>
+
+<p align="center">
+  <a href="README.md">简体中文</a> · <a href="README.zh-TW.md">繁體中文</a> · English · <a href="README.ko.md">한국어</a> · <a href="README.ja.md">日本語</a>
+</p>
+
+![Analysis result with dictionary entry](./docs/images/app-home.png)
+
+## What it does
+
+**Read sentences**
+- Type or paste Japanese to get furigana, romaji, and part of speech for every word, plus a full translation
+- Click any word to see its meaning, usage, inflection, and an example — in the context of that sentence
+- Drag across several words (or choose "Select more words together" in the entry) to explain a grammar pattern or set phrase as a whole; words that were split apart can be merged back in one click
+
+**Handy extras**
+- A sentence of the day on the home page, refreshed on Japan time — click it to start
+- Long passages are analyzed in chunks; pasted web pages and Markdown are cleaned of formatting and links
+- Image text recognition: upload or paste a screenshot to extract the Japanese
+- Read-aloud (Edge TTS / Gemini TTS) and an AI Japanese assistant that knows the current sentence
+
+**Interface**
+- Simplified Chinese, Traditional Chinese, English, and Korean — the UI, translations, and entries switch together
+- Light and dark themes, on desktop and mobile
+- Recent analyses are kept locally in your browser
+
+<table>
+  <tr>
+    <td width="62%"><img src="./docs/images/app-dark.png" alt="Dark mode" /></td>
+    <td width="38%"><img src="./docs/images/mobile-chat.png" alt="AI Japanese assistant on mobile" /></td>
+  </tr>
+</table>
 
 ## Models
 
-These are the model identifiers configured in this repository.
-
-| Capability | Model / service | Behavior |
+| Used for | Default | Optional |
 | --- | --- | --- |
-| Default text provider | DeepSeek `deepseek-flash` | Thinking is disabled; its toggle is currently unavailable in Settings. |
-| Gemini text processing | `gemini-flash-latest` / `gemini-flash-lite-latest` | Select Flash or Flash-Lite in Settings; reasoning levels are Low and Minimal respectively. |
-| Image OCR | `deepseek-flash` / selected Gemini model | DeepSeek OCR uses the same model as text analysis, with thinking disabled. |
-| Speech | Edge TTS / `gemini-3.1-flash-tts-preview` | Edge TTS is the default. Gemini TTS requires a Gemini API key. |
+| Analysis, translation, entries | DeepSeek `deepseek-flash` | Gemini `gemini-flash-latest` / `gemini-flash-lite-latest` |
+| Image text recognition | Same as the selected text model | — |
+| Read-aloud | Edge TTS | Gemini TTS (requires a Gemini key) |
+
+Keys configured on the server are shared by all visitors. Users can also enter their own keys in Settings; they're stored in that browser and sent through this app's server to the model provider with each request.
 
 ## Quick start
 
-Use Node.js 22, matching the Docker image.
+Requires Node.js 22.
 
 ```bash
 git clone https://github.com/cokice/japanese-analyzer.git
 cd japanese-analyzer
 npm ci
-cp .env.example .env.local
+cp .env.example .env.local   # Windows: Copy-Item .env.example .env.local
 ```
 
-On Windows PowerShell, replace the last command with `Copy-Item .env.example .env.local`.
-
-Set `DEEPSEEK_API_KEY` in `.env.local` to use the default provider. Add `GEMINI_API_KEY` if you want Gemini text processing, OCR, or TTS. Leave endpoint variables empty to use their built-in defaults.
+Add at least one key to `.env.local`, then start the dev server:
 
 ```env
 DEEPSEEK_API_KEY=your_deepseek_api_key
-DEEPSEEK_API_URL=
-GEMINI_API_KEY=
-GEMINI_API_URL=
-CODE=
-NEXT_PUBLIC_UMAMI_SRC=
-NEXT_PUBLIC_UMAMI_WEBSITE_ID=
 ```
 
 ```bash
 npm run dev
 ```
 
-Open [http://127.0.0.1:3000](http://127.0.0.1:3000). For testing from another device on your local network:
-
-```bash
-npm run dev -- --hostname 0.0.0.0 --port 3100
-```
-
-Open `http://<your-computer-LAN-IP>:3100` on that device.
+Open <http://localhost:3000>. To try it from a phone on the same network, run `npm run dev -- --hostname 0.0.0.0` and open `http://<your-computer-ip>:3000`.
 
 ## Environment variables
 
 | Variable | Purpose |
 | --- | --- |
-| `DEEPSEEK_API_KEY` | Server-side default key for DeepSeek text processing and OCR. |
-| `DEEPSEEK_API_URL` | Optional OpenAI-compatible endpoint. Default: `https://api.deepseek.com/chat/completions`. |
-| `GEMINI_API_KEY` | Server-side default key for Gemini text processing, OCR, and TTS. |
-| `GEMINI_API_URL` | Optional OpenAI-compatible endpoint. Default: `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`. |
-| `CODE` | Optional access password; leave empty to disable the login prompt. |
-| `NEXT_PUBLIC_UMAMI_SRC` | Optional Umami script URL, such as `https://cloud.umami.is/script.js`. |
-| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami website ID. Analytics load only when both Umami variables are set. |
+| `DEEPSEEK_API_KEY` | Recommended. Default analysis, translation, and image recognition |
+| `GEMINI_API_KEY` | Optional. Gemini text models, image recognition, and Gemini TTS |
+| `DEEPSEEK_API_URL` / `GEMINI_API_URL` | Optional. OpenAI-compatible endpoints; leave empty for the official ones |
+| `CODE` | Optional. Access password; leave empty for open access |
+| `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Optional. Set both to enable Umami analytics |
 
-Server-side keys are not exposed to the frontend. Users can alternatively enter their own keys in the top-right Settings menu: these are stored in that browser and sent to this app's server when making API requests. Provider endpoints are configured on the server. Gemini TTS uses a separate official speech endpoint and is unaffected by `GEMINI_API_URL`.
+Keys stay on the server and are never sent to the browser. The sentence of the day is generated with the server key; without one, built-in examples are shown.
 
-Umami reads runtime configuration. It records feature usage, providers, models, streaming mode, request duration, time to first result, and fixed error/cancellation categories. It does not include input text, chat messages or replies, images, translations, raw error messages, or API keys in events. Local environment files are ignored by Git; keep them out of commits.
+<details>
+<summary>What Umami records</summary>
 
-## Deploy to Vercel
+Only whether a feature was used, which provider and model, success or failure, and timing. It **never** includes source text, translations, chat content, images, raw error messages, or API keys.
+
+- Usage: `analyze_sentence`, `image_text_extract`, `tts_speech`, `word_detail_click`
+- Analysis outcome: `analyze_success`, `analyze_error`, `analyze_cancel` (with `duration_ms` and `first_result_ms`; failures record only `error_category`)
+- Chat: `chat_send`, `chat_success`, `chat_error`
+
+</details>
+
+## Deploy
+
+### Deploy with an AI agent
+
+Send this line to Claude Code, Codex, Cursor, or another AI coding agent. It will ask where to deploy and which keys to use, then install, verify, and hand you the URL:
+
+```text
+Read https://raw.githubusercontent.com/cokice/japanese-analyzer/master/docs/agent-deploy.md and follow its steps to deploy japanese-analyzer for me.
+```
+
+Supports a Linux server (Docker, with optional domain and HTTPS), Vercel, or your own machine. The steps the agent follows are in [docs/agent-deploy.md](./docs/agent-deploy.md).
+
+### Vercel
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer)
 
-1. Fork or import the repository into Vercel.
-2. Set `DEEPSEEK_API_KEY` under **Settings → Environment Variables** for the default provider.
-3. Optionally add `GEMINI_API_KEY`, `CODE`, and both Umami variables.
-4. Deploy, or redeploy after changing environment variables.
+Import the repository, add the environment variables under `Settings → Environment Variables`, and redeploy.
 
-## Deploy with Docker
+### Docker
 
-The Docker Hub image `howenhowen/japanese-analyzer:latest` supports `linux/amd64` and `linux/arm64`. From the repository root:
+The `howenhowen/japanese-analyzer` image supports `amd64` and `arm64`; the container listens on port `3002`.
 
 ```bash
-cp .env.production.example .env.production
-# Edit .env.production and configure your API keys.
+cp .env.production.example .env.production   # add your keys
 docker compose -f docker-compose.hub.yml up -d
 ```
 
-On Windows PowerShell, use `Copy-Item .env.production.example .env.production` to copy the template. Both the host and container ports are `3002`. Open `http://<server-IP>:3002`.
-
-Update the image and recreate the container:
+Update to the latest version:
 
 ```bash
 docker compose -f docker-compose.hub.yml pull
 docker compose -f docker-compose.hub.yml up -d
-docker compose -f docker-compose.hub.yml logs -f
 ```
 
-For a direct container launch with the same environment file:
+<details>
+<summary>Without Compose: docker run</summary>
 
 ```bash
-docker run -d --name japanese-analyzer --restart unless-stopped \
-  --env-file .env.production -p 3002:3002 \
+docker run -d \
+  --name japanese-analyzer \
+  --restart unless-stopped \
+  -p 3002:3002 \
+  -e DEEPSEEK_API_KEY="your_deepseek_api_key" \
+  -e GEMINI_API_KEY="" \
+  -e CODE="" \
   howenhowen/japanese-analyzer:latest
 ```
+
+To update, `docker pull` the new image, remove the old container with `docker rm -f japanese-analyzer`, and run the command above again.
+
+</details>
 
 ## Development
 
 ```bash
-npm run dev          # Development server
-npm test             # API, localization, parsing, and paste regression tests
-npm run lint         # Repository lint checks
-npm run build        # Production build and type validation
-npm start            # Serve an existing production build
-npx tsc --noEmit     # Type check only
+npm run dev          # dev server
+npm test             # unit and API tests
+npm run lint         # lint
+npx tsc --noEmit     # type check
+npm run build        # production build
 ```
 
-## Troubleshooting and contributions
+Report bugs or ideas in [Issues](https://github.com/cokice/japanese-analyzer/issues); pull requests are welcome. For analysis problems, include the provider, model, interface language, and a sample that reproduces it — never your API key.
 
-- If analysis fails on a copied article, paste it again to remove formatting and link destinations. For a persistent failure, include the provider, model, interface language, and a reproducible sample in an Issue; omit API keys.
-- Language preferences are stored separately in each browser. Use the globe icon to change them; browser translation is not required.
-- Report bugs and feature requests through Issues. Pull requests are welcome.
+## Acknowledgments
 
-## Acknowledgments and license
+Thanks to the [LINUX DO](https://linux.do/) community for its support.
 
-Thanks to the [LINUX DO](https://linux.do/) community for its support. Starting with the license-transition commit after `mit-final`, the project as a whole is distributed under the [GNU AGPL v3 only (AGPL-3.0-only)](./LICENSE).
+## License
+
+Starting with the license-transition commit after `mit-final`, the project as a whole is distributed under the [GNU AGPL v3 only (AGPL-3.0-only)](./LICENSE).
 
 Code previously released under MIT, including `mit-final` (`fb57ddc`), retains its existing MIT grant. See the [legacy MIT license](./LICENSES/MIT-legacy.txt), [licensing and deployment notes](./LICENSING.md), and [copyright notices](./NOTICE).
 
