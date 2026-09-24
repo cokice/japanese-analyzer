@@ -22,35 +22,37 @@ export function isPunctuationToken(token: TokenData): boolean {
 }
 
 /**
- * 规范化圈选范围：不跨换行（以起点所在段为准）、去掉首尾标点、最多 PHRASE_MAX_WORDS 个词。
+ * 规范化圈选范围。a 是圈选的起点（拖动起点、Shift 点击前选中的词、长按的词），b 是终点：
+ * 不跨换行（保留起点所在的那一段）、去掉首尾标点、最多 PHRASE_MAX_WORDS 个词（超出时截掉远离起点的一侧）。
  * 不足两个词时返回 null。
  */
 export function normalizePhraseRange(tokens: readonly TokenData[], a: number, b: number): PhraseRange | null {
+  const last = tokens.length - 1;
+  const anchor = Math.min(last, Math.max(0, a));
   let start = Math.max(0, Math.min(a, b));
-  let end = Math.min(tokens.length - 1, Math.max(a, b));
+  let end = Math.min(last, Math.max(a, b));
 
-  for (let i = start; i <= end; i++) {
+  for (let i = anchor; i <= end; i++) {
     if (tokens[i].pos === '改行') {
       end = i - 1;
       break;
     }
   }
-  while (start <= end && isPunctuationToken(tokens[start])) start++;
-  while (end >= start && isPunctuationToken(tokens[end])) end--;
-
-  let words = 0;
-  for (let i = start; i <= end; i++) {
-    if (isPunctuationToken(tokens[i])) continue;
-    words++;
-    if (words > PHRASE_MAX_WORDS) {
-      end = i - 1;
-      words--;
+  for (let i = anchor; i >= start; i--) {
+    if (tokens[i].pos === '改行') {
+      start = i + 1;
       break;
     }
   }
-  while (end >= start && isPunctuationToken(tokens[end])) end--;
 
-  return words >= 2 ? { start, end } : null;
+  const words: number[] = [];
+  for (let i = start; i <= end; i++) {
+    if (!isPunctuationToken(tokens[i])) words.push(i);
+  }
+  if (words.length < 2) return null;
+  // 往回选（起点在后）时保留靠后的词，否则保留靠前的词
+  const kept = a > b ? words.slice(-PHRASE_MAX_WORDS) : words.slice(0, PHRASE_MAX_WORDS);
+  return { start: kept[0], end: kept[kept.length - 1] };
 }
 
 export function getPhraseText(tokens: readonly TokenData[], range: PhraseRange): string {

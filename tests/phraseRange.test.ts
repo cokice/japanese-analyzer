@@ -18,9 +18,13 @@ assert.equal(normalizePhraseRange(tokens, 3, 3), null);
 // 不跨换行：截到换行之前
 const withBreak = [token('今日'), token('は', '助詞'), token('\n', '改行'), token('明日'), token('も', '助詞')];
 assert.deepEqual(normalizePhraseRange(withBreak, 0, 4), { start: 0, end: 1 });
+// 往回拖过换行：保留起点（后一段）所在的段落
+assert.deepEqual(normalizePhraseRange(withBreak, 4, 0), { start: 3, end: 4 });
 // 最多 PHRASE_MAX_WORDS 个词
 const long = Array.from({ length: PHRASE_MAX_WORDS + 5 }, (_, i) => token(`語${i}`));
 assert.deepEqual(normalizePhraseRange(long, 0, long.length - 1), { start: 0, end: PHRASE_MAX_WORDS - 1 });
+// 往回选超出上限时，截掉远离起点的一侧（保留靠后的词）
+assert.deepEqual(normalizePhraseRange(long, long.length - 1, 0), { start: long.length - PHRASE_MAX_WORDS, end: long.length - 1 });
 
 const range = { start: 4, end: 7 };
 assert.equal(getPhraseText(tokens, range), 'なければならない');

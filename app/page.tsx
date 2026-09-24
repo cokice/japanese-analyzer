@@ -277,6 +277,8 @@ export default function Home() {
 
   // 圈选多个词：拖动 / Shift 点击 / 手机长按后再点
   const handleRangeSelect = useCallback((a: number, b: number) => {
+    // 不论用哪种方式完成圈选，都退出「再点一个词」的状态
+    setPickAnchor(null);
     const range = normalizePhraseRange(analyzedTokens, a, b);
     if (!range) return;
     setSelectedIndex(null);
