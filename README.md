@@ -11,7 +11,7 @@
   <a href="https://nihongodemo.howen.ink/">在线体验</a> ·
   <a href="https://doc.howen.ink/">使用文档</a> ·
   <a href="#快速开始">本地运行</a> ·
-  <a href="#部署">部署</a>
+  <a href="#让-ai-agent-部署">让 AI 帮你部署</a>
 </p>
 
 <p align="center">
@@ -110,6 +110,16 @@ Key 只在服务端使用，不会下发到浏览器。「每日一句」使用�
 
 ## 部署
 
+### 让 AI Agent 部署
+
+把这句话发给 Claude Code、Codex、Cursor 等 AI 编程助手，它会先问你要部署到哪里、要哪些 Key，然后装好、验证，最后告诉你访问地址：
+
+```text
+请阅读 https://raw.githubusercontent.com/cokice/japanese-analyzer/master/docs/agent-deploy.md ，按里面的步骤帮我部署 japanese-analyzer。
+```
+
+支持部署到 Linux 服务器（Docker，可选配置域名和 HTTPS）、Vercel 或本机。Agent 按照的步骤见 [docs/agent-deploy.md](./docs/agent-deploy.md)。
+
 ### Vercel
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer)
@@ -150,43 +160,6 @@ docker run -d \
 
 </details>
 
-<details>
-<summary>让 AI Agent 帮你部署（Claude Code / Codex）</summary>
-
-把下面这段发给 Agent，它会在你的服务器上完成部署：
-
-````markdown
-# 部署任务：japanese-analyzer
-
-请在这台 VPS 上用 Docker 部署 japanese-analyzer（日语句子解析 Web 应用）。
-
-## 目标
-- 镜像 `howenhowen/japanese-analyzer:latest`（amd64 / arm64）
-- 容器名 `japanese-analyzer`，映射宿主机 3002 → 容器 3002，`--restart unless-stopped`
-
-## 环境变量（运行时注入，不要写进镜像）
-- `DEEPSEEK_API_KEY`：必填，向我索取
-- `GEMINI_API_KEY`：可选，没有就跳过
-- `CODE`：可选访问密码，留空不启用
-- 优先使用仓库里的 `docker-compose.hub.yml` + `.env.production`（从 `.env.production.example` 复制）
-
-## 域名与 HTTPS（先问我）
-- 不需要：直接用 `http://VPS_IP:3002`
-- 需要：优先复用已有的 Nginx / Caddy，都没有就装 Caddy；反代到 `127.0.0.1:3002`，开启 HTTPS 并把 HTTP 重定向过去；提醒我解析 A 记录、放行 80/443；最后用 `curl -I https://域名` 验证
-
-## 验收
-1. `docker logs` 无报错，`curl http://127.0.0.1:3002` 返回页面
-2. 服务器重启后容器自动拉起
-3. 配了域名的话，HTTPS 正常、证书有效
-
-## 注意
-- 3002 被占用时先问我，不要杀进程
-- 不要把 API Key 打印到日志或写进无关文件
-- 修改 Nginx / Caddy 配置前先备份
-- 完成后告诉我访问地址和更新命令
-````
-
-</details>
 
 ## 开发
 
