@@ -4,19 +4,19 @@ import { useLanguage } from './contexts/LanguageContext';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import InputSection from './components/InputSection';
-import AnalysisResult from './components/AnalysisResult';
+import AnalysisResult, { DisplayOptions } from './components/AnalysisResult';
 import TranslationSection from './components/TranslationSection';
 import SettingsModal from './components/SettingsModal';
 import Header from './components/Header';
 import LoginModal from './components/LoginModal';
 import AIChat from './components/AIChat';
-import ThinkingIndicator from './components/ThinkingIndicator';
 import ReasoningStream from './components/ReasoningStream';
-import WordDetailPanel, { WordDetailPlaceholder } from './components/WordDetailPanel';
+import WordDetailPanel from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
 import { useAnalysisHistory } from './hooks/useAnalysisHistory';
 import { AnalyzeStreamParser } from './utils/analyzeStreamParser';
 import { selectWordDetailContext } from './utils/wordDetailContext';
+import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRange, type PhraseRange } from './utils/phraseRange';
 import { createRequestMetrics, trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import { localizeError } from './i18n';
 import { InvalidResponseError } from './utils/requestErrors';
@@ -48,6 +48,12 @@ export default function Home() {
   const [analysisSignal, setAnalysisSignal] = useState<AbortSignal>();
   const [translationTrigger, setTranslationTrigger] = useState(0);
   const [showFurigana, setShowFurigana] = useState(true);
+  // 解析开始后输入区收起，句子成为页面唯一主角；点「编辑原文」再展开
+  const [isEditingInput, setIsEditingInput] = useState(true);
+  // 圈选的多词短语（与单个选中的词互斥）
+  const [selectedRange, setSelectedRange] = useState<PhraseRange | null>(null);
+  // 圈选起点：长按或详情里点「选中多个词」后设置，再点一个词即选中这一段
+  const [pickAnchor, setPickAnchor] = useState<number | null>(null);
   const [showRomaji, setShowRomaji] = useState(false);
 
   // API设置相关状态
@@ -99,6 +105,8 @@ export default function Home() {
     setAnalysisError('');
     setAuthError('');
     setSelectedIndex(null);
+    setSelectedRange(null);
+    setPickAnchor(null);
     reasoningTextStore.reset();
     hasDeepseekReasoningRef.current = false;
     setHasDeepseekReasoning(false);
@@ -239,6 +247,8 @@ export default function Home() {
 
   const handleCloseWordDetail = useCallback(() => {
     setSelectedIndex(null);
+    setSelectedRange(null);
+    setPickAnchor(null);
     clearWordDetail();
   }, [clearWordDetail]);
 
@@ -248,13 +258,40 @@ export default function Home() {
       handleCloseWordDetail();
       return;
     }
+    setSelectedRange(null);
     setSelectedIndex(index);
     trackWordDetailUsage(aiProvider, aiModel);
     const context = selectWordDetailContext(currentSentence, analyzedTokens, index);
     fetchWordDetails(token.word, token.pos, context, token.furigana);
   }, [aiProvider, aiModel, selectedIndex, currentSentence, analyzedTokens, fetchWordDetails, handleCloseWordDetail]);
 
+  const fetchPhraseDetails = useCallback((range: PhraseRange, force = false) => {
+    fetchWordDetails(
+      getPhraseText(analyzedTokens, range),
+      '',
+      selectWordDetailContext(currentSentence, analyzedTokens, range.start),
+      getPhraseReading(analyzedTokens, range),
+      { kind: 'phrase', force }
+    );
+  }, [analyzedTokens, currentSentence, fetchWordDetails]);
+
+  // 圈选多个词：拖动 / Shift 点击 / 手机长按后再点
+  const handleRangeSelect = useCallback((a: number, b: number) => {
+    // 不论用哪种方式完成圈选，都退出「再点一个词」的状态
+    setPickAnchor(null);
+    const range = normalizePhraseRange(analyzedTokens, a, b);
+    if (!range) return;
+    setSelectedIndex(null);
+    setSelectedRange(range);
+    trackWordDetailUsage(aiProvider, aiModel);
+    fetchPhraseDetails(range);
+  }, [aiModel, aiProvider, analyzedTokens, fetchPhraseDetails]);
+
   const handleRefreshWordDetail = useCallback(() => {
+    if (selectedRange) {
+      fetchPhraseDetails(selectedRange, true);
+      return;
+    }
     if (selectedIndex === null) return;
 
     const token = analyzedTokens[selectedIndex];
@@ -267,7 +304,27 @@ export default function Home() {
       token.furigana,
       { force: true }
     );
-  }, [analyzedTokens, currentSentence, fetchWordDetails, selectedIndex]);
+  }, [analyzedTokens, currentSentence, fetchPhraseDetails, fetchWordDetails, selectedIndex, selectedRange]);
+
+  // 详情里的「选中多个词」：以当前词为起点进入圈选。手机上先收起弹窗，露出句子
+  const handleStartPick = useCallback(() => {
+    if (selectedIndex === null) return;
+    const anchor = selectedIndex;
+    if (!isDesktop) handleCloseWordDetail();
+    setPickAnchor(anchor);
+  }, [handleCloseWordDetail, isDesktop, selectedIndex]);
+
+  // AI 判断圈选的其实是一个被拆开的词时，合并回单个词项（只影响当前结果）
+  const canMergePhrase = selectedRange !== null && wordDetail?.kind === 'phrase' && wordDetail.category === '単語';
+  const handleMergePhrase = useCallback(() => {
+    if (!selectedRange || !wordDetail) return;
+    setAnalyzedTokens((tokens) => mergePhraseTokens(tokens, selectedRange, {
+      pos: wordDetail.pos,
+      furigana: wordDetail.mergeReading || wordDetail.furigana,
+    }));
+    setSelectedIndex(selectedRange.start);
+    setSelectedRange(null);
+  }, [selectedRange, wordDetail]);
 
   const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
     if (!text.trim()) return;
@@ -285,6 +342,7 @@ export default function Home() {
     trackAnalyzeUsage(aiProvider, usage, aiModel);
     const metrics = createRequestMetrics('analyze', aiProvider, aiModel, useStream, analysisAbortController.signal);
     setIsAnalyzing(true);
+    setIsEditingInput(false);
     setAnalysisError('');
     setCurrentSentence(text);
     setTranslationTrigger(Date.now());
@@ -440,7 +498,33 @@ export default function Home() {
     setDeepseekReasoningDone(true);
   };
 
-  const hasWordDetail = selectedIndex !== null
+  const isReading = !isEditingInput && (isAnalyzing || analyzedTokens.length > 0);
+  // 解析中：原句里还没解析到的部分，以灰字流光占住结果位置
+  const pendingText = (() => {
+    if (!isAnalyzing) return '';
+    const analyzed = analyzedTokens.map((token) => token.word).join('');
+    return currentSentence.startsWith(analyzed) ? currentSentence.slice(analyzed.length) : '';
+  })();
+  // 首页：还没有解析任何句子，显示今日一句和最近记录
+  const isHome = !isAnalyzing && !currentSentence;
+
+  // 「新句子」：清空当前解析，回到首页
+  const handleStartOver = () => {
+    handleCloseWordDetail();
+    reasoningSummaryControllerRef.current?.cancel();
+    reasoningSummaryControllerRef.current = null;
+    reasoningTextStore.reset();
+    hasDeepseekReasoningRef.current = false;
+    setHasDeepseekReasoning(false);
+    setDeepseekReasoningDone(true);
+    setDeepseekReasoningSummaryHistory([]);
+    setAnalyzedTokens([]);
+    setCurrentSentence('');
+    setAnalysisError('');
+    setIsEditingInput(true);
+  };
+
+  const hasWordDetail = (selectedIndex !== null || selectedRange !== null)
     && (isWordDetailLoading || isWordDetailStreaming || wordDetail !== null || !!wordDetailStreamError);
 
   const wordDetailPanel = (
@@ -452,6 +536,8 @@ export default function Home() {
       streamContent={wordDetailStreamContent}
       onClose={handleCloseWordDetail}
       onRefresh={handleRefreshWordDetail}
+      onMerge={canMergePhrase ? handleMergePhrase : undefined}
+      onSelectMore={selectedIndex !== null ? handleStartPick : undefined}
     />
   );
 
@@ -487,10 +573,19 @@ export default function Home() {
           onSettingsClick={() => setIsSettingsModalOpen(true)}
         />
 
-        <main className="mx-auto grid w-full max-w-[1480px] flex-1 items-start gap-[22px] px-4 pb-6 pt-2 sm:px-9 lg:grid-cols-[minmax(0,1fr)_360px]">
+        {/* 阅读列居中；点词后详情栏从右侧展开，主列随之左移。 */}
+        <main
+          className="app-main mx-auto flex w-full max-w-[1240px] flex-1 items-start justify-center px-4 pb-6 pt-2 sm:px-9"
+          data-detail-open={isDesktop && hasWordDetail}
+        >
           {/* 主列 */}
-          <div className="flex min-w-0 flex-col gap-[22px]">
+          <div className="app-column relative flex w-full min-w-0 max-w-[780px] flex-col gap-[22px]" data-home={isHome}>
             <InputSection
+              compact={isReading}
+              showSuggestions={isHome}
+              onNewSentence={handleStartOver}
+              onExpand={() => setIsEditingInput(true)}
+              onCollapse={analyzedTokens.length > 0 ? () => setIsEditingInput(false) : undefined}
               history={history}
               onAnalyze={handleAnalyze}
               onCancelAnalyze={handleCancelAnalysis}
@@ -501,6 +596,15 @@ export default function Home() {
               ttsProvider={ttsProvider}
               onTtsProviderChange={handleTtsProviderChange}
               isAnalyzing={isAnalyzing}
+              compactExtras={shouldShowAnalyzer() && (
+                <DisplayOptions
+                  variant="chips"
+                  showFurigana={showFurigana}
+                  onShowFuriganaChange={setShowFurigana}
+                  showRomaji={showRomaji}
+                  onShowRomajiChange={setShowRomaji}
+                />
+              )}
             />
 
             {aiProvider === 'deepseek'
@@ -513,14 +617,6 @@ export default function Home() {
                   completionLabel={deepseekReasoningCompletionLabel}
                 />
               )}
-
-            {isAnalyzing
-              && (!analyzedTokens.length || !useStream)
-              && !(aiProvider === 'deepseek' && deepseekThinkingEnabled) && (
-              <div className="nd-card">
-                <ThinkingIndicator className="py-6" />
-              </div>
-            )}
 
             {analysisError && (
               <div className="nd-card">
@@ -544,17 +640,23 @@ export default function Home() {
             )}
 
             {(shouldShowAnalyzer() || currentSentence) && (
-              <div className="nd-card reading-card">
-                {shouldShowAnalyzer() && (
+              <div className="reading-surface">
+                {(shouldShowAnalyzer() || pendingText) && (
                   <AnalysisResult
                     key={currentSentence}
                     tokens={analyzedTokens}
+                    pendingText={pendingText}
                     showFurigana={showFurigana}
                     onShowFuriganaChange={setShowFurigana}
                     showRomaji={showRomaji}
                     onShowRomajiChange={setShowRomaji}
                     onWordClick={handleWordClick}
                     selectedIndex={selectedIndex}
+                    selectedRange={selectedRange}
+                    onRangeSelect={handleRangeSelect}
+                    pickAnchor={pickAnchor}
+                    onPickAnchorChange={setPickAnchor}
+                    showDisplayOptions={!isReading}
                   />
                 )}
 
@@ -573,9 +675,11 @@ export default function Home() {
             )}
           </div>
 
-          {/* 侧栏：词汇详情（桌面端） */}
-          <aside className="sticky top-4 hidden flex-col gap-4 self-start lg:flex">
-            {isDesktop && hasWordDetail ? wordDetailPanel : <WordDetailPlaceholder />}
+          {/* 侧栏：词汇详情（桌面端），未选词时收起不占位 */}
+          <aside className="detail-rail sticky top-4 hidden self-start lg:block">
+            <div className="detail-rail-inner">
+              {isDesktop && hasWordDetail && wordDetailPanel}
+            </div>
           </aside>
         </main>
 
@@ -621,6 +725,8 @@ export default function Home() {
               streamContent={wordDetailStreamContent}
               onClose={handleCloseWordDetail}
               onRefresh={handleRefreshWordDetail}
+      onMerge={canMergePhrase ? handleMergePhrase : undefined}
+      onSelectMore={selectedIndex !== null ? handleStartPick : undefined}
               hideClose
             />
           </div>

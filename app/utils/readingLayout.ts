@@ -18,3 +18,22 @@ export function groupReadingTokens(tokens: TokenData[]) {
   });
   return groups;
 }
+
+/**
+ * 解析中的占位原文按同样的禁则分组：标点、小假名等不落在行首，开括号不留在行尾。
+ * 这样占位时的换行位置与解析结果一致（词本身的边界此时还未知）。
+ */
+export function groupPendingChars(chars: string[]) {
+  const groups: { char: string; index: number }[][] = [];
+  chars.forEach((char, index) => {
+    const previous = groups.at(-1);
+    const last = previous?.at(-1)?.char;
+    if (last && char !== '\n' && last !== '\n'
+      && (LINE_START_PROHIBITED.test(char) || LINE_END_PROHIBITED.test(last))) {
+      previous!.push({ char, index });
+    } else {
+      groups.push([{ char, index }]);
+    }
+  });
+  return groups;
+}

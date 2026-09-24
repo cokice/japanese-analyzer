@@ -1,13 +1,17 @@
-# 日本語文章解析
-
-🌐 [简体中文](README.md) | [繁體中文](README.zh-TW.md) | [English](README.en.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
-
-支持简体中文、繁体中文、英文和韩语的日语句子解析工具。输入一句日语，应用会拆解词汇、读音、罗马音、词性、整句翻译和单词详解，并提供图片识别、朗读和 AI 日语助手。
-
-体验链接：[在线体验](https://nihongodemo.howen.ink/)。
+<p align="center">
+  <img src="./public/logo/logo-text.png" alt="日本語文章解析" width="340" />
+</p>
 
 <p align="center">
-  <img src="./public/logo/logo-text.png" alt="日本語文章解析" width="360" />
+  <b>日语句子，逐词读懂。</b><br />
+  分词、注音、词义和翻译，点一下就清楚。
+</p>
+
+<p align="center">
+  <a href="https://nihongodemo.howen.ink/">在线体验</a> ·
+  <a href="https://doc.howen.ink/">使用文档</a> ·
+  <a href="#快速开始">本地运行</a> ·
+  <a href="#让-ai-agent-部署">让 AI 帮你部署</a>
 </p>
 
 <p align="center">
@@ -18,231 +22,128 @@
 </p>
 
 <p align="center">
-  <a href="https://doc.howen.ink/">在线文档</a>
+  简体中文 · <a href="README.zh-TW.md">繁體中文</a> · <a href="README.en.md">English</a> · <a href="README.ko.md">한국어</a> · <a href="README.ja.md">日本語</a>
 </p>
 
-## 界面预览
+![解析结果与词典释义](./docs/images/app-home.png)
 
-以下截图以简体中文界面示范。实际使用时，可通过右上角地球图标切换语言。
+## 能做什么
 
-### 主界面 · 解析与词典
+**读句子**
+- 输入或粘贴日语，逐词标出假名、罗马音和词性，下方给出整句译文
+- 点任意一个词，查看本句里的意思、用法、活用和例句
+- 拖过几个词（或在释义里点「选中多个词」），把语法结构、惯用语当作一个整体来讲；被拆开的词可以一键合并
 
-![主界面：日语解析、中文译文与词典释义](./docs/images/app-home.png)
+**更顺手**
+- 首页每天一句，按日本时间更新，点一下就开始解析
+- 长文分段解析，粘贴网页或 Markdown 时自动去掉格式和链接
+- 图片识别：上传或直接粘贴截图提取日语文字
+- 朗读原文（Edge TTS / Gemini TTS），以及结合当前句子的 AI 日语助手
 
-### 深色模式
+**界面**
+- 简体中文、繁体中文、English、한국어，界面、翻译和释义一起切换
+- 浅色 / 深色，桌面与手机都能用
+- 最近的解析记录保存在浏览器本地
 
-![深色模式下的解析与词典](./docs/images/app-dark.png)
+<table>
+  <tr>
+    <td width="62%"><img src="./docs/images/app-dark.png" alt="深色模式" /></td>
+    <td width="38%"><img src="./docs/images/mobile-chat.png" alt="手机上的 AI 日语助手" /></td>
+  </tr>
+</table>
 
-### 模型与 API 设置
+## 模型
 
-![模型与 API 设置](./docs/images/provider-settings.png)
-
-### 移动端 AI 日语助手
-
-<p align="center">
-  <img src="./docs/images/mobile-chat.png" alt="移动端 AI 日语助手：结合当前句子解释语法" width="390" />
-</p>
-
-## 功能
-
-- 语言切换：点击右上角地球图标，选择简体中文、繁体中文、English 或 한국어，立即生效并在浏览器中记住选择；界面、翻译、词条和 AI 回答同步切换。
-- 繁体中文使用自然的惯用词汇和表达，不只转换字形。日语原文、读音和例句保持日语；已有聊天消息保留原语言，新回复使用所选语言。
-- 句子解析：分词、假名、罗马音、词性标记和释义。
-- 单词详解：点击词汇查看读音、释义、语法角色和上下文解释。
-- 整句翻译：按所选语言生成整句翻译，保留原文段落与换行；切换语言后自动重新翻译。
-- 纯文本粘贴：去掉网页样式、Markdown 格式和链接地址，保留链接显示的文字与段落换行；单独出现的网址也会移除。粘贴图片仍可启动 OCR。
-- 长文与链接处理：长文分段解析；输入中仍存在的网址由程序保留原样，避免模型重复生成冗长编码。完整结果会检查原文还原情况，并补回模型遗漏的空白。
-- 图片识别：上传或粘贴图片提取日语文字；DeepSeek 文本解析与 OCR 统一使用 `deepseek-flash`，Gemini 使用所选模型。
-- 朗读：支持 Edge TTS 和 Gemini TTS；声音设置菜单向下展开。
-- AI 日语助手：围绕日语语法、词汇、文化和当前句子提问。
-- 双模型服务商：文本模型支持 Gemini 和 DeepSeek，默认使用 DeepSeek。
-- 本地浏览器设置：用户可以在设置弹窗中为 Gemini / DeepSeek 分别填入自己的 API Key。
-- 可选访问密码：部署后可用 `CODE` 做简单访问控制。
-- 可选 Umami 统计：配置环境变量后自动加载 Umami 跟踪脚本。
-- Docker 部署：支持 Docker Compose 和 Docker Hub 多架构镜像。
-
-## 模型说明
-
-以下为本项目配置使用的模型标识。
-
-| 能力 | 默认模型 / 服务 | 说明 |
+| 用途 | 默认 | 可选 |
 | --- | --- | --- |
-| 文本解析 | `deepseek-flash` | 默认文本服务商是 DeepSeek；思考模式默认关闭，设置中的切换功能暂不可用。 |
-| Gemini 文本解析 | `gemini-flash-latest` / `gemini-flash-lite-latest` | 可在设置中切换 Gemini Flash / Flash-Lite；Flash 使用 Low 推理档，Flash-Lite 使用 Minimal。 |
-| 图片识别 | `deepseek-flash` / Gemini | 选择 DeepSeek 时，图片 OCR 与文字解析使用同一模型；OCR 固定关闭思考。 |
-| 朗读 | Edge TTS / Gemini TTS | 默认使用 Edge TTS；Gemini TTS 需要 Gemini API Key。 |
+| 解析、翻译、释义 | DeepSeek `deepseek-flash` | Gemini `gemini-flash-latest` / `gemini-flash-lite-latest` |
+| 图片识别 | 与所选文本模型一致 | — |
+| 朗读 | Edge TTS | Gemini TTS（需要 Gemini Key） |
+
+服务器配置的 Key 供所有访客使用；用户也可以在设置里填自己的 Key，保存在自己的浏览器里，请求时经本应用服务端转发给模型服务商。
 
 ## 快速开始
+
+需要 Node.js 22。
 
 ```bash
 git clone https://github.com/cokice/japanese-analyzer.git
 cd japanese-analyzer
 npm ci
+cp .env.example .env.local   # Windows：Copy-Item .env.example .env.local
 ```
 
-建议使用 Node.js 22（与 Docker 镜像一致）。复制环境变量模板：
-
-macOS / Linux：
-
-```bash
-cp .env.example .env.local
-```
-
-Windows PowerShell：
-
-```powershell
-Copy-Item .env.example .env.local
-```
-
-编辑 `.env.local`。如果只想先跑文本解析，建议先配置 DeepSeek：
+在 `.env.local` 里至少填一个 Key，然后启动：
 
 ```env
 DEEPSEEK_API_KEY=your_deepseek_api_key
-DEEPSEEK_API_URL=https://api.deepseek.com/chat/completions
-
-GEMINI_API_KEY=your_gemini_api_key
-GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
-
-CODE=
-
-NEXT_PUBLIC_UMAMI_SRC=
-NEXT_PUBLIC_UMAMI_WEBSITE_ID=
 ```
-
-启动开发环境：
 
 ```bash
 npm run dev
 ```
 
-打开 [http://127.0.0.1:3000](http://127.0.0.1:3000)。
+打开 <http://localhost:3000>。想用手机访问同一局域网里的开发服务器，改用 `npm run dev -- --hostname 0.0.0.0`，再打开 `http://电脑IP:3000`。
 
-如需从局域网中的其他设备体验：
+## 环境变量
 
-```bash
-npm run dev -- --hostname 0.0.0.0 --port 3100
+| 变量 | 说明 |
+| --- | --- |
+| `DEEPSEEK_API_KEY` | 推荐。默认的解析、翻译与图片识别 |
+| `GEMINI_API_KEY` | 可选。Gemini 文本模型、图片识别与 Gemini TTS |
+| `DEEPSEEK_API_URL` / `GEMINI_API_URL` | 可选。OpenAI 兼容接口地址，留空用官方地址 |
+| `CODE` | 可选。访问密码，留空则不需要密码 |
+| `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 可选。两个都填写后启用 Umami 统计 |
+
+Key 只在服务端使用，不会下发到浏览器。「每日一句」使用服务器 Key 生成，未配置时显示内置例句。
+
+<details>
+<summary>Umami 会记录什么</summary>
+
+只记录功能是否被使用、用了哪个服务商和模型、成功还是失败以及耗时，**不包含**原文、翻译、聊天内容、图片、原始错误信息或 API Key。
+
+- 使用事件：`analyze_sentence`、`image_text_extract`、`tts_speech`、`word_detail_click`
+- 解析结果：`analyze_success`、`analyze_error`、`analyze_cancel`（含 `duration_ms`、`first_result_ms`，失败只记录 `error_category`）
+- 聊天：`chat_send`、`chat_success`、`chat_error`
+
+</details>
+
+## 部署
+
+### 让 AI Agent 部署
+
+把这句话发给 Claude Code、Codex、Cursor 等 AI 编程助手，它会先问你要部署到哪里、要哪些 Key，然后装好、验证，最后告诉你访问地址：
+
+```text
+请阅读 https://raw.githubusercontent.com/cokice/japanese-analyzer/master/docs/agent-deploy.md ，按里面的步骤帮我部署 japanese-analyzer。
 ```
 
-在其他设备打开 `http://<电脑的局域网IP>:3100`。
+支持部署到 Linux 服务器（Docker，可选配置域名和 HTTPS）、Vercel 或本机。Agent 按照的步骤见 [docs/agent-deploy.md](./docs/agent-deploy.md)。
 
-## 环境变量
-
-| 变量 | 必填 | 用途 |
-| --- | --- | --- |
-| `DEEPSEEK_API_KEY` | 推荐 | DeepSeek API Key。用于默认文本解析及 DeepSeek 图片 OCR。 |
-| `DEEPSEEK_API_URL` | 可选 | DeepSeek OpenAI 兼容接口地址；留空使用官方默认地址。 |
-| `GEMINI_API_KEY` | 可选 | Gemini API Key。用于 Gemini 文本解析、图片识别和 Gemini TTS。 |
-| `GEMINI_API_URL` | 可选 | Gemini OpenAI 兼容接口地址；留空使用官方默认地址。 |
-| `CODE` | 可选 | 访问密码。设置后访问应用需要先输入密码。 |
-| `NEXT_PUBLIC_UMAMI_SRC` | 可选 | Umami 脚本地址，例如 `https://cloud.umami.is/script.js`。 |
-| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 可选 | Umami Website ID。需要和 `NEXT_PUBLIC_UMAMI_SRC` 同时配置才会启用。 |
-
-说明：
-
-- `DEEPSEEK_API_KEY` 和 `GEMINI_API_KEY` 是服务器端默认密钥，不会暴露到前端。
-- 用户也可以在右上角设置中填写自己的 Key，设置保存在浏览器本地；发起请求时，Key 会发送给本应用服务端，由服务端调用上游 API。接口地址由服务端环境变量配置。
-- Gemini TTS 使用独立的 `gemini-3.1-flash-tts-preview` 模型和官方语音接口，不受 `GEMINI_API_URL` 影响。
-- Umami 统计通过本地 loader 读取运行时环境变量；两个 `NEXT_PUBLIC_UMAMI_*` 都为空时不会加载 Umami。
-- 启用 Umami 后会记录功能使用事件：`analyze_sentence` 包含解析服务商、模型及 OCR / TTS 使用情况；`image_text_extract`、`tts_speech`、`word_detail_click` 包含对应功能的服务商和模型。
-- 解析结果事件：`analyze_success`、`analyze_error`、`analyze_cancel`，每次解析最多记录一个终态。聊天事件：`chat_send`、`chat_success`、`chat_error`。结果事件包含服务商、模型、流式模式、总耗时 `duration_ms`；若出现过可显示内容，还包含首个结果耗时 `first_result_ms`（单位均为毫秒）。非流式解析的首个结果时间为全部结果返回时间；解析计时不包含独立的整句翻译或词典请求。
-- 失败只记录固定的 `error_category` 分类；解析取消通过 `cancel_reason` 区分主动停止、被新请求替代和组件卸载。事件不包含原文、聊天消息或回复、图片、翻译结果、原始错误信息或 API Key。此处不额外监测主题、设置、复制和重试操作。
-- 不要提交 `.env.local`，仓库已经默认忽略本地环境变量文件。
-
-### 用 AI Agent 部署(Claude Code / Codex)
-
-如果你使用 Claude Code 或 Codex 等 AI 编程助手,可以直接把下面的提示词发给它,让它在你的 VPS 上完成部署:
-
-````markdown
-# 部署任务:japanese-analyzer
-
-请帮我在这台 VPS 上用 Docker 部署 japanese-analyzer(一个日语句子解析 Web 应用)。
-
-## 目标
-
-- 使用 Docker Hub 镜像 `howenhowen/japanese-analyzer:latest`(多架构,amd64/arm64 都有)
-- 容器监听 3002,映射宿主机 3002 端口
-- 容器名 `japanese-analyzer`,设置 `--restart unless-stopped`
-
-## 环境变量
-
-通过环境变量注入,不要写进镜像:
-
-- `DEEPSEEK_API_KEY`:必填,默认文本解析及图片 OCR 用 DeepSeek(我会提供,或提示我填入)
-- `GEMINI_API_KEY`:可选,用于 Gemini 文本/图片识别和 Gemini TTS,没有就跳过
-- `CODE`:可选访问密码,留空即不启用
-- `DEEPSEEK_API_URL` / `GEMINI_API_URL`:留空使用官方默认地址即可
-
-推荐用 docker compose 管理:仓库里有 `docker-compose.hub.yml`,配合 `.env.production`(从 `.env.production.example` 复制)使用;或者直接 `docker run` 也行,你看哪个更合适。
-
-## 域名与 HTTPS(询问后再做)
-
-容器跑通后,询问我是否需要绑定域名并配置 HTTPS 反向代理:
-
-- 如果我说不需要,直接用 `http://VPS_IP:3002` 访问即可,跳过本节
-- 如果我提供域名(例如 `nihongodemo.howen.ink`):
-  - 先检查服务器上是否已有 Nginx / Caddy,优先复用现有的,不要重复装一套
-  - 都没有的话推荐 Caddy(自动签发和续期 Let's Encrypt 证书,配置最简单)
-  - 反代到 `127.0.0.1:3002`,配置 HTTPS 并把 HTTP 重定向到 HTTPS
-  - 提醒我先把域名 A 记录解析到这台 VPS,并确认 80/443 端口在防火墙/安全组已放行
-  - 配好后用 `curl -I https://域名` 验证证书和反代是否正常
-
-## 验收标准
-
-1. 容器正常运行,`docker logs` 无报错
-2. `curl http://127.0.0.1:3002` 能返回页面
-3. 重启服务器后容器能自动拉起
-4. (如配置了域名)https 访问正常,证书有效
-
-## 注意
-
-- 如果 3002 端口被占用,先告诉我再换端口,不要擅自杀掉占用进程
-- API Key 属于敏感信息,不要 echo 到日志或写入不必要的文件
-- 修改现有 Nginx/Caddy 配置前先备份原文件
-- 部署完成后告诉我访问地址和后续更新镜像的命令(pull → rm → run 或 compose pull && up -d)
-````
-
-
-## 部署到 Vercel
+### Vercel
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer)
 
-部署步骤：
+导入仓库后，在 `Settings → Environment Variables` 里填好环境变量，重新部署即可。
 
-1. Fork 或导入本仓库到 Vercel。
-2. 在 Vercel 项目的 `Settings -> Environment Variables` 中配置环境变量。
-3. 至少配置 `DEEPSEEK_API_KEY`，这样默认文本解析可以直接使用。
-4. DeepSeek 图片 OCR 复用 `DEEPSEEK_API_KEY`；如需 Gemini 文本/图片识别或 Gemini TTS，再配置 `GEMINI_API_KEY`。
-5. 如需 Umami 统计，同时配置 `NEXT_PUBLIC_UMAMI_SRC` 和 `NEXT_PUBLIC_UMAMI_WEBSITE_ID`。
-6. 重新部署项目。
+### Docker
 
-## Docker 部署
-
-项目提供 Docker Hub 多架构镜像，支持 `linux/amd64` 和 `linux/arm64`。容器默认监听 `3002`，下面示例会把宿主机 `3002` 映射到容器 `3002`。
-
-使用仓库中的 Docker Compose 配置（在仓库根目录执行）：
+镜像 `howenhowen/japanese-analyzer` 支持 `amd64` / `arm64`，容器监听 `3002` 端口。
 
 ```bash
-cp .env.production.example .env.production
-# 编辑 .env.production，配置所需 API Key
+cp .env.production.example .env.production   # 填入 Key
 docker compose -f docker-compose.hub.yml up -d
 ```
 
-Windows PowerShell 使用 `Copy-Item .env.production.example .env.production` 复制模板。后续更新镜像并重建容器：
+更新到最新版：
 
 ```bash
 docker compose -f docker-compose.hub.yml pull
 docker compose -f docker-compose.hub.yml up -d
 ```
 
-也可以使用下面的 `docker run` 命令部署。
-
-拉取镜像：
-
-```bash
-docker pull howenhowen/japanese-analyzer:latest
-```
-
-启动容器：
+<details>
+<summary>不用 Compose，直接 docker run</summary>
 
 ```bash
 docker run -d \
@@ -250,73 +151,34 @@ docker run -d \
   --restart unless-stopped \
   -p 3002:3002 \
   -e DEEPSEEK_API_KEY="your_deepseek_api_key" \
-  -e GEMINI_API_KEY="your_gemini_api_key" \
+  -e GEMINI_API_KEY="" \
   -e CODE="" \
   howenhowen/japanese-analyzer:latest
 ```
 
-访问：
+更新时先 `docker pull` 新镜像，`docker rm -f japanese-analyzer` 删掉旧容器，再执行一遍上面的命令。
 
-```text
-http://your-vps-ip:3002
-```
+</details>
 
-如果只使用 DeepSeek 文本解析和图片 OCR，可以不填 `GEMINI_API_KEY`；如果不需要访问密码，可以保持 `CODE=""`。不需要自定义接口地址时，`DEEPSEEK_API_URL` 和 `GEMINI_API_URL` 也可以不用填，应用会使用默认地址。
 
-如需启用 Umami，启动容器时额外加入：
+## 开发
 
 ```bash
-  -e NEXT_PUBLIC_UMAMI_SRC="https://cloud.umami.is/script.js" \
-  -e NEXT_PUBLIC_UMAMI_WEBSITE_ID="your_umami_website_id" \
+npm run dev          # 开发服务器
+npm test             # 单元与接口测试
+npm run lint         # 代码检查
+npx tsc --noEmit     # 类型检查
+npm run build        # 生产构建
 ```
 
-查看日志：
-
-```bash
-docker logs -f japanese-analyzer
-```
-
-更新镜像：
-
-```bash
-docker pull howenhowen/japanese-analyzer:latest
-docker rm -f japanese-analyzer
-docker run -d \
-  --name japanese-analyzer \
-  --restart unless-stopped \
-  -p 3002:3002 \
-  -e DEEPSEEK_API_KEY="your_deepseek_api_key" \
-  -e GEMINI_API_KEY="your_gemini_api_key" \
-  -e CODE="" \
-  howenhowen/japanese-analyzer:latest
-```
-
-
-## 开发命令
-
-```bash
-npm run dev      # 本地开发
-npm test         # API、语言、解析和粘贴回归测试
-npm run lint     # 检查仓库代码
-npm run build    # 生产构建，发布前建议先跑
-npm start        # 启动生产服务，需要先完成构建
-npx tsc --noEmit  # TypeScript 类型检查
-```
-
-## 问题排查与贡献
-
-- 复制的文章解析失败时，可重新粘贴以移除格式和链接地址。如果仍然失败，请在 Issue 中提供服务商、模型、界面语言及可复现的原文示例，不要附带 API Key。
-- 语言选择分别保存在各个浏览器中，通过地球图标切换即可，无需开启浏览器翻译。
-- 欢迎通过 Issue 反馈问题和功能建议，或提交 Pull Request。
+反馈问题或建议请提 [Issue](https://github.com/cokice/japanese-analyzer/issues)，欢迎 Pull Request。报告解析问题时，附上服务商、模型、界面语言和能复现的原文即可，不要贴 API Key。
 
 ## 致谢
 
-- 感谢 [LINUX DO](https://linux.do/) 社区的支持与推广
+感谢 [LINUX DO](https://linux.do/) 社区的支持与推广。
 
 ## 许可证
 
-本项目自 `mit-final` 之后的许可证切换提交起，整体采用 [GNU AGPL v3，仅第 3 版（AGPL-3.0-only）](./LICENSE)。
+自 `mit-final` 之后的许可证切换提交起，本项目采用 [AGPL-3.0-only](./LICENSE)。`mit-final`（`fb57ddc`）及更早以 MIT 发布的代码仍保留 MIT 授权，见 [历史 MIT 许可证](./LICENSES/MIT-legacy.txt) 与 [授权范围说明](./LICENSING.md)，版权声明见 [NOTICE](./NOTICE)。
 
-`mit-final`（`fb57ddc`）及此前按 MIT 发布的代码仍保留原有 MIT 授权，详见 [历史 MIT 许可证](./LICENSES/MIT-legacy.txt) 和 [授权范围与部署说明](./LICENSING.md)。版权及来源声明见 [NOTICE](./NOTICE)。
-
-AGPL 允许商业使用；分发适用作品、或修改后通过网络提供服务时，请按许可证要求提供对应源码。
+AGPL 允许商业使用；分发本项目，或修改后通过网络提供服务时，需要按许可证提供对应源码。

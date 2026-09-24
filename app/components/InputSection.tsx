@@ -14,10 +14,12 @@ import {
   type AnalyzeUsageMetadata
 } from '../utils/analytics';
 import { Icon } from './Icons';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { TextShimmer } from '@/components/ui/text-shimmer';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
 import { normalizePastedText } from '../utils/pastedText';
 import AnalysisHistory from './AnalysisHistory';
+import DailySentence from './DailySentence';
 import type { useAnalysisHistory } from '../hooks/useAnalysisHistory';
 
 interface InputSectionProps {
@@ -31,6 +33,17 @@ interface InputSectionProps {
   ttsProvider: TTSProvider;
   onTtsProviderChange: (provider: TTSProvider) => void;
   isAnalyzing?: boolean;
+  /** 阅读态：输入卡片收成一行文字按钮，把版面让给解析结果 */
+  compact?: boolean;
+  onExpand?: () => void;
+  /** 有解析结果时，按 Esc 可回到阅读态 */
+  onCollapse?: () => void;
+  /** 阅读态胶囊右侧的附加控件（假名/罗马音开关） */
+  compactExtras?: React.ReactNode;
+  /** 「新句子」：清空当前解析回到首页；未提供时只展开输入框 */
+  onNewSentence?: () => void;
+  /** 首页：输入框上方显示「今日一句」，下方显示最近记录 */
+  showSuggestions?: boolean;
 }
 
 // TTS配置选项
@@ -65,6 +78,10 @@ const TTS_STYLES = [
 
 const FIRST_VISIT_EXAMPLE_KEY = 'japaneseAnalyzer:firstVisitExampleSeen';
 const FIRST_VISIT_EXAMPLE = '天気がいいから、散歩しましょう';
+// 首次访问预填示例 + 提示气泡 + 按钮呼吸光：已由输入框下方的「试试」示例句取代。
+// 实现保留，改回 true 即可恢复。
+const FIRST_VISIT_EXAMPLE_ENABLED = false;
+
 
 export default function InputSection({
   history,
@@ -76,7 +93,13 @@ export default function InputSection({
   useStream = true, // 默认启用流式输出
   ttsProvider,
   onTtsProviderChange,
-  isAnalyzing = false
+  isAnalyzing = false,
+  compact = false,
+  onExpand,
+  onCollapse,
+  compactExtras,
+  onNewSentence,
+  showSuggestions = false,
 }: InputSectionProps) {
   const { t, locale, errorText } = useLanguage();
   const [inputText, setInputText] = useState('');
@@ -101,6 +124,19 @@ export default function InputSection({
   const submitResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const usageMetadataRef = useRef<AnalyzeUsageMetadata>({});
   const spokenTextRef = useRef('');
+  const wasCompactRef = useRef(compact);
+  const reduceMotion = useReducedMotion();
+
+  // 从阅读态展开时把光标放回输入框末尾
+  useEffect(() => {
+    const expanded = wasCompactRef.current && !compact;
+    wasCompactRef.current = compact;
+    if (!expanded) return;
+    const input = japaneseInputRef.current;
+    if (!input) return;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }, [compact]);
 
   // 监听外部分析状态，同步内部loading状态
   useEffect(() => {
@@ -139,6 +175,7 @@ export default function InputSection({
 
   // 仅在当前浏览器第一次进入网站时展示示例引导。
   useEffect(() => {
+    if (!FIRST_VISIT_EXAMPLE_ENABLED) return;
     try {
       if (localStorage.getItem(FIRST_VISIT_EXAMPLE_KEY) !== 'true') {
         setInputText(FIRST_VISIT_EXAMPLE);
@@ -243,6 +280,14 @@ export default function InputSection({
   const handleAnalyze = () => {
     setShowFirstVisitExample(false);
     startAnalysis(inputText, getCurrentUsageMetadata());
+  };
+
+  // 今日一句 / 最近记录：填入并直接解析
+  const analyzeSuggestion = (text: string) => {
+    handleInputTextChange(text);
+    clearUsageMetadata();
+    setTtsAudioUrl(null);
+    startAnalysis(text, {});
   };
 
   const handleCancelAnalyze = () => {
@@ -483,12 +528,13 @@ export default function InputSection({
 
   const inputTextStyle = {
     color: 'var(--ink)',
-    fontSize: '20px',
+    fontSize: 'clamp(19px, 1.1vw + 6px, 22px)',
     lineHeight: 1.6,
     letterSpacing: '0.3px',
   };
   const showInputShimmer = isLoading && inputText.trim().length > 0;
 
+  // 输入框高度随内容自适应；compact 切换会重新挂载输入框，需要对新的 textarea 重新测量和监听
   useLayoutEffect(() => {
     const input = japaneseInputRef.current;
     if (!input) return;
@@ -512,7 +558,7 @@ export default function InputSection({
       observer.disconnect();
       window.removeEventListener('resize', resizeInput);
     };
-  }, [inputText, showFirstVisitExample]);
+  }, [compact, inputText, showFirstVisitExample]);
 
   useEffect(() => {
     if (!showInputShimmer) return;
@@ -525,278 +571,368 @@ export default function InputSection({
     shimmerFrame.scrollLeft = input.scrollLeft;
   }, [inputText, showInputShimmer]);
 
+  // 卡片 ⇄ 胶囊：只动 opacity/transform（字符串形式），交给合成线程跑；
+  // 解析开始时主线程要渲染流式结果，逐帧算尺寸的布局动画会掉帧。
+  const ease = [0.22, 1, 0.36, 1] as const;
+  const swap = (enterMs: number, exitMs: number, from: string, to: string, delayMs = 0) => ({
+    initial: { opacity: 0, transform: from },
+    animate: {
+      opacity: 1,
+      // 终值要与起止值同构（translateY + scale），写 'none' 会被插值成 scale(0)
+      transform: 'translateY(0px) scale(1)',
+      transition: reduceMotion ? { duration: 0 } : { duration: enterMs / 1000, delay: delayMs / 1000, ease },
+    },
+    exit: {
+      opacity: 0,
+      transform: to,
+      transition: reduceMotion ? { duration: 0 } : { duration: exitMs / 1000, ease },
+    },
+  });
+  const pillMotion = swap(320, 120, 'translateY(8px) scale(0.96)', 'translateY(4px) scale(0.98)', 60);
+  const cardMotion = swap(300, 160, 'translateY(-6px) scale(0.985)', 'translateY(-10px) scale(0.97)');
+
+  const compactBar = (
+    <>
+      <button type="button" className="nd-ghost-btn" onClick={onExpand} aria-label={t("编辑原文")}>
+        {Icon.pencil}<span className="compact-label">{t("编辑原文")}</span>
+      </button>
+      <button
+        type="button"
+        className="nd-ghost-btn"
+        onClick={() => {
+          handleInputTextChange('');
+          setTtsAudioUrl(null);
+          (onNewSentence ?? onExpand)?.();
+        }}
+        disabled={isLoading}
+        aria-label={t("新句子")}
+      >
+        {Icon.plus}<span className="compact-label">{t("新句子")}</span>
+      </button>
+      <button
+        type="button"
+        className="nd-ghost-btn compact-speak"
+        onClick={handleSpeak}
+        disabled={!inputText.trim() || isLoading || isSpeaking}
+        title={inputText.trim() ? t("朗读文本（约 {0}）", getEstimatedTime(inputText)) : undefined}
+      >
+        {isSpeaking
+          ? <span className="loading-spinner" style={{ width: 14, height: 14, margin: 0 }} />
+          : Icon.speaker}
+        <span>{t("朗读")}</span>
+      </button>
+      {isLoading && (
+        <button type="button" className="nd-ghost-btn" onClick={handleCancelAnalyze} aria-label={t("终止解析")}>
+          {Icon.stop}<span>{t("停止")}</span>
+        </button>
+      )}
+      {compactExtras && (
+        <>
+          <span className="compact-divider" aria-hidden="true" />
+          {compactExtras}
+        </>
+      )}
+    </>
+  );
+
   return (
-    <div className="w-full">
-      <section className="nd-card input-card">
-        <div className="relative">
-          {showFirstVisitExample && (
-            <div className="first-visit-example-kicker">
-              {t("第一次来？从这个句子开始")}
-            </div>
-          )}
-          <textarea
-            id="japaneseInput"
-            aria-label={t("日语原文")}
-            ref={japaneseInputRef}
-            lang="ja"
-            className={`jp w-full resize-none border-none bg-transparent outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''} ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
-            rows={3}
-            placeholder={t("输入日语句子")}
-            value={inputText}
-            onChange={(e) => handleInputTextChange(e.target.value)}
-            onScroll={(event) => {
-              const shimmerFrame = inputShimmerFrameRef.current;
-              if (!shimmerFrame) return;
-              shimmerFrame.scrollTop = event.currentTarget.scrollTop;
-              shimmerFrame.scrollLeft = event.currentTarget.scrollLeft;
-            }}
-            onPaste={handlePaste}
-            style={inputTextStyle}
-            aria-describedby={showFirstVisitExample ? 'firstVisitExampleHint' : undefined}
-            autoCapitalize="none"
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck="false"
-          ></textarea>
-          {showFirstVisitExample && (
-            <div id="firstVisitExampleHint" className="first-visit-example-hint" role="status">
-              {t("点击「解析」试试")}
-            </div>
-          )}
-          {showInputShimmer && (
-            <div
-              ref={inputShimmerFrameRef}
-              className="input-text-shimmer-layer-frame"
-              aria-hidden="true"
-              lang="ja"
+    // 阅读态整块吸顶：长文往下读时胶囊工具条一直在屏幕上方
+    <div className={compact ? 'w-full input-section-sticky' : 'w-full'}>
+      {!compact && showSuggestions && (
+        <DailySentence onAnalyze={analyzeSuggestion} disabled={isAnalyzing || isImageUploading} />
+      )}
+
+      <div className="relative">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {compact ? (
+            <motion.div
+              key="compact"
+              className="input-compact-bar"
+              role="toolbar"
+              aria-label={t("原文操作")}
+              {...pillMotion}
             >
-              <TextShimmer
-                as="div"
-                className="input-text-shimmer-layer jp"
-                duration={2.2}
-                spread={1.4}
-              >
-                {inputText}
-              </TextShimmer>
-            </div>
-          )}
-        </div>
-
-        <div className="input-action-bar mt-3.5 flex items-center">
-          {/* 左侧工具按钮区域 */}
-          <div className="input-tools flex items-center gap-2">
-            {/* 上传图片按钮 */}
-            <button
-              id="uploadImageButton"
-              className="input-tool-button"
-              onClick={() => document.getElementById('imageUploadInput')?.click()}
-              disabled={isImageUploading}
-              title={t("上传图片提取文字")}
-              aria-label={t("上传图片提取文字")}
-            >
-              {isImageUploading
-                ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
-                : Icon.photo}
-            </button>
-
-            {/* TTS按钮组 */}
-            <div className="relative" ref={dropdownRef}>
-              <div className="input-voice-controls flex">
-                <button
-                  id="speakButton"
-                  className="input-tool-button"
-                  onClick={handleSpeak}
-                  disabled={!inputText.trim() || isLoading || isSpeaking}
-                  title={inputText.trim() ?
-                    t("朗读文本（约 {0}）", getEstimatedTime(inputText)) :
-                    t("请先输入文本")
-                  }
-                  aria-label={t("朗读文本")}
-                >
-                  {isSpeaking
-                    ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
-                    : Icon.speakerLg}
-                </button>
-
-                <button
-                  className="input-tool-button input-tool-disclosure"
-                  onClick={() => setShowTtsDropdown(!showTtsDropdown)}
-                  disabled={isLoading || isSpeaking}
-                  title={t("语音设置")}
-                  aria-label={t("语音设置")}
-                  aria-expanded={showTtsDropdown}
-                  aria-controls="inputVoiceSettings"
-                >
-                  {Icon.chev}
-                </button>
+              {compactBar}
+            </motion.div>
+          ) : (
+            <motion.section key="full" className="nd-card input-card" {...cardMotion}>
+              <div className="relative">
+                {showFirstVisitExample && (
+                  <div className="first-visit-example-kicker">
+                    {t("第一次来？从这个句子开始")}
+                  </div>
+                )}
+                <textarea
+                  id="japaneseInput"
+                  aria-label={t("日语原文")}
+                  ref={japaneseInputRef}
+                  lang="ja"
+                  className={`jp w-full resize-none border-none bg-transparent outline-none ${showFirstVisitExample ? 'first-visit-example-input' : ''} ${showInputShimmer ? 'input-text-shimmer-source' : ''}`}
+                  rows={3}
+                  placeholder={t("粘贴或输入日语，看懂每一个词")}
+                  value={inputText}
+                  onChange={(e) => handleInputTextChange(e.target.value)}
+                  onScroll={(event) => {
+                    const shimmerFrame = inputShimmerFrameRef.current;
+                    if (!shimmerFrame) return;
+                    shimmerFrame.scrollTop = event.currentTarget.scrollTop;
+                    shimmerFrame.scrollLeft = event.currentTarget.scrollLeft;
+                  }}
+                  onPaste={handlePaste}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape' && onCollapse) {
+                      e.preventDefault();
+                      onCollapse();
+                    }
+                  }}
+                  style={inputTextStyle}
+                  aria-describedby={showFirstVisitExample ? 'firstVisitExampleHint' : undefined}
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                ></textarea>
+                {showFirstVisitExample && (
+                  <div id="firstVisitExampleHint" className="first-visit-example-hint" role="status">
+                    {t("点击「解析」试试")}
+                  </div>
+                )}
+                {showInputShimmer && (
+                  <div
+                    ref={inputShimmerFrameRef}
+                    className="input-text-shimmer-layer-frame"
+                    aria-hidden="true"
+                    lang="ja"
+                  >
+                    <TextShimmer
+                      as="div"
+                      className="input-text-shimmer-layer jp"
+                      duration={2.2}
+                      spread={1.4}
+                    >
+                      {inputText}
+                    </TextShimmer>
+                  </div>
+                )}
               </div>
 
-              {/* TTS设置下拉菜单 */}
-              {showTtsDropdown && (
-                <div
-                  id="inputVoiceSettings"
-                  className="input-voice-menu absolute top-full z-20 mt-2 rounded-2xl p-4"
-                  style={{
-                    background: 'var(--bg-2)',
-                    border: '1px solid var(--line)',
-                    boxShadow: '0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06)',
-                  }}
-                >
-                  <div className="mb-3 text-sm font-medium" style={{ color: 'var(--ink)' }}>{t("语音设置")}</div>
+              <div className="input-action-bar mt-3.5 flex items-center">
+                {/* 左侧工具按钮区域 */}
+                <div className="input-tools flex items-center gap-2">
+                  {/* 上传图片按钮 */}
+                  <button
+                    id="uploadImageButton"
+                    className="input-tool-button"
+                    onClick={() => document.getElementById('imageUploadInput')?.click()}
+                    disabled={isImageUploading}
+                    title={t("上传图片提取文字")}
+                    aria-label={t("上传图片提取文字")}
+                  >
+                    {isImageUploading
+                      ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
+                      : Icon.photo}
+                  </button>
 
-                  {/* TTS提供商选择 */}
-                  <div className="mb-3">
-                    <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音引擎")}</label>
-                    <div className="segmented-control grid grid-cols-2 gap-1 rounded-xl p-1">
-                      {(['edge', 'gemini'] as const).map((provider) => (
-                        <button
-                          key={provider}
-                          className="cursor-pointer rounded-lg border-none px-3 py-2 text-sm transition-colors"
-                          aria-pressed={ttsProvider === provider}
-                          style={ttsProvider === provider
-                            ? { background: 'var(--bg-2)', color: 'var(--ink)', fontWeight: 500 }
-                            : { background: 'transparent', color: 'var(--ink-2)' }}
-                          onClick={() => handleTtsProviderSelect(provider)}
-                        >
-                          {provider === 'edge' ? 'Edge TTS' : 'Gemini TTS'}
-                        </button>
-                      ))}
+                  {/* TTS按钮组 */}
+                  <div className="relative" ref={dropdownRef}>
+                    <div className="input-voice-controls flex">
+                      <button
+                        id="speakButton"
+                        className="input-tool-button"
+                        onClick={handleSpeak}
+                        disabled={!inputText.trim() || isLoading || isSpeaking}
+                        title={inputText.trim() ?
+                          t("朗读文本（约 {0}）", getEstimatedTime(inputText)) :
+                          t("请先输入文本")
+                        }
+                        aria-label={t("朗读文本")}
+                      >
+                        {isSpeaking
+                          ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
+                          : Icon.speakerLg}
+                      </button>
+
+                      <button
+                        className="input-tool-button input-tool-disclosure"
+                        onClick={() => setShowTtsDropdown(!showTtsDropdown)}
+                        disabled={isLoading || isSpeaking}
+                        title={t("语音设置")}
+                        aria-label={t("语音设置")}
+                        aria-expanded={showTtsDropdown}
+                        aria-controls="inputVoiceSettings"
+                      >
+                        {Icon.chev}
+                      </button>
                     </div>
-                  </div>
 
-                  {/* Edge TTS 设置 */}
-                  {ttsProvider === 'edge' && (
-                    <>
-                      <div className="mb-3">
-                        <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音性别")}</label>
-                        <select
-                          value={selectedGender}
-                          onChange={(e) => handleGenderChange(e.target.value as 'male' | 'female')}
-                          className="nd-input text-sm"
-                        >
-                          {TTS_GENDERS.map((gender) => (
-                            <option key={gender.value} value={gender.value}>
-                              {t(gender.label)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    {/* TTS设置下拉菜单 */}
+                    {showTtsDropdown && (
+                      <div
+                        id="inputVoiceSettings"
+                        className="input-voice-menu absolute top-full z-20 mt-2 rounded-2xl p-4"
+                        style={{
+                          background: 'var(--bg-2)',
+                          border: '1px solid var(--line)',
+                          boxShadow: '0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06)',
+                        }}
+                      >
+                        <div className="mb-3 text-sm font-medium" style={{ color: 'var(--ink)' }}>{t("语音设置")}</div>
 
-                      <div className="mb-2">
-                        <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
-                          {t("语速 ·")} {t(getRateLabel(selectedRate))}
-                        </label>
-                        <input
-                          type="range"
-                          aria-label={t("语速")}
-                          aria-valuetext={t(getRateLabel(selectedRate))}
-                          min="-100"
-                          max="100"
-                          step="10"
-                          value={selectedRate}
-                          onChange={(e) => handleRateChange(parseInt(e.target.value))}
-                          className="h-2 w-full cursor-pointer appearance-none rounded-lg"
-                          style={{ background: 'var(--line-2)', accentColor: 'var(--primary)' }}
-                        />
-                        <div className="mt-1 flex justify-between text-xs" style={{ color: 'var(--ink-3)' }}>
-                          <span>{t("慢")}</span>
-                          <span>{t("正常")}</span>
-                          <span>{t("快")}</span>
+                        {/* TTS提供商选择 */}
+                        <div className="mb-3">
+                          <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音引擎")}</label>
+                          <div className="segmented-control grid grid-cols-2 gap-1 rounded-xl p-1">
+                            {(['edge', 'gemini'] as const).map((provider) => (
+                              <button
+                                key={provider}
+                                className="cursor-pointer rounded-lg border-none px-3 py-2 text-sm transition-colors"
+                                aria-pressed={ttsProvider === provider}
+                                style={ttsProvider === provider
+                                  ? { background: 'var(--bg-2)', color: 'var(--ink)', fontWeight: 500 }
+                                  : { background: 'transparent', color: 'var(--ink-2)' }}
+                                onClick={() => handleTtsProviderSelect(provider)}
+                              >
+                                {provider === 'edge' ? 'Edge TTS' : 'Gemini TTS'}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    </>
-                  )}
 
-                  {/* Gemini TTS 设置 */}
-                  {ttsProvider === 'gemini' && (
-                    <>
-                      <div className="mb-3">
-                        <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音选择")}</label>
-                        <select
-                          value={selectedVoice}
-                          onChange={(e) => handleVoiceChange(e.target.value)}
-                          className="nd-input text-sm"
-                        >
-                          {GEMINI_VOICES.map((voice) => (
-                            <option key={voice.value} value={voice.value}>
-                              {t(voice.label)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                        {/* Edge TTS 设置 */}
+                        {ttsProvider === 'edge' && (
+                          <>
+                            <div className="mb-3">
+                              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音性别")}</label>
+                              <select
+                                value={selectedGender}
+                                onChange={(e) => handleGenderChange(e.target.value as 'male' | 'female')}
+                                className="nd-input text-sm"
+                              >
+                                {TTS_GENDERS.map((gender) => (
+                                  <option key={gender.value} value={gender.value}>
+                                    {t(gender.label)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
 
-                      <div className="mb-2">
-                        <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音风格")}</label>
-                        <select
-                          value={selectedStyle}
-                          onChange={(e) => handleStyleChange(e.target.value)}
-                          className="nd-input text-sm"
-                        >
-                          {TTS_STYLES.map((style) => (
-                            <option key={style.value} value={style.value}>
-                              {t(style.label)}
-                            </option>
-                          ))}
-                        </select>
+                            <div className="mb-2">
+                              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
+                                {t("语速 ·")} {t(getRateLabel(selectedRate))}
+                              </label>
+                              <input
+                                type="range"
+                                aria-label={t("语速")}
+                                aria-valuetext={t(getRateLabel(selectedRate))}
+                                min="-100"
+                                max="100"
+                                step="10"
+                                value={selectedRate}
+                                onChange={(e) => handleRateChange(parseInt(e.target.value))}
+                                className="h-2 w-full cursor-pointer appearance-none rounded-lg"
+                                style={{ background: 'var(--line-2)', accentColor: 'var(--primary)' }}
+                              />
+                              <div className="mt-1 flex justify-between text-xs" style={{ color: 'var(--ink-3)' }}>
+                                <span>{t("慢")}</span>
+                                <span>{t("正常")}</span>
+                                <span>{t("快")}</span>
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Gemini TTS 设置 */}
+                        {ttsProvider === 'gemini' && (
+                          <>
+                            <div className="mb-3">
+                              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音选择")}</label>
+                              <select
+                                value={selectedVoice}
+                                onChange={(e) => handleVoiceChange(e.target.value)}
+                                className="nd-input text-sm"
+                              >
+                                {GEMINI_VOICES.map((voice) => (
+                                  <option key={voice.value} value={voice.value}>
+                                    {t(voice.label)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="mb-2">
+                              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音风格")}</label>
+                              <select
+                                value={selectedStyle}
+                                onChange={(e) => handleStyleChange(e.target.value)}
+                                className="nd-input text-sm"
+                              >
+                                {TTS_STYLES.map((style) => (
+                                  <option key={style.value} value={style.value}>
+                                    {t(style.label)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </>
+                        )}
                       </div>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
 
-          <div className="flex-1" />
+                <div className="flex-1" />
 
-          {/* 清空按钮 */}
-          {inputText.trim() !== '' && (
-            <button
-              className="input-tool-button input-clear-button mr-2"
-              onClick={() => {
-                setInputText('');
-                setTtsAudioUrl(null);
-                setShowFirstVisitExample(false);
-                clearUsageMetadata();
-              }}
-              title={t("清空内容")}
-              aria-label={t("清空内容")}
-            >
-              {Icon.xSm}
-            </button>
+                {/* 清空按钮 */}
+                {inputText.trim() !== '' && (
+                  <button
+                    className="input-tool-button input-clear-button mr-2"
+                    onClick={() => {
+                      setInputText('');
+                      setTtsAudioUrl(null);
+                      setShowFirstVisitExample(false);
+                      clearUsageMetadata();
+                    }}
+                    title={t("清空内容")}
+                    aria-label={t("清空内容")}
+                  >
+                    {Icon.xSm}
+                  </button>
+                )}
+
+                {/* 解析按钮 */}
+                <StateMorphButton
+                  id="analyzeButton"
+                  onClick={isLoading ? handleCancelAnalyze : handleAnalyze}
+                  disabled={!isLoading && !inputText.trim()}
+                  state={submitState}
+                  className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
+                />
+              </div>
+
+              {/* 隐藏的文件输入 */}
+              <input
+                type="file"
+                id="imageUploadInput"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+            </motion.section>
           )}
+        </AnimatePresence>
+      </div>
 
-          {/* 解析按钮 */}
-          <StateMorphButton
-            id="analyzeButton"
-            onClick={isLoading ? handleCancelAnalyze : handleAnalyze}
-            disabled={!isLoading && !inputText.trim()}
-            state={submitState}
-            className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
+      {!compact && showSuggestions && (
+        <div className="home-suggestions">
+          <AnalysisHistory
+            entries={history.entries}
+            storageUnavailable={history.storageUnavailable}
+            disabled={isAnalyzing || isImageUploading || isSpeaking}
+            onClear={history.clear}
+            onSelect={analyzeSuggestion}
           />
         </div>
-
-        <AnalysisHistory
-          entries={history.entries}
-          storageUnavailable={history.storageUnavailable}
-          disabled={isAnalyzing || isImageUploading || isSpeaking}
-          onClear={history.clear}
-          onSelect={(text) => {
-            handleInputTextChange(text);
-            clearUsageMetadata();
-            setTtsAudioUrl(null);
-            japaneseInputRef.current?.focus();
-          }}
-        />
-
-        {/* 隐藏的文件输入 */}
-        <input
-          type="file"
-          id="imageUploadInput"
-          accept="image/*"
-          className="hidden"
-          onChange={handleImageUpload}
-        />
-      </section>
+      )}
 
       {uploadStatus && <div id="imageUploadStatus" className={uploadStatusClass}>{errorText(uploadStatus)}</div>}
 

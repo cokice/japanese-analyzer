@@ -101,39 +101,41 @@ export default function TranslationSection({
     }
   }, [isLoading, translation]);
 
+  const actions = (
+    <div className="translation-actions flex items-center gap-1">
+      <button
+        id="translateSentenceButton"
+        className="nd-ghost-btn"
+        onClick={handleTranslate}
+        disabled={isLoading}
+      >
+        {Icon.refresh}
+        <span>{isLoading ? t("翻译中") : translation ? t("重新翻译") : t("翻译")}</span>
+      </button>
+      <button
+        onClick={handleCopy}
+        className="nd-ghost-btn"
+        style={copied ? { color: 'var(--primary)' } : undefined}
+        disabled={!translation}
+      >
+        {Icon.copy}<span>{copied ? t("已复制") : t("复制")}</span>
+      </button>
+      <button
+        id="toggleFullTranslationButton"
+        className="nd-ghost-btn"
+        onClick={toggleVisibility}
+        aria-expanded={isVisible}
+        aria-controls="translationContent"
+      >
+        <span>{isVisible ? t("收起") : t("展开")}</span>
+      </button>
+    </div>
+  );
+
   return (
-    <section id="fullTranslationCard" className="translation-section">
-      <div className="translation-heading flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h2 className="m-0 text-sm font-medium" style={{ color: 'var(--ink-2)' }}>{t("中文译文")}</h2>
-        <div className="translation-actions flex items-center gap-1">
-          <button
-            id="translateSentenceButton"
-            className="nd-ghost-btn"
-            onClick={handleTranslate}
-            disabled={isLoading}
-          >
-            {Icon.refresh}
-            <span>{isLoading ? t("翻译中") : translation ? t("重新翻译") : t("翻译")}</span>
-          </button>
-          <button
-            onClick={handleCopy}
-            className="nd-ghost-btn"
-            style={copied ? { color: 'var(--primary)' } : undefined}
-            disabled={!translation}
-          >
-            {Icon.copy}<span>{copied ? t("已复制") : t("复制")}</span>
-          </button>
-          <button
-            id="toggleFullTranslationButton"
-            className="nd-ghost-btn"
-            onClick={toggleVisibility}
-            aria-expanded={isVisible}
-            aria-controls="translationContent"
-          >
-            <span>{isVisible ? t("收起") : t("展开")}</span>
-          </button>
-        </div>
-      </div>
+    <section id="fullTranslationCard" className="translation-section" data-collapsed={!isVisible}>
+      {/* 译文紧跟原句，标题只留给读屏；操作按钮悬停时出现 */}
+      <h2 className="sr-only">{t("中文译文")}</h2>
 
       <div id="translationContent">
         {/* 包含子元素的外边距，避免高度测量遗漏译文顶部间距。 */}
@@ -143,10 +145,7 @@ export default function TranslationSection({
               {isLoading && !translation ? (
                 <ThinkingIndicator label={t("翻译中")} />
               ) : translation ? (
-                <div
-                  className="flow-markdown full-translation-markdown mt-2 text-[16px] leading-7"
-                  style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
-                >
+                <div className="flow-markdown full-translation-markdown translation-text">
                   {canAnimateTranslation ? (
                     <FlowAnimatedMarkdown
                       content={animatedTranslation}
@@ -160,10 +159,7 @@ export default function TranslationSection({
                   )}
                 </div>
               ) : (
-                <p
-                  className="mb-0 mt-2 whitespace-pre-wrap text-[16px] leading-7"
-                  style={{ color: 'var(--ink)', letterSpacing: '0.2px' }}
-                >
+                <p className="translation-text mb-0 whitespace-pre-wrap">
                   {translation || <span style={{ color: 'var(--ink-3)' }}>{t("解析后将自动翻译。")}</span>}
                 </p>
               )}
@@ -171,6 +167,8 @@ export default function TranslationSection({
           ) : null}
         </AutoAnimateHeight>
       </div>
+
+      {actions}
     </section>
   );
 }
