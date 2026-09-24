@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { parseWordDetailResponseContent } from '../app/services/api';
 import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRange, PHRASE_MAX_WORDS } from '../app/utils/phraseRange';
 
 const token = (word: string, pos = '名詞', furigana = '') => ({ word, pos, furigana });
@@ -31,5 +32,14 @@ const merged = mergePhraseTokens(split, { start: 0, end: 1 }, { pos: '名詞', f
 assert.equal(merged.length, 2);
 assert.deepEqual({ word: merged[0].word, pos: merged[0].pos, furigana: merged[0].furigana }, { word: '図書館', pos: '名詞', furigana: 'としょかん' });
 assert.equal(merged[1].word, 'で');
+
+// 短语释义：显示用前端按词拼出的完整读音，AI 返回的读音只留作合并用
+const phraseDetail = parseWordDetailResponseContent(JSON.stringify({
+  chineseTranslation: '因为有考试', category: '連語', dictionaryForm: '', explanation: '说明原因。',
+  breakdown: '', example: '', exampleTranslation: '', pos: '', furigana: 'しけんがあるので',
+}), { word: '試験があるので、今夜は', pos: '', furigana: 'しけんがあるので、こんやは', kind: 'phrase' });
+assert.equal(phraseDetail.furigana, 'しけんがあるので、こんやは');
+assert.equal(phraseDetail.mergeReading, 'しけんがあるので');
+assert.equal(phraseDetail.category, '連語');
 
 console.log('Phrase range tests passed');

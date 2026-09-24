@@ -2076,6 +2076,10 @@ body {
 .range-pick-toast-text { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.4; }
 .range-pick-toast-text strong { color: var(--primary); font-weight: 600; }
 .range-pick-toast-text span { color: var(--ink-3); font-size: 12px; }
+/* 手机上右下角有 AI 助手按钮，提示条抬到它上方 */
+@media (max-width: 640px) {
+  .range-pick-toast { bottom: calc(max(20px, env(safe-area-inset-bottom)) + 64px); }
+}
 @keyframes pickToastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .select-more-btn {
   display: flex;

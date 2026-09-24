@@ -316,7 +316,10 @@ export default function Home() {
   const canMergePhrase = selectedRange !== null && wordDetail?.kind === 'phrase' && wordDetail.category === '単語';
   const handleMergePhrase = useCallback(() => {
     if (!selectedRange || !wordDetail) return;
-    setAnalyzedTokens((tokens) => mergePhraseTokens(tokens, selectedRange, wordDetail));
+    setAnalyzedTokens((tokens) => mergePhraseTokens(tokens, selectedRange, {
+      pos: wordDetail.pos,
+      furigana: wordDetail.mergeReading || wordDetail.furigana,
+    }));
     setSelectedIndex(selectedRange.start);
     setSelectedRange(null);
   }, [selectedRange, wordDetail]);

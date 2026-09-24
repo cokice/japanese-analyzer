@@ -56,6 +56,8 @@ export interface WordDetail {
   category?: string;
   /** 短语的构成拆解 */
   breakdown?: string;
+  /** 短语被判断为一个词时，AI 给出的整词读音（用于合并，可处理连浊等） */
+  mergeReading?: string;
 }
 
 export type WordDetailKind = 'word' | 'phrase';
@@ -447,7 +449,11 @@ export function parseWordDetailResponseContent(content: string, context?: WordDe
   const originalWord = context?.word || detail.originalWord;
   if (!originalWord) throw new Error('释义结果缺少 originalWord 字段');
   const pos = detail.pos?.trim() || context?.pos || '';
-  const furigana = detail.furigana?.trim() || context?.furigana || '';
+  // 短语的读音用前端按词拼出的结果，比 AI 返回的更完整可靠
+  const isPhrase = context?.kind === 'phrase';
+  const furigana = isPhrase
+    ? context?.furigana || detail.furigana?.trim() || ''
+    : detail.furigana?.trim() || context?.furigana || '';
   return {
     originalWord, chineseTranslation: detail.chineseTranslation, pos, furigana,
     romaji: getLocalRomaji(originalWord, furigana, pos),
@@ -456,10 +462,11 @@ export function parseWordDetailResponseContent(content: string, context?: WordDe
     conjugation: normalizeEscapedLineBreaks(detail.conjugation || ''),
     example: normalizeEscapedLineBreaks(detail.example || ''),
     exampleTranslation: normalizeEscapedLineBreaks(detail.exampleTranslation || ''),
-    ...(context?.kind === 'phrase' ? {
+    ...(isPhrase ? {
       kind: 'phrase' as const,
       category: detail.category?.trim() || '',
       breakdown: normalizeEscapedLineBreaks(detail.breakdown || ''),
+      mergeReading: detail.furigana?.trim() || '',
     } : {}),
   };
 }

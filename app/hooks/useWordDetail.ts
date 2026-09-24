@@ -95,7 +95,9 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
           setStreamContent(content);
           if (done) { finish(parseWordDetailResponseContent(content, context)); return; }
           const correctedPos = partialField(content, 'pos', true) || pos;
-          const correctedReading = partialField(content, 'furigana', true) || furigana || '';
+          const correctedReading = kind === 'phrase'
+            ? furigana || ''
+            : partialField(content, 'furigana', true) || furigana || '';
           setWordDetail({
             originalWord: word, pos: correctedPos, furigana: correctedReading,
             romaji: getLocalRomaji(word, correctedReading, correctedPos),

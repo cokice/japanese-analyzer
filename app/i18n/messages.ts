@@ -198,7 +198,7 @@ export const messages = {
   "选中多个词一起解析": {"zh-TW": "選取多個詞一起解析", "en": "Select more words together", "ko": "여러 단어 함께 선택"},
   "下次也可以直接长按词语开始选": {"zh-TW": "下次也可以直接長按詞語開始選", "en": "Tip: you can also long-press a word to start", "ko": "다음엔 단어를 길게 눌러 바로 시작할 수 있어요"},
   "下次也可以直接拖过几个词": {"zh-TW": "下次也可以直接拖過幾個詞", "en": "Tip: you can also drag across words", "ko": "다음엔 여러 단어를 바로 드래그할 수 있어요"},
-  "再点一个词，选中这一段": {"zh-TW": "再點一個詞，選取這一段", "en": "Tap another word to select the span", "ko": "다른 단어를 탭해 구간을 선택하세요"},
+  "再点一个词，选中这一段": {"zh-TW": "再點一個詞，選取這一段", "en": "Now pick another word to select the span", "ko": "단어를 하나 더 고르면 그 구간이 선택됩니다"},
   "取消": {"zh-TW": "取消", "en": "Cancel", "ko": "취소"},
   "原文操作": {"zh-TW": "原文操作", "en": "Text actions", "ko": "원문 작업"},
   "完成": {"zh-TW": "完成", "en": "Done", "ko": "완료"},

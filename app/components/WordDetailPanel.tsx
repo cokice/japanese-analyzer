@@ -202,11 +202,15 @@ export default function WordDetailPanel({
   if (!wordDetail) return null;
 
   const isPhrase = wordDetail.kind === 'phrase';
+  // 单词去掉粘在一起的标点；短语只去掉末尾的，中间的「、」保留
+  const display = isPhrase
+    ? (wordDetail.originalWord || '').replace(/[、。]+$/, '')
+    : (wordDetail.originalWord || '').replace(/[、。]/g, '');
   const phraseCategory = wordDetail.category ? PHRASE_CATEGORY_LABELS[wordDetail.category] : '';
 
   const posGroup = getPosGroup(wordDetail.pos || '');
   const accent = POS_GROUP_COLORS[posGroup];
-  const display = (wordDetail.originalWord || '').replace(/[、。]/g, '');
+
   const posLabel = posChineseMap[normalizePosBase(wordDetail.pos)] || POS_GROUP_LABELS[posGroup];
   const originalPos = (wordDetail.pos || '').trim();
   const basePos = normalizePosBase(originalPos);
