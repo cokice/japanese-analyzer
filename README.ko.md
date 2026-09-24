@@ -183,3 +183,7 @@ npm run build        # 프로덕션 빌드
 `mit-final`(`fb57ddc`)을 포함하여 이미 MIT로 공개된 코드에는 기존 MIT 이용 허가가 계속 유효합니다. [기존 MIT 라이선스](./LICENSES/MIT-legacy.txt), [라이선스 및 배포 안내](./LICENSING.md), [저작권 고지](./NOTICE)를 확인하세요.
 
 AGPL은 상업적 이용을 허용합니다. 적용 대상 저작물을 배포하거나 수정한 버전을 네트워크로 제공하는 경우, 라이선스 조건에 따라 해당 소스 코드를 제공해야 합니다.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=cokice/japanese-analyzer&type=Date)](https://www.star-history.com/#cokice/japanese-analyzer&Date)

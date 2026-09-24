@@ -183,3 +183,7 @@ npm run build        # 正式環境建置
 `mit-final`（`fb57ddc`）及先前以 MIT 發布的程式碼仍保留原有 MIT 授權，詳見 [歷史 MIT 授權條款](./LICENSES/MIT-legacy.txt)、[授權範圍與部署說明](./LICENSING.md)及 [版權聲明](./NOTICE)。
 
 AGPL 允許商業使用；散布適用作品，或修改後透過網路提供服務時，請依授權條款提供對應原始碼。
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=cokice/japanese-analyzer&type=Date)](https://www.star-history.com/#cokice/japanese-analyzer&Date)

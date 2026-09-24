@@ -182,3 +182,7 @@ npm run build        # 生产构建
 自 `mit-final` 之后的许可证切换提交起，本项目采用 [AGPL-3.0-only](./LICENSE)。`mit-final`（`fb57ddc`）及更早以 MIT 发布的代码仍保留 MIT 授权，见 [历史 MIT 许可证](./LICENSES/MIT-legacy.txt) 与 [授权范围说明](./LICENSING.md)，版权声明见 [NOTICE](./NOTICE)。
 
 AGPL 允许商业使用；分发本项目，或修改后通过网络提供服务时，需要按许可证提供对应源码。
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=cokice/japanese-analyzer&type=Date)](https://www.star-history.com/#cokice/japanese-analyzer&Date)

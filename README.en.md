@@ -183,3 +183,7 @@ Starting with the license-transition commit after `mit-final`, the project as a 
 Code previously released under MIT, including `mit-final` (`fb57ddc`), retains its existing MIT grant. See the [legacy MIT license](./LICENSES/MIT-legacy.txt), [licensing and deployment notes](./LICENSING.md), and [copyright notices](./NOTICE).
 
 Commercial use is permitted. When distributing covered works or offering a modified version over a network, provide the corresponding source as required by the license.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=cokice/japanese-analyzer&type=Date)](https://www.star-history.com/#cokice/japanese-analyzer&Date)
