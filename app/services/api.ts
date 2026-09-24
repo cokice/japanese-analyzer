@@ -62,6 +62,9 @@ export interface WordDetail {
 
 export type WordDetailKind = 'word' | 'phrase';
 
+/** 短语类别（与短语提示词约定的日文标签一致） */
+export const PHRASE_CATEGORIES: readonly string[] = ['単語', '文法形式', '慣用表現', '連語'];
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -444,6 +447,13 @@ export function parseWordDetailResponseContent(content: string, context?: WordDe
   }
   for (const field of optionalWordDetailFields) {
     if (parsed[field] !== undefined && typeof parsed[field] !== 'string') throw new Error(`释义结果 ${field} 必须是字符串`);
+  }
+  // DeepSeek 只保证返回 JSON 对象，不保证短语字段齐全；缺类别会让「合并为一个词」悄悄消失，按未完整生成处理
+  if (context?.kind === 'phrase') {
+    if (typeof parsed.category !== 'string' || !PHRASE_CATEGORIES.includes(parsed.category.trim())) {
+      throw new Error('短语释义缺少有效的 category 字段');
+    }
+    if (typeof parsed.breakdown !== 'string') throw new Error('短语释义缺少 breakdown 字段');
   }
   const detail = parsed as Record<WordDetailField, string>;
   const originalWord = context?.word || detail.originalWord;

@@ -46,4 +46,15 @@ assert.equal(phraseDetail.furigana, 'しけんがあるので、こんやは');
 assert.equal(phraseDetail.mergeReading, 'しけんがあるので');
 assert.equal(phraseDetail.category, '連語');
 
+// 短语字段必须齐全：缺类别、类别不在四种之内、缺构成都算未完整生成
+const phraseContext = { word: '試験がある', pos: '', furigana: 'しけんがある', kind: 'phrase' as const };
+const phraseFields = { chineseTranslation: '有考试', dictionaryForm: '', explanation: '', breakdown: '', example: '', exampleTranslation: '', pos: '', furigana: '' };
+assert.throws(() => parseWordDetailResponseContent(JSON.stringify(phraseFields), phraseContext), /category/);
+assert.throws(() => parseWordDetailResponseContent(JSON.stringify({ ...phraseFields, category: '句子' }), phraseContext), /category/);
+const withoutBreakdown: Record<string, string> = { ...phraseFields, category: '連語' };
+delete withoutBreakdown.breakdown;
+assert.throws(() => parseWordDetailResponseContent(JSON.stringify(withoutBreakdown), phraseContext), /breakdown/);
+// 单词释义不受影响
+assert.doesNotThrow(() => parseWordDetailResponseContent(JSON.stringify(phraseFields), { word: '試験', pos: '名詞' }));
+
 console.log('Phrase range tests passed');
