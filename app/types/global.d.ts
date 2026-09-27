@@ -7,4 +7,7 @@ declare namespace JSX {
     rt: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
     rb: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
   }
-} 
+}
+
+// 允许在客户端组件里动态 import 纯 CSS（见 DeferredFonts）
+declare module '*.css';
