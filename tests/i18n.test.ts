@@ -25,6 +25,9 @@ async function main() {
   assert.equal(localizeError('翻译结果连接已结束，但没有收到完整结束信号，请重新生成。', 'en'), 'The translation disconnected before completion. Please try again.');
   assert.equal(localizeError('图片文字提取连接已结束，但没有收到完整结束信号，请重新生成。', 'ko'), '이미지 글자 추출 완료 신호를 받기 전에 연결이 종료되었습니다. 다시 시도해 주세요.');
   assert.equal(localizeError('HTTP 429: upstream quota exceeded', 'zh-TW'), 'HTTP 429: upstream quota exceeded');
+  assert.equal(localizeError('流式解析失败：上游流式响应空闲超时，请重试。', 'en'), 'Streaming analysis failed: The upstream stream stopped responding. Please try again.');
+  assert.equal(localizeError('提取时发生错误: 图片数据太大，请压缩后重试。', 'ko'), createTranslator('ko')('提取时发生错误: {0}。', '이미지가 너무 큽니다. 압축한 뒤 다시 시도해 주세요.'));
+  assert.equal(createTranslator('en')('正在连接模型…'), 'Connecting to the model…');
   for (const [key, translations] of Object.entries(messages)) {
     assert.deepEqual(Object.keys(translations).sort(), LOCALES.filter(locale => locale !== 'zh-CN').sort(), `Missing locale: ${key}`);
     for (const value of Object.values(translations)) {

@@ -2,6 +2,7 @@
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { INITIAL_REASONING_SUMMARY } from '../utils/reasoningSummary';
 
 interface ReasoningSummaryStatusProps {
   summaries: readonly string[];
@@ -18,7 +19,10 @@ export default function ReasoningSummaryStatus({
 }: ReasoningSummaryStatusProps) {
   const { t } = useLanguage();
   const reduceMotion = useReducedMotion();
-  const displaySummaries = summaries.length > 0 ? summaries : [t("正在分析…")];
+  // 占位文案由控制器以中文键写入，渲染时再翻译；模型生成的摘要已是界面语言。
+  const displaySummaries = summaries.length > 0
+    ? summaries.map(summary => (summary === INITIAL_REASONING_SUMMARY ? t(summary) : summary))
+    : [t("正在分析…")];
   const visibleSummaries = displaySummaries.slice(-VISIBLE_SUMMARY_COUNT);
   const currentSummary = visibleSummaries.at(-1) ?? t("正在分析…");
 

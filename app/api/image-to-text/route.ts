@@ -3,6 +3,7 @@ import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
 import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
+import { isUpstreamTimeoutError } from '../_utils/requestTimeout';
 import { requireApiSession } from '../_utils/sessionAuth';
 import { getImageRecognitionModelName } from '../../lib/aiModels';
 
@@ -141,6 +142,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: { message: error.message } },
         { status: error.status }
+      );
+    }
+
+    // 非流式请求在读取上游响应时整体超时，避免把英文 TimeoutError 原文透传给界面。
+    if (isUpstreamTimeoutError(error)) {
+      return NextResponse.json(
+        { error: { message: '上游接口请求超时，请稍后重试。' } },
+        { status: 504 }
       );
     }
 
