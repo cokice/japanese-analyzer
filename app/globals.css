@@ -1156,7 +1156,7 @@ input, textarea {
 
   .input-text-shimmer-source {
     color: var(--ink) !important;
-    -webkit-text-fill-color: var(--ink);
+    -webkit-text-fill-color: var(--ink) !important;
   }
 
   .input-text-shimmer-layer-frame {

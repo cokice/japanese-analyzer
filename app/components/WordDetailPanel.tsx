@@ -1,7 +1,7 @@
 'use client';
 
 import { useLanguage } from '../contexts/LanguageContext';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { WordDetail } from '../services/api';
 import { getPosGroup, normalizePosBase, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
 import { trackTtsUsage } from '../utils/analytics';
@@ -30,20 +30,6 @@ const PHRASE_CATEGORY_LABELS: Record<string, string> = {
   慣用表現: '惯用表达',
   連語: '词组',
 };
-
-// 朗读单词（Edge TTS，失败回退系统 TTS）
-async function handleWordSpeak(word: string) {
-  if (!word) return;
-  try {
-    const url = await getJapaneseTtsAudioUrl(word, undefined, 'edge', { gender: 'female' });
-    const audio = new Audio(url);
-    trackTtsUsage('edge');
-    audio.play();
-  } catch (error) {
-    console.error('Edge TTS 朗读失败，回退到系统朗读:', error);
-    speakJapanese(word);
-  }
-}
 
 function DetailSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -127,6 +113,46 @@ export default function WordDetailPanel({
   const { t, errorText } = useLanguage();
   const [isExplanationExpanded, setIsExplanationExpanded] = useState(false);
   const [showExpandButton, setShowExpandButton] = useState(false);
+  const speechCleanup = useRef<() => void>(() => undefined);
+
+  useEffect(() => () => speechCleanup.current(), [wordDetail?.originalWord]);
+
+  // Own the audio URL until playback ends, fails, changes word, or closes.
+  const handleWordSpeak = async (word: string) => {
+    if (!word) return;
+    speechCleanup.current();
+    const controller = new AbortController();
+    let audio: HTMLAudioElement | undefined;
+    let url: string | undefined;
+    const cleanup = () => {
+      controller.abort();
+      if (audio) {
+        audio.onended = null;
+        audio.onerror = null;
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+      }
+      if (url) { URL.revokeObjectURL(url); url = undefined; }
+    };
+    speechCleanup.current = cleanup;
+    try {
+      url = await getJapaneseTtsAudioUrl(word, undefined, 'edge', { gender: 'female', signal: controller.signal });
+      if (controller.signal.aborted) { URL.revokeObjectURL(url); return; }
+      audio = new Audio(url);
+      audio.onended = cleanup;
+      audio.onerror = cleanup;
+      await audio.play();
+      trackTtsUsage('edge');
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      cleanup();
+      console.error('Edge TTS 朗读失败，回退到系统朗读:', error);
+      speakJapanese(word);
+      speechCleanup.current = () => window.speechSynthesis?.cancel();
+    }
+  };
+
 
   useEffect(() => {
     if (wordDetail?.explanation && wordDetail.explanation.length > 5000) {

@@ -117,6 +117,7 @@ export function wrapStreamingResponseWithIdleTimeout(
         try {
           while (!finished) {
             const { value, done } = await reader.read();
+            if (finished) return;
             if (done) {
               finished = true;
               clearIdleTimeout();
@@ -190,6 +191,7 @@ export async function proxyOpenAICompatibleRequest(options: {
       signal: upstreamSignal,
     });
   } catch (error) {
+    if (options.signal?.aborted) throw error;
     if (isUpstreamTimeoutError(error)) {
       return {
         ok: false,

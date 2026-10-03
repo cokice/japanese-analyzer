@@ -1,3 +1,4 @@
+import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     // 解析请求体
-    const { word, pos, sentence, furigana, model, apiUrl, useStream = false, provider, kind } = await req.json();
+    const { word, pos, sentence, furigana, model, apiUrl, useStream = false, provider, kind } = await readJsonBody(req);
     // kind: 'phrase' 为用户圈选的多词短语，不需要词性
     const isPhrase = kind === 'phrase';
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
@@ -79,6 +80,8 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
+    const bodyError = requestBodyErrorResponse(error);
+    if (bodyError) return bodyError;
     if (error instanceof ProviderConfigError) {
       return NextResponse.json(
         { error: { message: error.message } },

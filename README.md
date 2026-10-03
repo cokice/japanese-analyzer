@@ -186,3 +186,11 @@ AGPL 允许商业使用；分发本项目，或修改后通过网络提供服务
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=cokice/japanese-analyzer&type=Date)](https://www.star-history.com/#cokice/japanese-analyzer&Date)
+
+### 登录与请求限制
+
+配置 `CODE` 后，每个服务进程对共享访问密码每分钟最多接受 10 次登录尝试（包含并发请求及成功登录）；超过后返回 HTTP 429 和 `Retry-After`。计数保存在进程内，重启会清空，多副本各自计数。多实例或公开部署应在受信任的入口配置共享限流；入口应覆盖客户端传入的转发头。为避免伪造 IP 绕过，应用限制不使用 `X-Forwarded-For` 区分来源。
+
+认证正文上限为 4 KiB，普通 JSON 接口为 1 MiB，OCR 为 9 MiB（图片字段仍限制为 8 MiB）；固定长度和分块传输均按实际字节检查，超限返回 413，非法 JSON 返回 400。
+
+会话 Cookie 默认根据请求协议决定 `Secure`，因此生产模式下直接通过 HTTP 访问也可以保持登录。HTTPS 反向代理部署可设置 `AUTH_COOKIE_SECURE=true` 强制安全 Cookie；`false` 仅适用于有意使用 HTTP 的部署。HTTP 不提供密码与会话的传输加密。

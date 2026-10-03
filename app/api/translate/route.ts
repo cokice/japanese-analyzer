@@ -1,3 +1,6 @@
+import { validateCompletion } from '../../services/api';
+import { InvalidResponseError } from '../../utils/requestErrors';
+import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { getTranslationSystemPrompt } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,7 +16,7 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     // 解析请求体
-    const { text, model, apiUrl, stream = false, provider } = await req.json();
+    const { text, model, apiUrl, stream = false, provider } = await readJsonBody(req);
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
     
     if (!providerConfig.apiKey) {
@@ -77,9 +80,13 @@ export async function POST(req: NextRequest) {
     } else {
       // 非流式输出，按原来方式处理
       const data = await response.json();
+      validateCompletion(data, '翻译');
       return NextResponse.json(data);
     }
   } catch (error) {
+    const bodyError = requestBodyErrorResponse(error);
+    if (bodyError) return bodyError;
+    if (error instanceof InvalidResponseError) return NextResponse.json({ error: { message: error.message } }, { status: 502 });
     if (error instanceof ProviderConfigError) {
       return NextResponse.json(
         { error: { message: error.message } },

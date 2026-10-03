@@ -1,3 +1,4 @@
+import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { getChatSystemPrompt } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     // 解析请求体
-    const { messages, useStream = true, provider, apiUrl, model } = await req.json();
+    const { messages, useStream = true, provider, apiUrl, model } = await readJsonBody(req);
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
     
     if (!providerConfig.apiKey) {
@@ -74,6 +75,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data);
     }
   } catch (error) {
+    const bodyError = requestBodyErrorResponse(error);
+    if (bodyError) return bodyError;
     if (error instanceof ProviderConfigError) {
       return NextResponse.json(
         { error: { message: error.message } },

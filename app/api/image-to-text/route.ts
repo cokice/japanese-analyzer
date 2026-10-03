@@ -1,3 +1,6 @@
+import { validateCompletion } from '../../services/api';
+import { InvalidResponseError } from '../../utils/requestErrors';
+import { readJsonBody, requestBodyErrorResponse, IMAGE_BODY_LIMIT } from '../_utils/requestBody';
 import { getImageExtractionPrompt } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,21 +16,8 @@ export async function POST(req: NextRequest) {
     const authError = requireApiSession(req);
     if (authError) return authError;
 
-    // 获取请求内容
-    const requestBody = await req.text();
-    let parsedBody;
-    
-    try {
-      // 尝试解析请求体为JSON
-      parsedBody = JSON.parse(requestBody);
-    } catch (parseError) {
-      console.error('Failed to parse request body:', parseError);
-      return NextResponse.json(
-        { error: { message: '请求体解析失败，请确保发送有效的JSON格式' } },
-        { status: 400 }
-      );
-    }
-    
+    const parsedBody = await readJsonBody(req, IMAGE_BODY_LIMIT);
+
     const { imageData, prompt, model, apiUrl, stream = false, provider } = parsedBody;
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
 
@@ -81,6 +71,7 @@ export async function POST(req: NextRequest) {
       url: providerConfig.apiUrl,
       apiKey: providerConfig.apiKey,
       payload,
+      signal: req.signal,
     });
 
     if (!proxied.ok) {
@@ -127,6 +118,7 @@ export async function POST(req: NextRequest) {
           );
         }
       } catch (readError) {
+        if (req.signal.aborted || isUpstreamTimeoutError(readError)) throw readError;
         console.error('Failed to read API response:', readError);
         return NextResponse.json(
           { error: { message: '读取API响应时出错，请稍后重试' } },
@@ -135,9 +127,14 @@ export async function POST(req: NextRequest) {
       }
 
       // 将AI API的响应传回给客户端
+      validateCompletion(data, '图片文字提取');
       return NextResponse.json(data);
     }
   } catch (error) {
+    const bodyError = requestBodyErrorResponse(error);
+    if (bodyError) return bodyError;
+    if (error instanceof InvalidResponseError) return NextResponse.json({ error: { message: error.message } }, { status: 502 });
+    if (req.signal.aborted) return new Response(null, { status: 499 });
     if (error instanceof ProviderConfigError) {
       return NextResponse.json(
         { error: { message: error.message } },
