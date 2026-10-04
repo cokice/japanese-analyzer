@@ -137,8 +137,6 @@ export const messages = {
   "展开": {"zh-TW": "展開", "en": "Expand", "ko": "펼치기"},
   "中文译文正文": {"zh-TW": "繁體中文譯文內容", "en": "English translation text", "ko": "한국어 번역 본문"},
   "解析后将自动翻译。": {"zh-TW": "解析後將自動翻譯。", "en": "Translation appears automatically after analysis.", "ko": "분석 후 자동으로 번역됩니다."},
-  "点击带下划线的词汇": {"zh-TW": "點選有底線的單字", "en": "Select an underlined word", "ko": "밑줄 친 단어를 선택하세요"},
-  "这里会显示读音、释义和用法": {"zh-TW": "這裡會顯示讀音、釋義和用法", "en": "See its reading, meaning, and usage here", "ko": "읽는 법, 뜻, 용법이 여기에 표시됩니다"},
   "正在查询释义...": {"zh-TW": "正在查詢釋義…", "en": "Looking up the meaning…", "ko": "뜻을 찾아보는 중…"},
   "释义暂不可用": {"zh-TW": "暫時無法取得釋義", "en": "Definition unavailable", "ko": "뜻을 불러올 수 없습니다"},
   "刷新释义": {"zh-TW": "重新查詢釋義", "en": "Refresh definition", "ko": "뜻 다시 조회"},
