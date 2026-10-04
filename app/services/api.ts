@@ -494,6 +494,18 @@ function getMessageFromUnknownStreamError(value: unknown): string | undefined {
   return undefined;
 }
 
+export function validateCompletion(result: unknown, label: string): void {
+  if (!isRecord(result) || !Array.isArray(result.choices)) throw new InvalidResponseError(`${label}结果格式错误`);
+  const choice = result.choices[0];
+  if (!isRecord(choice) || !isRecord(choice.message) || typeof choice.message.content !== 'string' || !choice.message.content.trim()) {
+    throw new InvalidResponseError(`${label}结果格式错误`);
+  }
+  // Some compatible gateways omit the reason; explicit abnormal termination is never success.
+  if (choice.finish_reason != null && choice.finish_reason !== 'stop') {
+    throw new InvalidResponseError(getFinishReasonErrorMessage(String(choice.finish_reason), label));
+  }
+}
+
 function getFinishReasonErrorMessage(finishReason: string, label: string): string {
   if (finishReason === 'length') {
     return `${label}被上游模型截断（finish_reason: length），请重新生成。`;
@@ -1217,6 +1229,7 @@ export async function getWordDetails(
     }
 
     const result = await response.json();
+    validateCompletion(result, '词语详解');
     
     if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
       const responseContent = result.choices[0].message.content;
@@ -1322,6 +1335,7 @@ export async function translateText(
     }
 
     const result = await response.json();
+    validateCompletion(result, '翻译');
     
     if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
       return result.choices[0].message.content.trim();
@@ -1340,7 +1354,9 @@ export async function extractTextFromImage(
   imageData: string, 
   prompt?: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null,
+  signal?: AbortSignal
 ): Promise<string> {
   try {
     const apiUrl = getApiEndpoint('/image-to-text');
@@ -1349,10 +1365,11 @@ export async function extractTextFromImage(
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
+      signal,
       body: JSON.stringify({ 
         imageData, 
         prompt,
-        ...getRequestProviderPayload(provider)
+        ...getRequestProviderPayload(provider, model)
       })
     });
 
@@ -1363,6 +1380,7 @@ export async function extractTextFromImage(
     }
 
     const result = await response.json();
+    validateCompletion(result, '图片文字提取');
     
     if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
       return result.choices[0].message.content.trim();
@@ -1383,7 +1401,9 @@ export async function streamExtractTextFromImage(
   onError: (error: Error) => void,
   prompt?: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null,
+  signal?: AbortSignal
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/image-to-text');
@@ -1392,10 +1412,11 @@ export async function streamExtractTextFromImage(
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
+      signal,
       body: JSON.stringify({ 
         imageData, 
         prompt,
-        ...getRequestProviderPayload(provider),
+        ...getRequestProviderPayload(provider, model),
         stream: true
       })
     });
@@ -1408,6 +1429,7 @@ export async function streamExtractTextFromImage(
     }
     
     await readOpenAIContentStream(response, onChunk, onError, {
+      signal,
       debounceMs: 16,
       parseWarning: 'Failed to parse streaming JSON chunk:',
       validateFinalContent: content => {
@@ -1417,6 +1439,7 @@ export async function streamExtractTextFromImage(
       completionLabel: '图片文字提取',
     });
   } catch (error) {
+    if (signal?.aborted || isAbortError(error)) return;
     console.error('Error in stream extracting text from image:', error);
     onError(error instanceof Error ? error : new Error('未知错误'));
   }
@@ -1438,7 +1461,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 export async function synthesizeSpeech(
   text: string,
   provider: TTSProvider = 'edge',
-  options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number } = {},
+  options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number; signal?: AbortSignal } = {},
   userApiKey?: string
 ): Promise<{ audio: string; mimeType: string }> {
   const { gender = 'female', voice = 'Kore', rate = 0, pitch = 0 } = options;
@@ -1446,6 +1469,7 @@ export async function synthesizeSpeech(
   if (provider === 'edge') {
     const response = await fetch(EDGE_TTS_URL, {
       method: 'POST',
+      signal: options.signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text,
@@ -1479,6 +1503,7 @@ export async function synthesizeSpeech(
 
   const response = await fetch(apiUrl, {
     method: 'POST',
+    signal: options.signal,
     headers,
     body: JSON.stringify({ 
       text, 
@@ -1577,6 +1602,7 @@ export async function sendChat(
     }
 
     const result = await response.json();
+    validateCompletion(result, '聊天');
     
     if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
       return result.choices[0].message.content.trim();

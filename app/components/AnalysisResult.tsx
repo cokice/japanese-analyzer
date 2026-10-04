@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { containsKanji, getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEND_GROUPS } from '../utils/helpers';
+import { getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEND_GROUPS } from '../utils/helpers';
 import { TokenData } from '../services/api';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { Switch } from '@/components/ui/switch';
@@ -273,7 +273,6 @@ export default function AnalysisResult({
                     : '';
                   const hasFurigana = !!token.furigana
                     && token.furigana !== token.word
-                    && containsKanji(token.word)
                     && !isPunct;
                   const furiganaText = hasFurigana ? token.furigana! : '';
 

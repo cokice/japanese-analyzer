@@ -129,7 +129,7 @@ export async function getJapaneseTtsAudioUrl(
   text: string, 
   apiKey?: string, 
   provider: TTSProvider = 'edge',
-  options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number } = {}
+  options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number; signal?: AbortSignal } = {}
 ): Promise<string> {
   const { audio, mimeType } = await synthesizeSpeech(text, provider, options, apiKey);
   return provider === 'edge' ? 

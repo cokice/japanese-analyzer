@@ -1,3 +1,4 @@
+import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { getResponseLanguageInstruction } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     // 解析请求体
-    const requestData = await req.json();
+    const requestData = await readJsonBody(req);
 
     const {
       prompt,
@@ -91,6 +92,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data);
     }
   } catch (error) {
+    const bodyError = requestBodyErrorResponse(error);
+    if (bodyError) return bodyError;
     if (error instanceof ProviderConfigError) {
       return NextResponse.json(
         { error: { message: error.message } },

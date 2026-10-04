@@ -1,3 +1,4 @@
+import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { getReasoningSummaryPrompt } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
 import { DEEPSEEK_MODEL_NAME } from '../../lib/aiModels';
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     const authError = requireApiSession(req);
     if (authError) return authError;
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const reasoningSnippet = typeof body.reasoningSnippet === 'string'
       ? Array.from(body.reasoningSnippet).slice(-SUMMARY_SNIPPET_CHARS).join('')
       : '';
@@ -85,6 +86,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ summary });
   } catch (error) {
+    const bodyError = requestBodyErrorResponse(error);
+    if (bodyError) return bodyError;
+    if (req.signal.aborted) return new Response(null, { status: 499 });
     if (error instanceof ProviderConfigError) {
       return NextResponse.json(
         { error: { message: error.message } },

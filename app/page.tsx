@@ -1,5 +1,7 @@
 'use client';
 
+import { browserStorage } from './utils/storage';
+
 import { useLanguage } from './contexts/LanguageContext';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -133,7 +135,9 @@ export default function Home() {
     const checkAuthRequirement = async () => {
       try {
         const response = await fetch('/api/auth');
+        if (!response.ok) throw new Error('Authentication check failed');
         const data = await response.json();
+        if (typeof data.requiresAuth !== 'boolean' || typeof data.authenticated !== 'boolean') throw new Error('Invalid authentication state');
         setRequiresAuth(data.requiresAuth);
 
         if (!data.requiresAuth || data.authenticated) {
@@ -141,13 +145,13 @@ export default function Home() {
           return;
         }
 
-        localStorage.removeItem('isAuthenticated');
+        browserStorage.removeItem('isAuthenticated');
         setIsAuthenticated(false);
       } catch (error) {
         console.error('检查认证状态失败:', error);
-        // 出错时默认不需要认证
-        setRequiresAuth(false);
-        setIsAuthenticated(true);
+        // Fail closed, with the login form available for retry.
+        setRequiresAuth(true);
+        setIsAuthenticated(false);
       }
     };
 
@@ -156,9 +160,9 @@ export default function Home() {
 
   // 从本地存储加载用户API设置
   useEffect(() => {
-    const storedAISettings = loadAISettingsFromStorage(localStorage);
-    const storedUseStream = localStorage.getItem('useStream');
-    const storedTtsProvider = (localStorage.getItem('ttsProvider') || 'edge') as TTSProvider;
+    const storedAISettings = loadAISettingsFromStorage(browserStorage);
+    const storedUseStream = browserStorage.getItem('useStream');
+    const storedTtsProvider = (browserStorage.getItem('ttsProvider') || 'edge') as TTSProvider;
 
     setAiProvider(storedAISettings.aiProvider);
     setAiModel(storedAISettings.aiModel);
@@ -182,18 +186,18 @@ export default function Home() {
     deepseekThinkingEnabled: boolean;
     useStream: boolean;
   }) => {
-    localStorage.setItem('aiProvider', settings.aiProvider);
-    localStorage.setItem('aiModel', settings.aiModel);
-    localStorage.setItem('geminiApiKey', settings.geminiApiKey);
-    localStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
-    localStorage.setItem('deepseekThinkingEnabled', settings.deepseekThinkingEnabled.toString());
-    localStorage.setItem('useStream', settings.useStream.toString());
-    localStorage.removeItem('geminiApiUrl');
-    localStorage.removeItem('deepseekApiUrl');
-    localStorage.removeItem('userApiUrl');
+    browserStorage.setItem('aiProvider', settings.aiProvider);
+    browserStorage.setItem('aiModel', settings.aiModel);
+    browserStorage.setItem('geminiApiKey', settings.geminiApiKey);
+    browserStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
+    browserStorage.setItem('deepseekThinkingEnabled', settings.deepseekThinkingEnabled.toString());
+    browserStorage.setItem('useStream', settings.useStream.toString());
+    browserStorage.removeItem('geminiApiUrl');
+    browserStorage.removeItem('deepseekApiUrl');
+    browserStorage.removeItem('userApiUrl');
 
     // 保留旧键，方便旧版本或其他工具读取 Gemini 密钥配置。
-    localStorage.setItem('userApiKey', settings.geminiApiKey);
+    browserStorage.setItem('userApiKey', settings.geminiApiKey);
 
     setAiProvider(settings.aiProvider);
     setAiModel(settings.aiModel);
@@ -213,7 +217,7 @@ export default function Home() {
 
   const handleTtsProviderChange = (provider: TTSProvider) => {
     setTtsProvider(provider);
-    localStorage.setItem('ttsProvider', provider);
+    browserStorage.setItem('ttsProvider', provider);
   };
 
   // 处理密码验证
@@ -230,9 +234,9 @@ export default function Home() {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok && data.success) {
         setIsAuthenticated(true);
-        localStorage.removeItem('isAuthenticated');
+        browserStorage.removeItem('isAuthenticated');
       } else {
         setAuthError(localizeError(data.message || "验证失败", locale));
       }
@@ -510,6 +514,9 @@ export default function Home() {
 
   // 「新句子」：清空当前解析，回到首页
   const handleStartOver = () => {
+    analysisAbortControllerRef.current?.abort();
+    analysisAbortControllerRef.current = null;
+    setIsAnalyzing(false);
     handleCloseWordDetail();
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;
@@ -591,6 +598,7 @@ export default function Home() {
               onCancelAnalyze={handleCancelAnalysis}
               userApiKey={userApiKey}
               aiProvider={aiProvider}
+              aiModel={aiModel}
               geminiApiKey={geminiApiKey}
               useStream={useStream}
               ttsProvider={ttsProvider}

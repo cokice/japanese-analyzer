@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "tsx tests/api.test.ts && tsx tests/i18n.test.ts"
+    "test": "tsx tests/api.test.ts && tsx tests/i18n.test.ts && tsx tests/regressions.test.ts"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.14.16",

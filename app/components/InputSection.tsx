@@ -1,10 +1,13 @@
 'use client';
 
+import { LatestRequest } from '../utils/latestRequest';
+import { browserStorage } from '../utils/storage';
+
 import { getImageExtractionPrompt } from '../lib/languagePrompts';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
-import type { AIProvider, TTSProvider } from '../services/api';
+import type { AIProvider, AIModelName, TTSProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
 import {
   getImageRecognitionUsage,
@@ -28,6 +31,7 @@ interface InputSectionProps {
   onCancelAnalyze: () => void;
   userApiKey?: string;
   aiProvider: AIProvider;
+  aiModel?: AIModelName;
   geminiApiKey?: string;
   useStream?: boolean;
   ttsProvider: TTSProvider;
@@ -89,6 +93,7 @@ export default function InputSection({
   onCancelAnalyze,
   userApiKey,
   aiProvider,
+  aiModel,
   geminiApiKey,
   useStream = true, // 默认启用流式输出
   ttsProvider,
@@ -126,6 +131,38 @@ export default function InputSection({
   const spokenTextRef = useRef('');
   const wasCompactRef = useRef(compact);
   const reduceMotion = useReducedMotion();
+  const imageRequest = useRef(new LatestRequest());
+  const speechRequest = useRef(new LatestRequest());
+
+  useEffect(() => () => {
+    imageRequest.current.cancel();
+    speechRequest.current.cancel();
+    window.speechSynthesis?.cancel();
+  }, []);
+
+  useEffect(() => () => {
+    if (ttsAudioUrl) URL.revokeObjectURL(ttsAudioUrl);
+  }, [ttsAudioUrl]);
+
+  useEffect(() => {
+    imageRequest.current.cancel();
+    speechRequest.current.cancel();
+    setIsImageUploading(false);
+    setIsSpeaking(false);
+    setUploadStatus('');
+    setTtsAudioUrl(null);
+    window.speechSynthesis?.cancel();
+  }, [aiProvider, aiModel, locale, ttsProvider]);
+
+  const cancelInputRequests = () => {
+    imageRequest.current.cancel();
+    speechRequest.current.cancel();
+    setIsImageUploading(false);
+    setIsSpeaking(false);
+    setUploadStatus('');
+    setTtsAudioUrl(null);
+    window.speechSynthesis?.cancel();
+  };
 
   // 从阅读态展开时把光标放回输入框末尾
   useEffect(() => {
@@ -177,10 +214,10 @@ export default function InputSection({
   useEffect(() => {
     if (!FIRST_VISIT_EXAMPLE_ENABLED) return;
     try {
-      if (localStorage.getItem(FIRST_VISIT_EXAMPLE_KEY) !== 'true') {
+      if (browserStorage.getItem(FIRST_VISIT_EXAMPLE_KEY) !== 'true') {
         setInputText(FIRST_VISIT_EXAMPLE);
         setShowFirstVisitExample(true);
-        localStorage.setItem(FIRST_VISIT_EXAMPLE_KEY, 'true');
+        browserStorage.setItem(FIRST_VISIT_EXAMPLE_KEY, 'true');
       }
     } catch {
       // localStorage 不可用时仍展示一次当前会话内的引导。
@@ -191,10 +228,10 @@ export default function InputSection({
 
   // 从本地存储加载TTS设置
   useEffect(() => {
-    const storedGender = (localStorage.getItem('ttsGender') || 'female') as 'male' | 'female';
-    const storedRate = parseInt(localStorage.getItem('ttsRate') || '0');
-    const storedVoice = localStorage.getItem('ttsVoice') || 'Kore';
-    const storedStyle = localStorage.getItem('ttsStyle') || '';
+    const storedGender = (browserStorage.getItem('ttsGender') || 'female') as 'male' | 'female';
+    const storedRate = parseInt(browserStorage.getItem('ttsRate') || '0');
+    const storedVoice = browserStorage.getItem('ttsVoice') || 'Kore';
+    const storedStyle = browserStorage.getItem('ttsStyle') || '';
     setSelectedGender(storedGender);
     setSelectedRate(storedRate);
     setSelectedVoice(storedVoice);
@@ -233,6 +270,7 @@ export default function InputSection({
   };
 
   const handleInputTextChange = (value: string) => {
+    cancelInputRequests();
     setInputText(value);
     setShowFirstVisitExample(false);
 
@@ -252,9 +290,9 @@ export default function InputSection({
   const markImageRecognitionUsed = () => {
     usageMetadataRef.current = {
       ...usageMetadataRef.current,
-      imageRecognition: getImageRecognitionUsage(aiProvider),
+      imageRecognition: getImageRecognitionUsage(aiProvider, aiModel),
     };
-    trackImageRecognitionUsage(aiProvider);
+    trackImageRecognitionUsage(aiProvider, aiModel);
   };
 
   const markTtsUsed = (provider: TTSProvider) => {
@@ -303,7 +341,9 @@ export default function InputSection({
 
   const handleSpeak = async () => {
     if (!inputText.trim()) return;
+    const request = speechRequest.current.start();
     setIsSpeaking(true);
+    setTtsAudioUrl(null);
 
     try {
       if (ttsProvider === 'edge') {
@@ -311,25 +351,29 @@ export default function InputSection({
         const url = await getJapaneseTtsAudioUrl(inputText, undefined, 'edge', {
           gender: selectedGender,
           rate: selectedRate,
-          pitch: 0
+          pitch: 0,
+          signal: request.signal
         });
+        if (!request.isCurrent()) { URL.revokeObjectURL(url); return; }
         setTtsAudioUrl(url);
         markTtsUsed('edge');
       } else if (ttsProvider === 'gemini') {
         // 使用 Gemini TTS，添加风格控制
         const stylePrompt = TTS_STYLES.find(s => s.value === selectedStyle)?.prompt || '';
         const textToSpeak = stylePrompt + inputText;
-        const url = await getJapaneseTtsAudioUrl(textToSpeak, geminiApiKey, 'gemini', { voice: selectedVoice, pitch: 0 });
+        const url = await getJapaneseTtsAudioUrl(textToSpeak, geminiApiKey, 'gemini', { voice: selectedVoice, pitch: 0, signal: request.signal });
+        if (!request.isCurrent()) { URL.revokeObjectURL(url); return; }
         setTtsAudioUrl(url);
         markTtsUsed('gemini');
       }
     } catch (e) {
+      if (!request.isCurrent()) return;
       console.error('TTS error:', e);
       setTtsAudioUrl(null);
       // 如果失败，回退到系统 TTS
       speakJapanese(inputText);
     } finally {
-      setIsSpeaking(false);
+      if (request.isCurrent()) setIsSpeaking(false);
     }
   };
 
@@ -339,22 +383,22 @@ export default function InputSection({
 
   const handleVoiceChange = (voice: string) => {
     setSelectedVoice(voice);
-    localStorage.setItem('ttsVoice', voice);
+    browserStorage.setItem('ttsVoice', voice);
   };
 
   const handleGenderChange = (gender: 'male' | 'female') => {
     setSelectedGender(gender);
-    localStorage.setItem('ttsGender', gender);
+    browserStorage.setItem('ttsGender', gender);
   };
 
   const handleRateChange = (rate: number) => {
     setSelectedRate(rate);
-    localStorage.setItem('ttsRate', rate.toString());
+    browserStorage.setItem('ttsRate', rate.toString());
   };
 
   const handleStyleChange = (style: string) => {
     setSelectedStyle(style);
-    localStorage.setItem('ttsStyle', style);
+    browserStorage.setItem('ttsStyle', style);
   };
 
   // 根据文本长度估算合成时间
@@ -374,6 +418,8 @@ export default function InputSection({
       return;
     }
 
+    cancelInputRequests();
+    const request = imageRequest.current.start();
     setIsImageUploading(true);
     setUploadStatus(t("正在上传并识别图片中的文字..."));
     setUploadStatusClass('mt-2 text-sm');
@@ -381,15 +427,17 @@ export default function InputSection({
     try {
       // 压缩图片以减小数据大小
       const compressedImageData = await compressImage(file);
+      if (!request.isCurrent()) return;
 
       // 优化提示词，明确不要换行符
       const imageExtractionPrompt = getImageExtractionPrompt(locale);
 
       if (useStream) {
         // 使用流式API进行图片文字提取
-        streamExtractTextFromImage(
+        await streamExtractTextFromImage(
           compressedImageData,
           (chunk, isDone) => {
+            if (!request.isCurrent()) return;
             setInputText(chunk);
 
             if (isDone) {
@@ -400,6 +448,7 @@ export default function InputSection({
             }
           },
           (error) => {
+            if (!request.isCurrent()) return;
             console.error('Error during streaming image text extraction:', error);
             setUploadStatus(t("提取时发生错误: {0}。", errorText(error.message || "未知错误")));
             setUploadStatusClass('mt-2 text-sm');
@@ -407,11 +456,14 @@ export default function InputSection({
           },
           imageExtractionPrompt,
           userApiKey,
-          aiProvider
+          aiProvider,
+          aiModel,
+          request.signal
         );
       } else {
         // 使用传统API进行图片文字提取
-        const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, aiProvider);
+        const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, aiProvider, aiModel, request.signal);
+        if (!request.isCurrent()) return;
         setInputText(extractedText);
         markImageRecognitionUsed();
         setUploadStatus(t("文字提取成功！请确认后点击\"解析\"。"));
@@ -419,6 +471,7 @@ export default function InputSection({
         setIsImageUploading(false);
       }
     } catch (error) {
+      if (!request.isCurrent()) return;
       console.error('Error during image text extraction:', error);
       setUploadStatus(t("提取时发生错误: {0}。", error instanceof Error ? errorText(error.message) : t("未知错误")));
       setUploadStatusClass('mt-2 text-sm');
@@ -532,7 +585,7 @@ export default function InputSection({
     lineHeight: 1.6,
     letterSpacing: '0.3px',
   };
-  const showInputShimmer = isLoading && inputText.trim().length > 0;
+  const showInputShimmer = !reduceMotion && isLoading && inputText.trim().length > 0;
 
   // 输入框高度随内容自适应；compact 切换会重新挂载输入框，需要对新的 textarea 重新测量和监听
   useLayoutEffect(() => {
@@ -887,7 +940,7 @@ export default function InputSection({
                   <button
                     className="input-tool-button input-clear-button mr-2"
                     onClick={() => {
-                      setInputText('');
+                      handleInputTextChange('');
                       setTtsAudioUrl(null);
                       setShowFirstVisitExample(false);
                       clearUsageMetadata();

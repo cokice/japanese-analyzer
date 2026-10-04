@@ -1,3 +1,4 @@
+import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { NextRequest, NextResponse } from 'next/server';
 import { createUpstreamSignal, isUpstreamTimeoutError } from '../_utils/requestTimeout';
 import { requireApiSession } from '../_utils/sessionAuth';
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     const authError = requireApiSession(req);
     if (authError) return authError;
 
-    const { text, provider = 'edge', gender = 'female', voice = 'Kore', model = MODEL_NAME, rate = 0, pitch = 0 } = await req.json();
+    const { text, provider = 'edge', gender = 'female', voice = 'Kore', model = MODEL_NAME, rate = 0, pitch = 0 } = await readJsonBody(req);
 
     if (!text) {
       return NextResponse.json(
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        signal: createUpstreamSignal()
+        signal: AbortSignal.any([req.signal, createUpstreamSignal()!])
       });
 
       if (!response.ok) {
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      if (!GEMINI_VOICES.includes(voice)) {
+      if (typeof voice !== 'string' || !GEMINI_VOICES.includes(voice)) {
         return NextResponse.json(
           { error: { message: '不支持的Gemini语音类型' } },
           { status: 400 }
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
           'x-goog-api-key': effectiveApiKey,
         },
         body: JSON.stringify(payload),
-        signal: createUpstreamSignal()
+        signal: AbortSignal.any([req.signal, createUpstreamSignal()!])
       });
 
       if (!response.ok) {
@@ -160,6 +161,9 @@ export async function POST(req: NextRequest) {
     }
 
   } catch (error) {
+    const bodyError = requestBodyErrorResponse(error);
+    if (bodyError) return bodyError;
+    if (req.signal.aborted) return new Response(null, { status: 499 });
     if (isUpstreamTimeoutError(error)) {
       return NextResponse.json(
         { error: { message: '上游 TTS 请求超时，请稍后重试。' } },
