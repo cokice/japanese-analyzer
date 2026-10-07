@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { createHmac } from 'crypto';
 import './analysisHistory.test';
 import './dailySentence.test';
 import './phraseRange.test';
@@ -28,9 +29,11 @@ import {
   DEFAULT_AI_PROVIDER as SERVER_DEFAULT_AI_PROVIDER,
   GEMINI_OPENAI_API_URL,
   ProviderConfigError,
+  SERVER_KEY_DISABLED_MESSAGE,
   getStructuredResponseFormat,
   normalizeAIProvider as normalizeServerAIProvider,
   resolveProviderConfig,
+  resolveServerProviderConfig,
   withProviderControls
 } from '../app/api/_utils/providerConfig';
 import {
@@ -168,8 +171,10 @@ assert.strictEqual(getModelName('gemini', 'gemini-flash-lite-latest'), 'gemini-f
 assert.strictEqual(getModelName('gemini', 'deepseek-flash'), 'gemini-flash-latest');
 
 const oldCode = process.env.CODE;
+const oldSessionSecret = process.env.SESSION_SECRET;
 try {
   delete process.env.CODE;
+  delete process.env.SESSION_SECRET;
   assert.strictEqual(isAuthRequired(), false);
   assert.strictEqual(isValidAuthToken(null), true);
 
@@ -178,10 +183,40 @@ try {
   assert.strictEqual(isAuthRequired(), true);
   assert.ok(isValidAuthToken(authToken, 1_000));
   assert.ok(!isValidAuthToken(`${authToken}tampered`, 1_000));
-  assert.ok(!isValidAuthToken(authToken, 1_000 + (AUTH_COOKIE_MAX_AGE_SECONDS + 1) * 1000));
+  assert.ok(!isValidAuthToken(authToken, 1_000 + AUTH_COOKIE_MAX_AGE_SECONDS * 1000));
+  assert.ok(!isValidAuthToken(null, 1_000));
+
+  // payload 含随机 nonce，同一时刻签发的两个 token 也不相同
+  const [version, expiresAt, nonce, signature] = authToken.split('.');
+  assert.strictEqual(version, 'v2');
+  assert.strictEqual(Number(expiresAt), 1_000 + AUTH_COOKIE_MAX_AGE_SECONDS * 1000);
+  assert.notStrictEqual(createAuthToken(1_000), authToken);
+
+  // 签名密钥与 CODE 无关：用 CODE 作 HMAC key 伪造的 token 无效
+  const forgedPayload = `${version}.${expiresAt}.${nonce}`;
+  const forgedWithCode = createHmac('sha256', 'test-password').update(forgedPayload).digest('base64url');
+  assert.ok(!isValidAuthToken(`${forgedPayload}.${forgedWithCode}`, 1_000));
+  // 篡改过期时间后签名失效
+  assert.ok(!isValidAuthToken(`${version}.${Number(expiresAt) + 1}.${nonce}.${signature}`, 1_000));
+
+  // 旧格式（v1.<签发时间>.<HMAC(CODE)>）直接视为无效
+  const legacyPayload = 'v1.1000';
+  const legacyToken = `${legacyPayload}.${createHmac('sha256', 'test-password').update(legacyPayload).digest('base64url')}`;
+  assert.ok(!isValidAuthToken(legacyToken, 1_000));
+
+  // 显式设置 SESSION_SECRET 时用它签名；更换后旧 token 失效
+  process.env.SESSION_SECRET = 'secret-a';
+  const tokenA = createAuthToken(1_000);
+  assert.ok(isValidAuthToken(tokenA, 1_000));
+  const [, expA, nonceA, sigA] = tokenA.split('.');
+  assert.strictEqual(sigA, createHmac('sha256', 'secret-a').update(`v2.${expA}.${nonceA}`).digest('base64url'));
+  process.env.SESSION_SECRET = 'secret-b';
+  assert.ok(!isValidAuthToken(tokenA, 1_000));
 } finally {
   if (oldCode === undefined) delete process.env.CODE;
   else process.env.CODE = oldCode;
+  if (oldSessionSecret === undefined) delete process.env.SESSION_SECRET;
+  else process.env.SESSION_SECRET = oldSessionSecret;
 }
 
 assert.strictEqual(resolveUmamiConfig({}), null);
@@ -675,9 +710,48 @@ const oldGeminiApiKey = process.env.GEMINI_API_KEY;
 const oldGeminiApiUrl = process.env.GEMINI_API_URL;
 const oldLegacyApiKey = process.env.API_KEY;
 const oldLegacyApiUrl = process.env.API_URL;
-const createProviderConfigRequest = () => (
-  { headers: new Headers() } as Parameters<typeof resolveProviderConfig>[0]
+const oldProviderCode = process.env.CODE;
+const oldAllowPublicServerKey = process.env.ALLOW_PUBLIC_SERVER_KEY;
+const createProviderConfigRequest = (apiKey?: string) => (
+  { headers: new Headers(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) } as Parameters<typeof resolveProviderConfig>[0]
 );
+const isServerKeyDisabledError = (error: unknown) => (
+  error instanceof ProviderConfigError &&
+  error.status === 403 &&
+  error.message === SERVER_KEY_DISABLED_MESSAGE
+);
+
+// CODE 为空且未允许公开使用时：没带个人 Key 的请求被拒绝，带了个人 Key 正常放行
+try {
+  delete process.env.CODE;
+  delete process.env.ALLOW_PUBLIC_SERVER_KEY;
+  process.env.GEMINI_API_KEY = 'gemini-key';
+  assert.throws(() => resolveProviderConfig(createProviderConfigRequest(), { provider: 'gemini' }), isServerKeyDisabledError);
+  assert.match(SERVER_KEY_DISABLED_MESSAGE, /CODE/);
+  assert.match(SERVER_KEY_DISABLED_MESSAGE, /ALLOW_PUBLIC_SERVER_KEY=true/);
+  assert.strictEqual(resolveServerProviderConfig('gemini').apiKey, '');
+  assert.strictEqual(
+    resolveProviderConfig(createProviderConfigRequest('user-key'), { provider: 'gemini' }).apiKey,
+    'user-key'
+  );
+
+  process.env.ALLOW_PUBLIC_SERVER_KEY = 'false';
+  assert.throws(() => resolveProviderConfig(createProviderConfigRequest(), { provider: 'gemini' }), isServerKeyDisabledError);
+
+  process.env.ALLOW_PUBLIC_SERVER_KEY = 'true';
+  assert.strictEqual(resolveProviderConfig(createProviderConfigRequest(), { provider: 'gemini' }).apiKey, 'gemini-key');
+  assert.strictEqual(resolveServerProviderConfig('gemini').apiKey, 'gemini-key');
+
+  delete process.env.ALLOW_PUBLIC_SERVER_KEY;
+  process.env.CODE = 'test-password';
+  assert.strictEqual(resolveProviderConfig(createProviderConfigRequest(), { provider: 'gemini' }).apiKey, 'gemini-key');
+  assert.strictEqual(resolveServerProviderConfig('gemini').apiKey, 'gemini-key');
+} finally {
+  if (oldProviderCode === undefined) delete process.env.CODE;
+  else process.env.CODE = oldProviderCode;
+  if (oldGeminiApiKey === undefined) delete process.env.GEMINI_API_KEY;
+  else process.env.GEMINI_API_KEY = oldGeminiApiKey;
+}
 
 assert.throws(
   () => resolveProviderConfig(
@@ -692,6 +766,7 @@ assert.throws(
 );
 
 try {
+  process.env.ALLOW_PUBLIC_SERVER_KEY = 'true';
   delete process.env.GEMINI_API_KEY;
   delete process.env.GEMINI_API_URL;
   process.env.API_KEY = 'legacy-key';
@@ -738,6 +813,9 @@ try {
 
   if (oldLegacyApiUrl === undefined) delete process.env.API_URL;
   else process.env.API_URL = oldLegacyApiUrl;
+
+  if (oldAllowPublicServerKey === undefined) delete process.env.ALLOW_PUBLIC_SERVER_KEY;
+  else process.env.ALLOW_PUBLIC_SERVER_KEY = oldAllowPublicServerKey;
 }
 
 class MemoryStorage implements StorageLike {

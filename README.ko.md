@@ -60,7 +60,7 @@
 | 이미지 인식 | 선택한 텍스트 모델과 동일 | — |
 | 읽어 주기 | Edge TTS | Gemini TTS(Gemini 키 필요) |
 
-서버에 설정한 키는 모든 방문자가 함께 사용합니다. 사용자는 설정에서 자신의 키를 입력할 수도 있으며, 키는 해당 브라우저에 저장되고 요청할 때 이 앱의 서버를 거쳐 모델 제공 업체로 전달됩니다.
+접속 비밀번호 `CODE`를 설정하면 서버에 설정한 키를 로그인한 방문자가 함께 사용합니다. `CODE`가 비어 있으면 서버 키의 익명 사용이 기본적으로 차단되며, 방문자는 설정에서 자신의 키를 입력해야 합니다(개인 또는 내부망 용도에 한해 `ALLOW_PUBLIC_SERVER_KEY=true`로 해제 가능). 사용자 본인의 키는 해당 브라우저에 저장되고 요청할 때 이 앱의 서버를 거쳐 모델 제공 업체로 전달됩니다.
 
 ## 빠른 시작
 
@@ -77,6 +77,8 @@ cp .env.example .env.local   # Windows: Copy-Item .env.example .env.local
 
 ```env
 DEEPSEEK_API_KEY=your_deepseek_api_key
+# 로컬 전용: CODE가 비어 있을 때 위 서버 키를 사용하려면 필요. 공개 배포에서는 켜지 마세요
+ALLOW_PUBLIC_SERVER_KEY=true
 ```
 
 ```bash
@@ -92,10 +94,14 @@ npm run dev
 | `DEEPSEEK_API_KEY` | 권장. 기본 분석, 번역, 이미지 인식 |
 | `GEMINI_API_KEY` | 선택. Gemini 텍스트 모델, 이미지 인식, Gemini TTS |
 | `DEEPSEEK_API_URL` / `GEMINI_API_URL` | 선택. OpenAI 호환 엔드포인트, 비워 두면 공식 주소 사용 |
-| `CODE` | 선택. 접속 비밀번호, 비워 두면 비밀번호 없이 사용 |
+| `CODE` | 선택. 접속 비밀번호, 비워 두면 비밀번호 없이 사용. 비워 두면 서버 키의 익명 사용이 기본적으로 차단됨 |
+| `ALLOW_PUBLIC_SERVER_KEY` | 선택, 기본값 `false`. `CODE`가 비어 있을 때 `true`로 설정하면 누구나 서버 키를 사용할 수 있음. 개인 또는 내부망 전용 |
+| `SESSION_SECRET` | 선택. 로그인 세션 서명 키(32바이트 이상의 무작위 값 권장, 예: `openssl rand -base64 32`), `CODE`와 무관. 비워 두면 시작할 때마다 무작위로 생성되어 재시작 후 다시 로그인해야 함. **다중 인스턴스 배포(여러 레플리카, Vercel 등 서버리스)에서는 필수** |
 | `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 선택. 둘 다 입력하면 Umami 통계 사용 |
 
-키는 서버에서만 사용되며 브라우저로 전달되지 않습니다. 「오늘의 문장」은 서버 키로 생성하며, 키가 없으면 내장 예문을 보여 줍니다.
+키는 서버에서만 사용되며 브라우저로 전달되지 않습니다. 「오늘의 문장」은 서버 키로 생성하며, 키가 없거나 서버 키 사용이 허용되지 않으면 내장 예문을 보여 줍니다.
+
+앱 자체는 AI 요청을 제한하지 않으며, 사용량과 비용은 모델 제공 업체에서 관리합니다. **공개 배포 시에는 DeepSeek / Gemini 등 제공 업체 콘솔에서 서버 키의 사용량 또는 예산 한도를 설정하는 것을 권장합니다.**
 
 <details>
 <summary>Umami가 기록하는 내용</summary>

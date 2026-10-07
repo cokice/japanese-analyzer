@@ -6,6 +6,7 @@ import {
   normalizeAIProvider,
   type AIProvider,
 } from '../../lib/aiModels';
+import { isAuthRequired } from './sessionAuth';
 
 export type StructuredOutputKind = 'analysisTokens' | 'wordDetail' | 'phraseDetail' | 'dailySentence';
 export { DEFAULT_AI_PROVIDER, normalizeAIProvider };
@@ -22,6 +23,22 @@ export class ProviderConfigError extends Error {
     this.name = 'ProviderConfigError';
     this.status = status;
   }
+}
+
+// CODE 为空时任何人都能调用接口，默认不允许匿名请求消耗服务器 Key。
+export const SERVER_KEY_DISABLED_MESSAGE = '本站未设置访问密码，已禁止匿名使用服务器 API 密钥。请在「设置」中填写你自己的 API 密钥后重试。站点管理员可设置 CODE 开启访问密码，或设置 ALLOW_PUBLIC_SERVER_KEY=true 允许公开使用服务器密钥（仅限个人或内网使用）。';
+
+export function isPublicServerKeyAllowed(): boolean {
+  return process.env.ALLOW_PUBLIC_SERVER_KEY?.trim().toLowerCase() === 'true';
+}
+
+/** 设置了 CODE（访问需登录），或显式允许公开使用时，才可以用服务器 Key */
+export function isServerKeyAllowed(): boolean {
+  return isAuthRequired() || isPublicServerKeyAllowed();
+}
+
+export function hasAnyServerApiKey(): boolean {
+  return Boolean(process.env.DEEPSEEK_API_KEY || process.env.GEMINI_API_KEY);
 }
 
 function getBearerToken(req: NextRequest): string {
@@ -49,7 +66,7 @@ function getDefaultApiKey(provider: AIProvider): string {
 export function resolveServerProviderConfig(provider: AIProvider) {
   return {
     provider,
-    apiKey: getDefaultApiKey(provider),
+    apiKey: isServerKeyAllowed() ? getDefaultApiKey(provider) : '',
     apiUrl: getDefaultApiUrl(provider),
     model: getModelName(provider),
   };
@@ -73,9 +90,14 @@ export function resolveProviderConfig(
     throw new ProviderConfigError('客户端不再支持自定义 API URL，请在服务器环境变量中配置上游端点。');
   }
 
+  const userApiKey = getBearerToken(req);
+  if (!userApiKey && !isServerKeyAllowed()) {
+    throw new ProviderConfigError(SERVER_KEY_DISABLED_MESSAGE, 403);
+  }
+
   return {
     provider,
-    apiKey: getBearerToken(req) || getDefaultApiKey(provider),
+    apiKey: userApiKey || getDefaultApiKey(provider),
     apiUrl: getDefaultApiUrl(provider),
     model: customModel ? normalizeAIModel(provider, customModel) : getModelName(provider),
   };

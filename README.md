@@ -60,7 +60,7 @@
 | 图片识别 | 与所选文本模型一致 | — |
 | 朗读 | Edge TTS | Gemini TTS（需要 Gemini Key） |
 
-服务器配置的 Key 供所有访客使用；用户也可以在设置里填自己的 Key，保存在自己的浏览器里，请求时经本应用服务端转发给模型服务商。
+设置了访问密码 `CODE` 时，服务器配置的 Key 供登录后的访客使用；未设置 `CODE` 时默认禁止匿名使用服务器 Key，访客需要在设置里填自己的 Key（如确属个人或内网使用，可设置 `ALLOW_PUBLIC_SERVER_KEY=true` 放开）。用户自己的 Key 保存在自己的浏览器里，请求时经本应用服务端转发给模型服务商。
 
 ## 快速开始
 
@@ -77,6 +77,8 @@ cp .env.example .env.local   # Windows：Copy-Item .env.example .env.local
 
 ```env
 DEEPSEEK_API_KEY=your_deepseek_api_key
+# 本机自用：未设置 CODE 时需要它才能使用上面的服务器 Key，公开部署不要开启
+ALLOW_PUBLIC_SERVER_KEY=true
 ```
 
 ```bash
@@ -92,10 +94,14 @@ npm run dev
 | `DEEPSEEK_API_KEY` | 推荐。默认的解析、翻译与图片识别 |
 | `GEMINI_API_KEY` | 可选。Gemini 文本模型、图片识别与 Gemini TTS |
 | `DEEPSEEK_API_URL` / `GEMINI_API_URL` | 可选。OpenAI 兼容接口地址，留空用官方地址 |
-| `CODE` | 可选。访问密码，留空则不需要密码 |
+| `CODE` | 可选。访问密码，留空则不需要密码；留空时默认不允许匿名使用服务器 Key |
+| `ALLOW_PUBLIC_SERVER_KEY` | 可选，默认 `false`。`CODE` 为空时设为 `true` 才允许任何访客使用服务器 Key，仅限个人或内网使用 |
+| `SESSION_SECRET` | 可选。登录会话的签名密钥（建议 32 字节以上随机值，如 `openssl rand -base64 32`），与 `CODE` 无关。留空时每次启动随机生成，重启后需重新登录；**多实例部署（多副本、Vercel 等 Serverless）必须设置** |
 | `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 可选。两个都填写后启用 Umami 统计 |
 
-Key 只在服务端使用，不会下发到浏览器。「每日一句」使用服务器 Key 生成，未配置时显示内置例句。
+Key 只在服务端使用，不会下发到浏览器。「每日一句」使用服务器 Key 生成，未配置或未允许使用服务器 Key 时显示内置例句。
+
+应用本身不对 AI 接口做限流，用量和费用由模型服务商控制。**公开部署时，建议在 DeepSeek / Gemini 等服务商后台为服务器 Key 设置用量或预算上限。**
 
 <details>
 <summary>Umami 会记录什么</summary>

@@ -60,7 +60,7 @@
 | Image text recognition | Same as the selected text model | — |
 | Read-aloud | Edge TTS | Gemini TTS (requires a Gemini key) |
 
-Keys configured on the server are shared by all visitors. Users can also enter their own keys in Settings; they're stored in that browser and sent through this app's server to the model provider with each request.
+When an access password (`CODE`) is set, keys configured on the server are shared by signed-in visitors. Without `CODE`, anonymous use of the server keys is disabled by default and visitors must enter their own keys in Settings (set `ALLOW_PUBLIC_SERVER_KEY=true` to lift this for personal or intranet deployments only). Users' own keys are stored in their browser and sent through this app's server to the model provider with each request.
 
 ## Quick start
 
@@ -77,6 +77,8 @@ Add at least one key to `.env.local`, then start the dev server:
 
 ```env
 DEEPSEEK_API_KEY=your_deepseek_api_key
+# Local use only: needed to use the server key above when CODE is empty. Do not enable on public deployments
+ALLOW_PUBLIC_SERVER_KEY=true
 ```
 
 ```bash
@@ -92,10 +94,14 @@ Open <http://localhost:3000>. To try it from a phone on the same network, run `n
 | `DEEPSEEK_API_KEY` | Recommended. Default analysis, translation, and image recognition |
 | `GEMINI_API_KEY` | Optional. Gemini text models, image recognition, and Gemini TTS |
 | `DEEPSEEK_API_URL` / `GEMINI_API_URL` | Optional. OpenAI-compatible endpoints; leave empty for the official ones |
-| `CODE` | Optional. Access password; leave empty for open access |
+| `CODE` | Optional. Access password; leave empty for open access. When empty, anonymous use of server keys is disabled by default |
+| `ALLOW_PUBLIC_SERVER_KEY` | Optional, default `false`. With an empty `CODE`, set to `true` to let any visitor use the server keys. Personal or intranet use only |
+| `SESSION_SECRET` | Optional. Signing key for login sessions (use 32+ random bytes, e.g. `openssl rand -base64 32`), independent of `CODE`. When empty, a random key is generated at each start and users must sign in again after a restart. **Required for multi-instance deployments (multiple replicas, Vercel or other serverless)** |
 | `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Optional. Set both to enable Umami analytics |
 
-Keys stay on the server and are never sent to the browser. The sentence of the day is generated with the server key; without one, built-in examples are shown.
+Keys stay on the server and are never sent to the browser. The sentence of the day is generated with the server key; when no key is configured or server keys are not allowed, built-in examples are shown.
+
+The app does not rate-limit AI requests; usage and cost are controlled by the model provider. **For public deployments, set a usage or budget limit for the server keys in the DeepSeek / Gemini console.**
 
 <details>
 <summary>What Umami records</summary>

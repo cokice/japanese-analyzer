@@ -21,6 +21,7 @@ async function main() {
   assert.equal(createTranslator('zh-TW')('保存设置'), '儲存設定');
   assert.equal(createTranslator('en')('当前模型服务商：{0}', 'Gemini'), 'Current AI provider: Gemini');
   assert.equal(localizeError('流式翻译失败：未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥', 'en'), 'Streaming translation failed: No API key provided. Enter one in Settings or contact the administrator.');
+  assert.match(localizeError('流式解析失败：本站未设置访问密码，已禁止匿名使用服务器 API 密钥。请在「设置」中填写你自己的 API 密钥后重试。站点管理员可设置 CODE 开启访问密码，或设置 ALLOW_PUBLIC_SERVER_KEY=true 允许公开使用服务器密钥（仅限个人或内网使用）。', 'en'), /^Streaming analysis failed: This site has no access password.*ALLOW_PUBLIC_SERVER_KEY=true/);
   assert.equal(localizeError('第 2/3 段没有返回完整解析结果，请重试。', 'en'), 'Chunk 2/3 returned an incomplete analysis. Please try again.');
   assert.equal(localizeError('翻译结果连接已结束，但没有收到完整结束信号，请重新生成。', 'en'), 'The translation disconnected before completion. Please try again.');
   assert.equal(localizeError('图片文字提取连接已结束，但没有收到完整结束信号，请重新生成。', 'ko'), '이미지 글자 추출 완료 신호를 받기 전에 연결이 종료되었습니다. 다시 시도해 주세요.');

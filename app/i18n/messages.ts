@@ -175,6 +175,7 @@ export const messages = {
   "语言": {"zh-TW": "語言", "en": "Language", "ko": "언어"},
   "界面和 AI 回答将使用所选语言。": {"zh-TW": "介面與 AI 回答將使用所選語言。", "en": "Use this language for the interface and AI responses.", "ko": "화면과 AI 답변에 선택한 언어가 적용됩니다."},
   "未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥": {"zh-TW": "未提供 API 金鑰，請在設定中填入金鑰，或聯絡管理員設定伺服器金鑰", "en": "No API key provided. Enter one in Settings or contact the administrator.", "ko": "API 키가 없습니다. 설정에서 키를 입력하거나 관리자에게 문의해 주세요."},
+  "本站未设置访问密码，已禁止匿名使用服务器 API 密钥。请在「设置」中填写你自己的 API 密钥后重试。站点管理员可设置 CODE 开启访问密码，或设置 ALLOW_PUBLIC_SERVER_KEY=true 允许公开使用服务器密钥（仅限个人或内网使用）。": {"zh-TW": "本站未設定存取密碼，已禁止匿名使用伺服器 API 金鑰。請在「設定」中填入你自己的 API 金鑰後再試。站點管理員可設定 CODE 啟用存取密碼，或設定 ALLOW_PUBLIC_SERVER_KEY=true 允許公開使用伺服器金鑰（僅限個人或內網使用）。", "en": "This site has no access password, so anonymous use of the server API key is disabled. Enter your own API key in Settings and try again. Site admins can set CODE to require a password, or set ALLOW_PUBLIC_SERVER_KEY=true to allow public use of the server key (personal or intranet use only).", "ko": "이 사이트에는 접속 비밀번호가 설정되지 않아 서버 API 키의 익명 사용이 차단되었습니다. 설정에서 본인의 API 키를 입력한 뒤 다시 시도해 주세요. 사이트 관리자는 CODE를 설정해 접속 비밀번호를 켜거나, ALLOW_PUBLIC_SERVER_KEY=true로 서버 키의 공개 사용을 허용할 수 있습니다(개인 또는 내부망 전용)."},
   "密码错误，请重试": {"zh-TW": "密碼錯誤，請再試一次", "en": "Incorrect password. Please try again.", "ko": "비밀번호가 올바르지 않습니다. 다시 시도해 주세요."},
   "请先完成访问验证": {"zh-TW": "請先完成存取驗證", "en": "Please verify your access first.", "ko": "먼저 접속 인증을 완료해 주세요."},
   "停止": {"zh-TW": "停止", "en": "Stop", "ko": "중지"},

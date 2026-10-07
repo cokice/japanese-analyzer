@@ -4,7 +4,13 @@ import { DEFAULT_AI_PROVIDER, type AIProvider } from '../../lib/aiModels';
 import { parseAnalyzeResponseContent } from '../../services/api';
 import { getDayNumber, type DailySentence } from '../../utils/dailySentences';
 import { proxyOpenAICompatibleRequest } from './openaiProxy';
-import { resolveServerProviderConfig, withProviderControls, type StructuredOutputKind } from './providerConfig';
+import {
+  SERVER_KEY_DISABLED_MESSAGE,
+  isServerKeyAllowed,
+  resolveServerProviderConfig,
+  withProviderControls,
+  type StructuredOutputKind,
+} from './providerConfig';
 
 // 主题和语法点按日期轮换，避免模型天天写出差不多的句子。
 // 两个列表长度互质（19 × 17），组合要 323 天才会重复。
@@ -49,6 +55,7 @@ const DISALLOWED_SENTENCE_CHARS = /[0-9０-９A-Za-zＡ-Ｚａ-ｚ「」『』�
 export class DailySentenceUnavailableError extends Error {}
 
 function pickProvider() {
+  if (!isServerKeyAllowed()) throw new DailySentenceUnavailableError(SERVER_KEY_DISABLED_MESSAGE);
   const providers: AIProvider[] = DEFAULT_AI_PROVIDER === 'deepseek' ? ['deepseek', 'gemini'] : ['gemini', 'deepseek'];
   for (const provider of providers) {
     const config = resolveServerProviderConfig(provider);

@@ -24,7 +24,7 @@
 2. **DeepSeek API Key**（推荐，默认的解析、翻译和图片识别都用它）。没有的话，也可以只提供 Gemini Key。
 3. **可选项**，没有就跳过：
    - Gemini API Key：启用 Gemini 模型和 Gemini 朗读
-   - 访问密码 `CODE`：设置后打开网站需要先输入密码
+   - 访问密码 `CODE`：设置后打开网站需要先输入密码。**不设置 `CODE` 时，服务器上的 Key 默认不对访客开放**，访客必须在「设置」里填自己的 Key；如果确属个人或内网使用、希望不设密码也能用服务器 Key，需要额外设置 `ALLOW_PUBLIC_SERVER_KEY=true`（公开到互联网的部署不要这样做）
    - 域名：需要 HTTPS 访问时提供（仅 A）
 
 ## 第 2 步 A：Docker 部署（Linux 服务器）
@@ -58,7 +58,12 @@ curl -fsSL https://raw.githubusercontent.com/cokice/japanese-analyzer/master/doc
 DEEPSEEK_API_KEY=
 GEMINI_API_KEY=
 CODE=
+SESSION_SECRET=
+# 仅当用户明确是个人/内网使用、且不设 CODE 时才写 true
+ALLOW_PUBLIC_SERVER_KEY=false
 ```
+
+设置了 `CODE` 时，用 `openssl rand -base64 32` 生成 `SESSION_SECRET` 填进去（不要打印给用户看）；留空也能用，但每次重启容器后都要重新登录。
 
 ```bash
 chmod 600 .env.production
@@ -100,7 +105,7 @@ curl -fsS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3002
 Vercel 需要用户本人登录授权，你负责指导：
 
 1. 让用户打开 <https://vercel.com/new/clone?repository-url=https://github.com/cokice/japanese-analyzer> 并导入仓库。
-2. 在 `Settings → Environment Variables` 添加 `DEEPSEEK_API_KEY`（以及可选的 `GEMINI_API_KEY`、`CODE`）。
+2. 在 `Settings → Environment Variables` 添加 `DEEPSEEK_API_KEY`（以及可选的 `GEMINI_API_KEY`、`CODE`）。设置了 `CODE` 时**必须**同时添加 `SESSION_SECRET`（`openssl rand -base64 32` 生成）：Vercel 会运行多个实例，不设置会导致登录状态随机失效。
 3. 重新部署，打开 Vercel 分配的域名验证。
 
 如果用户已经安装并登录了 `vercel` CLI，也可以在仓库目录执行 `vercel`，用 `vercel env add` 添加变量后 `vercel --prod`。
@@ -113,7 +118,7 @@ Vercel 需要用户本人登录授权，你负责指导：
 git clone https://github.com/cokice/japanese-analyzer.git
 cd japanese-analyzer
 npm ci
-cp .env.example .env.local   # 填入 DEEPSEEK_API_KEY 等
+cp .env.example .env.local   # 填入 DEEPSEEK_API_KEY 等；本机自用不设 CODE 时再加一行 ALLOW_PUBLIC_SERVER_KEY=true
 npm run build && npm start   # 只是试用也可以用 npm run dev
 ```
 
@@ -125,6 +130,8 @@ npm run build && npm start   # 只是试用也可以用 npm run dev
 
 - 访问地址（IP:端口，或域名）
 - 如果设置了 `CODE`，提醒首次访问需要输入密码
+- 如果没设置 `CODE` 且没开 `ALLOW_PUBLIC_SERVER_KEY`，提醒访客需要在「设置」里填自己的 API Key
+- 如果网站会公开到互联网，提醒用户到 DeepSeek / Gemini 等服务商后台为服务器 Key 设置用量或预算上限（应用本身不做限流）
 - 如果只配置了 Gemini Key：网站默认使用 DeepSeek，提醒用户在右上角「设置」里把服务商切换为 Gemini
 - 以后更新到最新版的命令（Docker）：
 
@@ -138,6 +145,8 @@ npm run build && npm start   # 只是试用也可以用 npm run dev
 
 | 现象 | 处理 |
 | --- | --- |
+| 解析报「本站未设置访问密码，已禁止匿名使用服务器 API 密钥」 | 没设置 `CODE`。设置 `CODE`，或在确属个人/内网使用时设置 `ALLOW_PUBLIC_SERVER_KEY=true`，然后 `docker compose up -d` 重建容器 |
+| 设置了 `CODE`，但登录后过一会儿又要求输入密码（尤其是 Vercel） | 多实例部署没有设置统一的 `SESSION_SECRET`，补上后重新部署 |
 | 页面能打开，但解析报「未提供 API 密钥」 | `.env.production` 里没有有效的 `DEEPSEEK_API_KEY` / `GEMINI_API_KEY`，改好后 `docker compose up -d` 重建容器 |
 | 外网打不开，本机 `curl` 正常 | 云厂商安全组或系统防火墙没有放行对应端口 |
 | 首页「今日一句」只在内置的 7 句里轮换 | 服务器没有可用的 API Key，或出站网络访问不到模型服务商 |

@@ -2,6 +2,7 @@ import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { NextRequest, NextResponse } from 'next/server';
 import { createUpstreamSignal, isUpstreamTimeoutError } from '../_utils/requestTimeout';
 import { requireApiSession } from '../_utils/sessionAuth';
+import { SERVER_KEY_DISABLED_MESSAGE, isServerKeyAllowed } from '../_utils/providerConfig';
 
 // API配置
 const GEMINI_TTS_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent';
@@ -94,6 +95,12 @@ export async function POST(req: NextRequest) {
       // 使用 Gemini TTS
       const authHeader = req.headers.get('Authorization');
       const userApiKey = authHeader ? authHeader.replace('Bearer ', '') : '';
+      if (!userApiKey && !isServerKeyAllowed()) {
+        return NextResponse.json(
+          { error: { message: SERVER_KEY_DISABLED_MESSAGE } },
+          { status: 403 }
+        );
+      }
       const effectiveApiKey = userApiKey || process.env.GEMINI_API_KEY || '';
       const modelName = typeof model === 'string' ? model.trim() : '';
 

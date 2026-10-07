@@ -75,6 +75,38 @@ async function run() {
     assert.equal((await translate(request('{'))).status, 401);
     delete process.env.CODE;
 
+    // Without CODE, requests lacking a personal key must not reach the upstream with the server key.
+    const serverKeyEnv = { ALLOW: process.env.ALLOW_PUBLIC_SERVER_KEY, GEMINI: process.env.GEMINI_API_KEY, DEEPSEEK: process.env.DEEPSEEK_API_KEY };
+    try {
+      delete process.env.ALLOW_PUBLIC_SERVER_KEY;
+      process.env.GEMINI_API_KEY = 'server-gemini-key';
+      process.env.DEEPSEEK_API_KEY = 'server-deepseek-key';
+      globalThis.fetch = async () => { throw new Error('server key must not be used'); };
+      const anonymous = JSON.stringify({ prompt: 'p', text: '日本語', word: '本', messages: [{ role: 'user', content: 'x' }], imageData: 'data:image/png;base64,AA==', reasoningSnippet: 'x', provider: 'gemini' });
+      for (const handler of [translate, imageToText, analyze, chat, wordDetail, summary]) {
+        const result = await handler(request(anonymous));
+        assert.equal(result.status, 403);
+        assert.match((await result.json()).error.message, /CODE[\s\S]*ALLOW_PUBLIC_SERVER_KEY=true/);
+      }
+      const ttsResult = (await tts(request(JSON.stringify({ text: '日本語', provider: 'gemini' }))))!;
+      assert.equal(ttsResult.status, 403);
+      assert.match((await ttsResult.json()).error.message, /ALLOW_PUBLIC_SERVER_KEY=true/);
+
+      let upstreamKey = '';
+      globalThis.fetch = async (_url, init) => {
+        upstreamKey = new Headers(init?.headers).get('Authorization') ?? '';
+        return Response.json(completion());
+      };
+      process.env.ALLOW_PUBLIC_SERVER_KEY = 'true';
+      assert.equal((await translate(request(JSON.stringify({ text: '日本語', provider: 'gemini' })))).status, 200);
+      assert.equal(upstreamKey, 'Bearer server-gemini-key');
+    } finally {
+      for (const [name, value] of [['ALLOW_PUBLIC_SERVER_KEY', serverKeyEnv.ALLOW], ['GEMINI_API_KEY', serverKeyEnv.GEMINI], ['DEEPSEEK_API_KEY', serverKeyEnv.DEEPSEEK]] as const) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+
     for (const handler of [translate, imageToText]) {
       for (const reason of ['length', 'content_filter']) {
         globalThis.fetch = async () => Response.json(completion(reason));
