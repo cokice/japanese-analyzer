@@ -16,12 +16,15 @@ import ProviderConfigDialog from './ProviderConfigDialog';
 import { Icon } from './Icons';
 import { ProviderLogo } from './ProviderLogo';
 import { Switch } from '@/components/ui/switch';
+import SpeechServices from './SpeechServices';
+import { sanitizeSpeechSettings, type SpeechSettings } from '../lib/speechServices';
 
 interface SettingsPayload {
   services: ProviderProfile[];
   activeServiceId: string;
   activeModelId: string;
   geminiApiKey: string;
+  speechSettings: SpeechSettings;
   thinkingEnabled: boolean;
   useStream: boolean;
 }
@@ -31,6 +34,7 @@ interface SettingsModalProps {
   activeServiceId: string;
   activeModelId: string;
   geminiApiKey: string;
+  speechSettings: SpeechSettings;
   thinkingEnabled: boolean;
   useStream: boolean;
   onSaveSettings: (settings: SettingsPayload) => void;
@@ -57,7 +61,7 @@ function fromPreset(presetId: string): ProviderProfile | null {
     name: preset.name,
     baseUrl: preset.baseUrl,
     apiKey: '',
-    jsonSchema: true,
+    jsonSchema: preset.jsonSchema !== false,
     models: preset.models.map((m) => ({ ...m, id: createCustomModelId(), caps: m.caps ? { ...m.caps } : undefined })),
   };
 }
@@ -67,6 +71,7 @@ export default function SettingsModal({
   activeServiceId: initialActiveServiceId,
   activeModelId: initialActiveModelId,
   geminiApiKey,
+  speechSettings: initialSpeechSettings,
   thinkingEnabled: initialThinkingEnabled,
   useStream,
   onSaveSettings,
@@ -79,7 +84,7 @@ export default function SettingsModal({
   const [activeModelId, setActiveModelId] = useState(initialActiveModelId);
   const [collapsedServiceIds, setCollapsedServiceIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [geminiKey, setGeminiKey] = useState(geminiApiKey);
+  const [speechSettings, setSpeechSettings] = useState(initialSpeechSettings);
   const [thinkingEnabled, setThinkingEnabled] = useState(initialThinkingEnabled);
   const [streamEnabled, setStreamEnabled] = useState(useStream);
   const [status, setStatus] = useState('');
@@ -112,7 +117,7 @@ export default function SettingsModal({
     const first = initialServices.find((s) => s.id === initialActiveServiceId) ?? initialServices[0] ?? null;
     setCollapsedServiceIds(initialServices.filter((s) => first && s.id !== first.id).map((s) => s.id));
     setSearchQuery('');
-    setGeminiKey(geminiApiKey);
+    setSpeechSettings(initialSpeechSettings);
     setThinkingEnabled(initialThinkingEnabled);
     setStreamEnabled(useStream);
     setStatus('');
@@ -214,7 +219,8 @@ export default function SettingsModal({
       services: valid,
       activeServiceId: service?.id ?? '',
       activeModelId: model?.id ?? '',
-      geminiApiKey: geminiKey.trim(),
+      geminiApiKey: speechSettings.services.find((item) => item.id === 'gemini')?.apiKey ?? geminiApiKey,
+      speechSettings: sanitizeSpeechSettings(speechSettings)!,
       thinkingEnabled,
       useStream: streamEnabled,
     });
@@ -276,9 +282,9 @@ export default function SettingsModal({
         {/* 工具栏：标题 + 搜索 + 新增服务商 */}
         <div className="settings-toolbar">
           <div className="min-w-0">
-            <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>{t('模型与 API')}</h3>
+            <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>{t('模型与语音')}</h3>
             <p className="m-0 text-sm leading-6" style={{ color: 'var(--ink-3)' }}>
-              {t('配置自己的模型服务（兼容 OpenAI）与 API 密钥。')}
+              {t('配置解析、翻译与朗读服务。')}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -567,21 +573,7 @@ export default function SettingsModal({
           )}
         </div>
 
-        <div className="settings-group" role="group" aria-label={t('语音')}>
-          <p className="settings-group-label">{t('语音')}</p>
-          <div>
-            <label htmlFor="geminiTtsKeyInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-              {t('Gemini TTS API 密钥（可选）')}
-            </label>
-            <input
-              id="geminiTtsKeyInput"
-              type="password"
-              className="nd-input"
-              value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-            />
-          </div>
-        </div>
+        {isModalOpen && <SpeechServices settings={speechSettings} onChange={setSpeechSettings} />}
 
         <div className="settings-actions">
           <button

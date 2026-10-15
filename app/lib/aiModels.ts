@@ -45,10 +45,14 @@ export interface ProviderCaps {
   reasoningEffort?: string;
 }
 
-export type ProviderPreset = Pick<ProviderProfile, 'id' | 'name' | 'baseUrl' | 'models'>;
+export type ProviderPreset = Pick<ProviderProfile, 'id' | 'name' | 'baseUrl' | 'models' | 'jsonSchema'>;
 
 /** 前端「从预设创建」时的便利选项；密钥仍由用户自己填 */
 export const PRESETS: readonly ProviderPreset[] = [
+  {
+    id: 'minimax', name: 'MiniMax', baseUrl: 'https://api.minimax.cn/v1', jsonSchema: false,
+    models: [{ id: 'minimax-m2.7', name: 'MiniMax-M2.7', model: 'MiniMax-M2.7' }],
+  },
   {
     id: 'deepseek',
     name: 'DeepSeek',

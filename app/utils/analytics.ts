@@ -44,10 +44,10 @@ export function getImageRecognitionUsage(provider: string, model?: string): Imag
   };
 }
 
-export function getTtsUsage(provider: TTSProvider): TtsUsage {
+export function getTtsUsage(provider: TTSProvider, model?: string): TtsUsage {
   return {
     provider,
-    model: getTtsModelName(provider),
+    model: model ?? getTtsModelName(provider),
   };
 }
 
@@ -83,8 +83,8 @@ export function getImageRecognitionUsageEvent(provider: string, model?: string):
   };
 }
 
-export function getTtsUsageEvent(provider: TTSProvider): AnalyticsEvent {
-  const usage = getTtsUsage(provider);
+export function getTtsUsageEvent(provider: TTSProvider, model?: string): AnalyticsEvent {
+  const usage = getTtsUsage(provider, model);
 
   return {
     name: TTS_USAGE_EVENT_NAME,
@@ -142,8 +142,8 @@ export function trackImageRecognitionUsage(provider: string, model?: string): vo
   trackUmamiEvent(getImageRecognitionUsageEvent(provider, model), 'image recognition usage');
 }
 
-export function trackTtsUsage(provider: TTSProvider): void {
-  trackUmamiEvent(getTtsUsageEvent(provider), 'tts usage');
+export function trackTtsUsage(provider: TTSProvider, model?: string): void {
+  trackUmamiEvent(getTtsUsageEvent(provider, model), 'tts usage');
 }
 
 export function trackWordDetailUsage(provider: string, model?: string): void {

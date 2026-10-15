@@ -1,4 +1,5 @@
 import { createTranslator, getClientLocale } from '../i18n';
+import type { SpeechProtocol } from '../lib/speechServices';
 // API与分析相关的服务函数
 import {
   sanitizeProfiles,
@@ -57,7 +58,8 @@ export interface ChatMessage {
   content: string;
 }
 
-export type TTSProvider = 'edge' | 'gemini';
+export type TTSProvider = SpeechProtocol;
+export interface SpeechRequestOptions { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number; model?: string; baseUrl?: string; speed?: number; signal?: AbortSignal }
 
 export interface StorageLike {
   getItem: (key: string) => string | null;
@@ -101,7 +103,7 @@ const GEMINI_TTS_MODEL_NAME = 'gemini-3.1-flash-tts-preview';
 const EDGE_TTS_MODEL_NAME = 'edge-tts';
 
 export function getTtsModelName(provider: TTSProvider = 'edge'): string {
-  return provider === 'gemini' ? GEMINI_TTS_MODEL_NAME : EDGE_TTS_MODEL_NAME;
+  return provider === 'gemini' ? GEMINI_TTS_MODEL_NAME : provider === 'openai' ? 'gpt-4o-mini-tts' : provider === 'minimax' ? 'speech-2.8-hd' : EDGE_TTS_MODEL_NAME;
 }
 
 /** 客户端随请求发送的端点信息：baseUrl + model + 能力位 */
@@ -1441,7 +1443,7 @@ export async function translateText(
       throw new Error('翻译结果格式错误');
     }
   } catch (error) {
-    console.error('Error translating text:', error);
+    if (!signal?.aborted) console.error('Error translating text:', error);
     throw error;
   }
 }
@@ -1544,10 +1546,10 @@ export async function streamExtractTextFromImage(
 export async function synthesizeSpeech(
   text: string,
   provider: TTSProvider = 'edge',
-  options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number; signal?: AbortSignal } = {},
+  options: SpeechRequestOptions = {},
   userApiKey?: string
 ): Promise<{ audio: string; mimeType: string }> {
-  const { gender = 'female', voice = 'Kore', rate = 0, pitch = 0 } = options;
+  const { gender = 'female', voice, rate = 0, pitch = 0, model, baseUrl, speed } = options;
 
   const apiUrl = getApiEndpoint('/tts');
   const headers = getHeaders(userApiKey);
@@ -1562,7 +1564,7 @@ export async function synthesizeSpeech(
       gender,
       voice,
       rate,
-      pitch
+      pitch, model, baseUrl, speed
     })
   });
 

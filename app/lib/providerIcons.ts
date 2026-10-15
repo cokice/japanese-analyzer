@@ -1,6 +1,7 @@
 // 已知厂商 id → 本地静态 logo 路径的映射。
 // 新增厂商时：把 SVG 放进 public/icons/providers/{id}.svg 并在此登记即可，ProviderLogo 自动识别。
 export const PROVIDER_ICONS: Record<string, string> = {
+  minimax: '/icons/providers/minimax.svg',
   deepseek: '/icons/providers/deepseek.svg',
   openai: '/icons/providers/openai.svg',
   openrouter: '/icons/providers/openrouter.svg',

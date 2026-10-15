@@ -1,6 +1,7 @@
 'use client';
 
 import { browserStorage } from './utils/storage';
+import { loadSpeechSettings, SPEECH_PRESETS, SPEECH_SETTINGS_KEY, type SpeechSettings } from './lib/speechServices';
 
 import { useLanguage } from './contexts/LanguageContext';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -25,7 +26,6 @@ import { InvalidResponseError } from './utils/requestErrors';
 import {
   analyzeSentence,
   TokenData,
-  TTSProvider,
   loadAISettingsFromStorage,
   saveAISettingsToStorage,
   parseAnalyzeResponseContent,
@@ -91,7 +91,8 @@ export default function Home() {
   const [deepseekReasoningCompletionLabel, setDeepseekReasoningCompletionLabel] = useState(t("已深度思考"));
   const reasoningSummaryControllerRef = useRef<ReasoningSummaryController | null>(null);
   const analysisAbortControllerRef = useRef<AbortController | null>(null);
-  const [ttsProvider, setTtsProvider] = useState<TTSProvider>('edge');
+  const [speechSettings, setSpeechSettings] = useState<SpeechSettings>({ services: [{ ...SPEECH_PRESETS[0] }, { ...SPEECH_PRESETS[1] }], activeId: 'edge' });
+  const activeSpeechService = speechSettings.services.find((service) => service.id === speechSettings.activeId) ?? speechSettings.services[0];
 
   // 密码验证相关状态
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -213,14 +214,13 @@ export default function Home() {
   useEffect(() => {
     const storedAISettings = loadAISettingsFromStorage(browserStorage);
     const storedUseStream = browserStorage.getItem('useStream');
-    const storedTtsProvider = (browserStorage.getItem('ttsProvider') || 'edge') as TTSProvider;
 
     setServices(storedAISettings.services);
     setActiveServiceId(storedAISettings.activeServiceId);
     setActiveModelId(storedAISettings.activeModelId);
     setGeminiApiKey(storedAISettings.geminiApiKey);
     setThinkingEnabled(storedAISettings.thinkingEnabled);
-    setTtsProvider(storedTtsProvider);
+    setSpeechSettings(loadSpeechSettings(browserStorage));
 
     // 只有当明确设置了值时才更新，否则保持默认值
     if (storedUseStream !== null) {
@@ -246,6 +246,7 @@ export default function Home() {
     activeServiceId: string;
     activeModelId: string;
     geminiApiKey: string;
+    speechSettings: SpeechSettings;
     thinkingEnabled: boolean;
     useStream: boolean;
   }) => {
@@ -257,6 +258,8 @@ export default function Home() {
       thinkingEnabled: settings.thinkingEnabled,
     });
     browserStorage.setItem('useStream', settings.useStream.toString());
+    browserStorage.setItem(SPEECH_SETTINGS_KEY, JSON.stringify(settings.speechSettings));
+    setSpeechSettings(settings.speechSettings);
 
     setServices(settings.services);
     setActiveServiceId(settings.activeServiceId);
@@ -281,9 +284,10 @@ export default function Home() {
     resetAnalysisState();
   };
 
-  const handleTtsProviderChange = (provider: TTSProvider) => {
-    setTtsProvider(provider);
-    browserStorage.setItem('ttsProvider', provider);
+  const handleSpeechServiceChange = (activeId: string, voice?: string) => {
+    const next = { services: voice?.trim() ? speechSettings.services.map((service) => service.id === activeId ? { ...service, voice: voice.trim() } : service) : speechSettings.services, activeId };
+    setSpeechSettings(next);
+    browserStorage.setItem(SPEECH_SETTINGS_KEY, JSON.stringify(next));
   };
 
   // 处理密码验证
@@ -678,10 +682,10 @@ export default function Home() {
                 activeModelId={activeModel?.id ?? ''}
                 onSelectModel={handleSelectModel}
                 endpoint={endpoint}
-                geminiApiKey={geminiApiKey}
+                speechService={activeSpeechService}
+                speechServices={speechSettings.services}
                useStream={useStream}
-               ttsProvider={ttsProvider}
-              onTtsProviderChange={handleTtsProviderChange}
+              onSpeechServiceChange={handleSpeechServiceChange}
               isAnalyzing={isAnalyzing}
               compactExtras={shouldShowAnalyzer() && (
                 <DisplayOptions
@@ -779,6 +783,7 @@ export default function Home() {
           activeServiceId={activeServiceId}
           activeModelId={activeModelId}
           geminiApiKey={geminiApiKey}
+          speechSettings={speechSettings}
           thinkingEnabled={thinkingEnabled}
           useStream={useStream}
           onSaveSettings={handleSaveSettings}

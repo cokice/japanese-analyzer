@@ -18,6 +18,8 @@ import {
 } from '../utils/analytics';
 import { Icon } from './Icons';
 import ModelSwitcher from './ModelSwitcher';
+import AnchoredPopover from './AnchoredPopover';
+import type { SpeechService } from '../lib/speechServices';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { TextShimmer } from '@/components/ui/text-shimmer';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
@@ -38,10 +40,10 @@ interface InputSectionProps {
   activeModelId?: string;
   onSelectModel?: (serviceId: string, modelId: string) => void;
   endpoint: EndpointPayload;
-  geminiApiKey?: string;
+  speechService: SpeechService;
+  speechServices: SpeechService[];
   useStream?: boolean;
-  ttsProvider: TTSProvider;
-  onTtsProviderChange: (provider: TTSProvider) => void;
+  onSpeechServiceChange: (id: string, voice?: string) => void;
   isAnalyzing?: boolean;
   /** 阅读态：输入卡片收成一行文字按钮，把版面让给解析结果 */
   compact?: boolean;
@@ -59,7 +61,7 @@ interface InputSectionProps {
 // TTS配置选项
 const TTS_GENDERS = [
   { value: 'female', label: '女声 (Nanami)' },
-  { value: 'male', label: '男声 (Masaru)' }
+  { value: 'male', label: '男声 (Keita)' }
 ];
 
 // 语速标签函数
@@ -104,10 +106,10 @@ export default function InputSection({
   activeModelId = '',
   onSelectModel,
   endpoint,
-  geminiApiKey,
+  speechService,
+  speechServices,
   useStream = true, // 默认启用流式输出
-  ttsProvider,
-  onTtsProviderChange,
+  onSpeechServiceChange,
   isAnalyzing = false,
   compact = false,
   onExpand,
@@ -117,10 +119,12 @@ export default function InputSection({
   showSuggestions = false,
 }: InputSectionProps) {
   const { t, locale, errorText } = useLanguage();
+  const ttsProvider = speechService.provider;
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [ttsError, setTtsError] = useState('');
   const [isImageUploading, setIsImageUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const [uploadStatusClass, setUploadStatusClass] = useState('');
@@ -162,7 +166,10 @@ export default function InputSection({
     setUploadStatus('');
     setTtsAudioUrl(null);
     window.speechSynthesis?.cancel();
-  }, [endpoint, locale, ttsProvider]);
+    setTtsError('');
+  }, [endpoint, locale, speechService]);
+
+  useEffect(() => { setSelectedVoice(speechService.voice); }, [speechService]);
 
   const cancelInputRequests = () => {
     imageRequest.current.cancel();
@@ -248,23 +255,6 @@ export default function InputSection({
     setSelectedStyle(storedStyle);
   }, []);
 
-  // 点击外部关闭下拉菜单
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowTtsDropdown(false);
-      }
-    };
-
-    if (showTtsDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showTtsDropdown]);
-
   const clearUsageMetadata = () => {
     usageMetadataRef.current = {};
     spokenTextRef.current = '';
@@ -308,10 +298,10 @@ export default function InputSection({
   const markTtsUsed = (provider: TTSProvider) => {
     usageMetadataRef.current = {
       ...usageMetadataRef.current,
-      tts: getTtsUsage(provider),
+      tts: getTtsUsage(provider, speechService.model),
     };
     spokenTextRef.current = inputText;
-    trackTtsUsage(provider);
+    trackTtsUsage(provider, speechService.model);
   };
 
   const startAnalysis = (text: string, usage: AnalyzeUsageMetadata) => {
@@ -354,6 +344,7 @@ export default function InputSection({
     const request = speechRequest.current.start();
     setIsSpeaking(true);
     setTtsAudioUrl(null);
+    setTtsError('');
 
     try {
       if (ttsProvider === 'edge') {
@@ -371,15 +362,21 @@ export default function InputSection({
         // 使用 Gemini TTS，添加风格控制
         const stylePrompt = TTS_STYLES.find(s => s.value === selectedStyle)?.prompt || '';
         const textToSpeak = stylePrompt + inputText;
-        const url = await getJapaneseTtsAudioUrl(textToSpeak, geminiApiKey, 'gemini', { voice: selectedVoice, pitch: 0, signal: request.signal });
+        const url = await getJapaneseTtsAudioUrl(textToSpeak, speechService.apiKey, 'gemini', { baseUrl: speechService.baseUrl, model: speechService.model, voice: selectedVoice, pitch: 0, signal: request.signal });
         if (!request.isCurrent()) { URL.revokeObjectURL(url); return; }
         setTtsAudioUrl(url);
         markTtsUsed('gemini');
+      } else {
+        const url = await getJapaneseTtsAudioUrl(inputText, speechService.apiKey, ttsProvider, { baseUrl: speechService.baseUrl, model: speechService.model, voice: selectedVoice, speed: speechService.speed, signal: request.signal });
+        if (!request.isCurrent()) { URL.revokeObjectURL(url); return; }
+        setTtsAudioUrl(url);
+        markTtsUsed(ttsProvider);
       }
     } catch (e) {
       if (!request.isCurrent()) return;
       console.error('TTS error:', e);
       setTtsAudioUrl(null);
+      setTtsError(t('语音服务调用失败，已尝试系统朗读：{0}', errorText(e instanceof Error ? e.message : t('未知错误'))));
       // 如果失败，回退到系统 TTS
       speakJapanese(inputText);
     } finally {
@@ -387,13 +384,14 @@ export default function InputSection({
     }
   };
 
-  const handleTtsProviderSelect = (provider: TTSProvider) => {
-    onTtsProviderChange(provider);
+  const handleTtsProviderSelect = (id: string) => {
+    onSpeechServiceChange(id);
   };
 
   const handleVoiceChange = (voice: string) => {
     setSelectedVoice(voice);
     browserStorage.setItem('ttsVoice', voice);
+    if (voice.trim()) onSpeechServiceChange(speechService.id, voice);
   };
 
   const handleGenderChange = (gender: 'male' | 'female') => {
@@ -893,35 +891,18 @@ export default function InputSection({
 
                     {/* TTS设置下拉菜单 */}
                     {showTtsDropdown && (
-                      <div
+                      <AnchoredPopover anchorRef={dropdownRef} onClose={() => setShowTtsDropdown(false)} role="dialog" label={t('语音设置')}
                         id="inputVoiceSettings"
-                        className="input-voice-menu absolute top-full z-20 mt-2 rounded-2xl p-4"
-                        style={{
-                          background: 'var(--bg-2)',
-                          border: '1px solid var(--line)',
-                          boxShadow: '0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06)',
-                        }}
+                        className="input-voice-menu rounded-2xl p-4"
                       >
                         <div className="mb-3 text-sm font-medium" style={{ color: 'var(--ink)' }}>{t("语音设置")}</div>
 
                         {/* TTS提供商选择 */}
                         <div className="mb-3">
                           <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音引擎")}</label>
-                          <div className="segmented-control grid grid-cols-2 gap-1 rounded-xl p-1">
-                            {(['edge', 'gemini'] as const).map((provider) => (
-                              <button
-                                key={provider}
-                                className="cursor-pointer rounded-lg border-none px-3 py-2 text-sm transition-colors"
-                                aria-pressed={ttsProvider === provider}
-                                style={ttsProvider === provider
-                                  ? { background: 'var(--bg-2)', color: 'var(--ink)', fontWeight: 500 }
-                                  : { background: 'transparent', color: 'var(--ink-2)' }}
-                                onClick={() => handleTtsProviderSelect(provider)}
-                              >
-                                {provider === 'edge' ? 'Edge TTS' : 'Gemini TTS'}
-                              </button>
-                            ))}
-                          </div>
+                          <select className="nd-input text-sm" aria-label={t('语音服务')} value={speechService.id} onChange={(event) => handleTtsProviderSelect(event.target.value)}>
+                            {speechServices.map((service) => <option key={service.id} value={service.id}>{service.name} · {service.model}</option>)}
+                          </select>
                         </div>
 
                         {/* Edge TTS 设置 */}
@@ -977,6 +958,7 @@ export default function InputSection({
                                 onChange={(e) => handleVoiceChange(e.target.value)}
                                 className="nd-input text-sm"
                               >
+                                {!GEMINI_VOICES.some((voice) => voice.value === selectedVoice) && <option value={selectedVoice}>{selectedVoice}</option>}
                                 {GEMINI_VOICES.map((voice) => (
                                   <option key={voice.value} value={voice.value}>
                                     {t(voice.label)}
@@ -1001,7 +983,8 @@ export default function InputSection({
                             </div>
                           </>
                         )}
-                      </div>
+                        {(ttsProvider === 'openai' || ttsProvider === 'minimax') && <label className="block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t('音色 ID')}<input className="nd-input mt-2 text-sm" value={selectedVoice} onChange={(event) => setSelectedVoice(event.target.value)} onBlur={(event) => handleVoiceChange(event.target.value)} /></label>}
+                      </AnchoredPopover>
                     )}
                   </div>
                 </div>
@@ -1061,6 +1044,7 @@ export default function InputSection({
       )}
 
       {uploadStatus && <div id="imageUploadStatus" className={uploadStatusClass}>{errorText(uploadStatus)}</div>}
+      {ttsError && <p role="alert" className="mt-3 text-sm" style={{ color: 'var(--pos-p)' }}>{ttsError}</p>}
 
       {ttsAudioUrl && (
         <div className="mt-4">
