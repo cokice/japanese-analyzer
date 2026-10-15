@@ -4,6 +4,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      windows_only:
+        description: Build only a Windows preview installer
+        type: boolean
+        default: false
 
 concurrency:
   group: desktop-${{ github.ref }}
@@ -16,6 +21,8 @@ jobs:
   validate:
     name: Validate shared application
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.targets.outputs.result }}
     steps:
       - uses: actions/checkout@v6
       - name: Read pinned runtime
@@ -41,6 +48,19 @@ jobs:
           name: validated-desktop-web
           path: desktop-web.tar.gz
           retention-days: 7
+      - name: Select native build targets
+        id: targets
+        uses: actions/github-script@v8
+        env:
+          WINDOWS_ONLY: ${{ inputs.windows_only || false }}
+        with:
+          script: |
+            const include = [
+              { os: 'macos-latest', target: 'aarch64-apple-darwin', node_arch: 'arm64' },
+              { os: 'macos-15-intel', target: 'x86_64-apple-darwin', node_arch: 'x64' },
+              { os: 'windows-latest', target: 'x86_64-pc-windows-msvc', node_arch: 'x64' },
+            ];
+            return { include: include.filter(target => process.env.WINDOWS_ONLY !== 'true' || target.os === 'windows-latest') };
 
   release:
     name: Prepare desktop release
@@ -70,7 +90,7 @@ jobs:
                 ...params, tag_name: tag, target_commitish: context.sha,
                 name: `Japanese Analyzer ${tag}`, draft: !tagged,
                 prerelease: tagged && tag.includes('-'),
-                body: 'Desktop builds for macOS (Apple Silicon / Intel) and Windows x64. Windows updates use the full NSIS installer. See docs/desktop.md for installation and signing details.',
+                body: `${context.payload.inputs?.windows_only === 'true' ? 'Windows x64 preview build.' : 'Desktop builds for macOS (Apple Silicon / Intel) and Windows x64.'} Windows updates use the full NSIS installer. See docs/desktop.md for installation and signing details.`,
               })).data;
             }
             core.setOutput('id', String(release.id));
@@ -83,20 +103,7 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            node_arch: arm64
-            updater_target: darwin
-          - os: macos-15-intel
-            target: x86_64-apple-darwin
-            node_arch: x64
-            updater_target: darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            node_arch: x64
-            updater_target: windows
+      matrix: ${{ fromJSON(needs.validate.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -117,6 +124,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          cache-on-failure: true
       - run: node scripts/desktop/sync-version.mjs
       - run: npm ci
       # Next may trace optional native modules. A Linux standalone artifact cannot
@@ -172,6 +180,13 @@ jobs:
           prerelease: ${{ startsWith(github.ref, 'refs/tags/') && contains(github.ref_name, '-') }}
           args: --target ${{ matrix.target }} --config src-tauri/tauri.signing.conf.json
           includeUpdaterJson: false
+      - name: Install and launch the Windows desktop
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $installer = Get-ChildItem 'src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe' | Select-Object -First 1
+          ./scripts/desktop/smoke-windows.ps1 -Installer $installer.FullName
       - name: Upload signed update record
         if: steps.signing.outputs.configured == 'true'
         uses: actions/upload-artifact@v5
@@ -184,6 +199,7 @@ jobs:
   updater-manifests:
     name: Publish complete updater manifests
     needs: [release, build]
+    if: ${{ !inputs.windows_only }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

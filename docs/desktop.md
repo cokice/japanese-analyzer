@@ -53,6 +53,8 @@ Tauri 按目录递归打包 `resources/server/`，保留隐藏的 `.next`。运�
 
 Rust 以 `current_dir=resources/server` 启动 Node，设置 `HOSTNAME=127.0.0.1`、`PORT`、`NODE_ENV=production`、`NEXT_TELEMETRY_DISABLED=1`，移除继承的 `NODE_OPTIONS` 和 `NODE_PATH`。Windows 不弹出 Node 控制台。
 
+传给 Node 的 Windows 路径通过 `dunce::simplified` 标准化，入口使用相对路径 `server.js`。这样可避免 Tauri 返回的 `\\?\C:\…` 路径触发 Node 的 `EISDIR: lstat 'C:'` 错误；日志中的 `Starting bundled Node in …` 可确认实际工作目录。
+
 每 250ms 尝试 `/api/auth`（单次请求有 800ms 超时，绕过系统代理、不跟随重定向），检查 2xx 及预期 JSON 字段，最多 30 秒。成功后跳转本机应用；失败返回启动页，展示日志路径和「重试」。运行中 Node 意外退出自动重启一次，再失败进入错误页；手动重试会重置计数。关闭主窗口、菜单退出或正常 Tauri 退出事件都会 kill + wait 子进程，桌面设置窗口不会阻止退出。单实例插件将后续启动聚焦到已有主窗口。
 
 ## CSP 与原生权限
@@ -92,6 +94,10 @@ npx tauri signer generate --ci -w ~/.tauri/japanese-analyzer.key
 将生成的 `.pub` 文件内容写入 updater `pubkey`。不要覆盖现有发布密钥。
 
 `.github/workflows/desktop.yml` 独立于 Docker CI，tag `v*` 触发正式 Release，手动触发生成 draft。validate 执行测试、lint、类型检查和 Web build，并归档验证后的 standalone/static/public。原生 job 在 macOS arm64、macOS Intel（显式 `macos-15-intel` runner）和 Windows x64 上重新构建，随后组装资源、运行 Node 冒烟和 Rust 测试，通过 `tauri-apps/tauri-action@v0` 上传安装包及签名。签名私钥按该 Action 实际接口通过环境变量传入。
+
+手动触发时可勾选 `windows_only`，只生成 Windows 测试安装包，不发布跨平台 updater 清单。默认及 tag 发布仍构建全部平台。Windows job 还会在临时目录静默安装 NSIS，实际启动桌面程序，确认窗口响应、WebView2 加载本地应用、鉴权端点可达，以及关闭主窗口后内嵌 Node 退出。
+
+Windows 的打包启动页使用 `http://tauri.localhost`（启用 HTTPS 时为 `https://tauri.localhost`），macOS 使用 `tauri://localhost`。这些是应用内部 origin，导航拦截器必须保留在 WebView 内；外部链接通过后台任务交给系统浏览器，避免阻塞 WebView2 导航回调。`server.log` 中的 `Main webview ready: http://127.0.0.1:<port>` 表示主窗口已实际完成本地页面加载，而非仅服务端健康检查通过。
 
 各平台完成后单独汇总已上传的签名，生成 `latest-darwin.json` 和 `latest-windows.json`，与 updater 配置端点一致，避免多个矩阵 job 并发覆盖 manifest。macOS manifest 同时含两个架构。draft 不会通过 `/releases/latest` 推给正式用户。缺少 updater 私钥时仍产出普通安装包，但不发布更新 manifest。
 
