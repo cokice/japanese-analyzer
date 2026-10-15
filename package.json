@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "tsx tests/api.test.ts && tsx tests/i18n.test.ts && tsx tests/regressions.test.ts",
+    "tauri": "tauri",
     "desktop:dev": "node scripts/desktop/dev.mjs",
     "desktop:package-server": "node scripts/desktop/package-server.mjs",
     "desktop:build": "node scripts/desktop/check-node.mjs && npm run build && npm run desktop:package-server && tauri build",
