@@ -1847,6 +1847,7 @@ name = "japanese-analyzer-desktop"
 version = "0.1.0"
 dependencies = [
  "ctrlc",
+ "dunce",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

@@ -204,10 +204,17 @@ fn spawn_server(
     port: u16,
     log: Arc<Mutex<RollingLog>>,
 ) -> std::io::Result<Child> {
+    // Tauri can return Windows verbatim (\\?\) paths. Pass a conventional path
+    // to Node where possible and resolve the entry point relative to its cwd.
+    let directory = dunce::simplified(directory);
+    let _ = log
+        .lock()
+        .unwrap()
+        .append(format!("Starting bundled Node in {}\n", directory.display()).as_bytes());
     let node = directory.join(if cfg!(windows) { "node.exe" } else { "node" });
     let mut command = Command::new(node);
     command
-        .arg(directory.join("server.js"))
+        .arg("server.js")
         .current_dir(directory)
         .env("PORT", port.to_string())
         .env("HOSTNAME", "127.0.0.1")
