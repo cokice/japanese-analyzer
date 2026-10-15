@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop",
+  "description": "Only packaged startup and settings pages have native permissions; no remote origins.",
+  "local": true,
+  "windows": ["main", "desktop-settings"],
+  "permissions": [
+    "core:default",
+    "allow-server-status",
+    "allow-restart-server",
+    "allow-check-update",
+    "allow-install-update",
+    "allow-open-releases"
+  ]
+}

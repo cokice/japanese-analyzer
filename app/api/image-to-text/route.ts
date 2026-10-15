@@ -5,10 +5,9 @@ import { getImageExtractionPrompt } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
-import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
+import { ProviderConfigError, resolveProviderConfig, buildCompletionPayload } from '../_utils/providerConfig';
 import { isUpstreamTimeoutError } from '../_utils/requestTimeout';
 import { requireApiSession } from '../_utils/sessionAuth';
-import { getImageRecognitionModelName } from '../../lib/aiModels';
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,8 +17,8 @@ export async function POST(req: NextRequest) {
 
     const parsedBody = await readJsonBody(req, IMAGE_BODY_LIMIT);
 
-    const { imageData, prompt, model, apiUrl, stream = false, provider } = parsedBody;
-    const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
+    const { imageData, prompt, model, baseUrl, caps, stream = false } = parsedBody;
+    const providerConfig = resolveProviderConfig(req, { baseUrl, model, caps });
 
     // 验证imageData大小
     if (typeof imageData === 'string' && imageData.length > 1024 * 1024 * 8) { // 8MB限制
@@ -31,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     if (!providerConfig.apiKey) {
       return NextResponse.json(
-        { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
+        { error: { message: '未提供API密钥，请在设置中配置API密钥' } },
         { status: 500 }
       );
     }
@@ -45,10 +44,10 @@ export async function POST(req: NextRequest) {
 
     // 优化提示词，避免换行符
     const defaultPrompt = getImageExtractionPrompt(locale);
-    const imageModel = getImageRecognitionModelName(providerConfig.provider, providerConfig.model);
+    const imageModel = providerConfig.model;
 
     // 构建发送到AI服务的请求
-    const payload = withProviderControls(providerConfig.provider, {
+    const payload = buildCompletionPayload(providerConfig.caps, {
       model: imageModel,
       stream: stream,
       messages: [
@@ -68,7 +67,7 @@ export async function POST(req: NextRequest) {
     }, { enableThinking: false });
 
     const proxied = await proxyOpenAICompatibleRequest({
-      url: providerConfig.apiUrl,
+      url: providerConfig.baseUrl,
       apiKey: providerConfig.apiKey,
       payload,
       signal: req.signal,

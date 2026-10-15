@@ -1,12 +1,12 @@
 import { createTranslator, getClientLocale } from '../i18n';
 // API与分析相关的服务函数
 import {
-  DEFAULT_AI_PROVIDER,
-  getModelName,
-  normalizeAIModel,
-  normalizeAIProvider,
-  type AIModelName,
-  type AIProvider,
+  sanitizeProfiles,
+  createCustomModelId,
+  type ModelCaps,
+  type ModelEndpoint,
+  type ProviderCaps,
+  type ProviderProfile,
 } from '../lib/aiModels';
 import { splitJapaneseText, type JapaneseTextChunk } from '../utils/japaneseChunking';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
@@ -15,22 +15,8 @@ import { ApiRequestError, InvalidResponseError } from '../utils/requestErrors';
 import { protectAnalysisUrls } from '../utils/analysisUrls';
 import { buildAnalyzePrompt } from '../lib/analyzePrompt';
 
-export {
-  DEFAULT_AI_PROVIDER,
-  DEEPSEEK_VISION_MODEL_NAME,
-  DEEPSEEK_MODEL_OPTIONS,
-  GEMINI_MODEL_OPTIONS,
-  getImageRecognitionModelName,
-  getModelName,
-  normalizeAIModel,
-  normalizeAIProvider,
-} from '../lib/aiModels';
-export type {
-  AIModelName,
-  AIProvider,
-  DeepSeekModelName,
-  GeminiModelName,
-} from '../lib/aiModels';
+export { PRESETS, sanitizeProfiles, normalizeEndpointUrl, createCustomProfileId, createCustomModelId, effectiveCaps } from '../lib/aiModels';
+export type { ModelConfig, ModelCaps, ModelEndpoint, ProviderProfile, ProviderCaps, ProviderPreset } from '../lib/aiModels';
 
 export interface TokenData {
   word: string;
@@ -75,18 +61,21 @@ export type TTSProvider = 'edge' | 'gemini';
 export interface StorageLike {
   getItem: (key: string) => string | null;
   setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
 }
 
 export interface StoredAISettings {
-  aiProvider: AIProvider;
-  aiModel: AIModelName;
+  /** 服务商列表，每个服务商可挂多个模型 */
+  services: ProviderProfile[];
+  activeServiceId: string;
+  activeModelId: string;
+  /** Gemini TTS 专用密钥（与主模型配置分离） */
   geminiApiKey: string;
-  deepseekApiKey: string;
-  deepseekThinkingEnabled: boolean;
+  thinkingEnabled: boolean;
 }
 
 export interface AnalyzeRequestOptions {
-  deepseekThinkingEnabled?: boolean;
+  thinkingEnabled?: boolean;
   onReasoning?: (text: string, done: boolean) => void;
   onContentStart?: () => void;
   signal?: AbortSignal;
@@ -94,6 +83,7 @@ export interface AnalyzeRequestOptions {
 
 export interface ReasoningSummaryRequestOptions {
   reasoningSnippet: string;
+  endpoint: ModelEndpoint;
   userApiKey?: string;
   signal?: AbortSignal;
 }
@@ -118,37 +108,162 @@ export function getTtsModelName(provider: TTSProvider = 'edge'): string {
   return provider === 'gemini' ? GEMINI_TTS_MODEL_NAME : EDGE_TTS_MODEL_NAME;
 }
 
-export function getRequestProviderPayload(
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null
-) {
+/** 客户端随请求发送的端点信息：baseUrl + model + 能力位 */
+export interface EndpointPayload extends ModelEndpoint {
+  caps?: ProviderCaps;
+}
+
+export function getRequestProviderPayload(endpoint: EndpointPayload) {
   return {
-    provider,
-    model: getModelName(provider, model),
+    baseUrl: endpoint.baseUrl,
+    model: endpoint.model,
+    caps: endpoint.caps,
   };
 }
 
-export function loadAISettingsFromStorage(storage: StorageLike): StoredAISettings {
-  const legacyApiKey = storage.getItem('userApiKey') || '';
+/**
+ * 把上一版「一个 profile = 一个模型」的平铺结构迁移成 service + models 结构。
+ * 每条 profile 变成一个单模型 service：jsonSchema 上移，thinking / reasoningEffort 挂到模型上。
+ */
+function migrateFlatProfiles(raw: unknown): ProviderProfile[] {
+  if (!Array.isArray(raw)) return [];
+  const services: ProviderProfile[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const item = entry as Record<string, unknown>;
+    const baseUrl = typeof item.baseUrl === 'string' ? item.baseUrl.trim() : '';
+    const model = typeof item.model === 'string' ? item.model.trim() : '';
+    if (!baseUrl || !model) continue;
+    const rawCaps = item.caps && typeof item.caps === 'object' ? (item.caps as Record<string, unknown>) : {};
+    const caps: ModelCaps = {};
+    if (typeof rawCaps.thinking === 'boolean') caps.thinking = rawCaps.thinking;
+    if (typeof rawCaps.reasoningEffort === 'string' && rawCaps.reasoningEffort.trim()) {
+      caps.reasoningEffort = rawCaps.reasoningEffort.trim();
+    }
+    const id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : '';
+    const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : id || baseUrl;
+    services.push({
+      id,
+      name,
+      baseUrl,
+      apiKey: typeof item.apiKey === 'string' ? item.apiKey : '',
+      ...(typeof rawCaps.jsonSchema === 'boolean' ? { jsonSchema: rawCaps.jsonSchema } : {}),
+      models: [{ id: createCustomModelId(), name: model, model, caps }],
+    });
+  }
+  return services;
+}
 
+/** 把旧的「aiProvider/aiModel/geminiApiKey/deepseekApiKey」迁移成 service + models 结构 */
+function migrateLegacyProfile(storage: StorageLike): { services: ProviderProfile[]; activeServiceId: string; activeModelId: string; geminiApiKey: string } {
+  const legacyApiKey = storage.getItem('userApiKey') || '';
   let geminiApiKey = storage.getItem('geminiApiKey');
   if (geminiApiKey === null && legacyApiKey) {
     geminiApiKey = legacyApiKey;
     storage.setItem('geminiApiKey', legacyApiKey);
   }
 
-  const aiProvider = normalizeAIProvider(storage.getItem('aiProvider'));
-  if (storage.getItem('deepseekThinkingEnabled') === 'true') {
-    storage.setItem('deepseekThinkingEnabled', 'false');
+  const provider = storage.getItem('aiProvider');
+  const model = storage.getItem('aiModel');
+  const deepseekKey = storage.getItem('deepseekApiKey') || '';
+
+  let service: ProviderProfile | null = null;
+  if (provider === 'deepseek' && deepseekKey) {
+    const modelName = model || 'deepseek-chat';
+    service = {
+      id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com', apiKey: deepseekKey, jsonSchema: false,
+      models: [{ id: createCustomModelId(), name: modelName, model: modelName, caps: { thinking: true } }],
+    };
+  } else if (provider === 'gemini' && geminiApiKey) {
+    const modelName = model || 'gemini-flash-latest';
+    service = {
+      id: 'gemini', name: 'Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', apiKey: geminiApiKey,
+      models: [{ id: createCustomModelId(), name: modelName, model: modelName }],
+    };
+  }
+
+  const services = service ? [service] : [];
+  return {
+    services,
+    activeServiceId: service?.id || '',
+    activeModelId: service?.models[0].id || '',
+    geminiApiKey: geminiApiKey || '',
+  };
+}
+
+function resolveActiveIds(services: ProviderProfile[], serviceId: unknown, modelId: unknown): { activeServiceId: string; activeModelId: string } {
+  if (services.length === 0) return { activeServiceId: '', activeModelId: '' };
+  const service = (typeof serviceId === 'string' && services.find((s) => s.id === serviceId)) || services[0];
+  const model = (typeof modelId === 'string' && service.models.find((m) => m.id === modelId)) || service.models[0];
+  return { activeServiceId: service.id, activeModelId: model.id };
+}
+
+export function loadAISettingsFromStorage(storage: StorageLike): StoredAISettings {
+  const geminiApiKey = storage.getItem('geminiApiKey') || '';
+  const thinkingEnabled = storage.getItem('thinkingEnabled') === 'true';
+
+  const rawSettings = storage.getItem('providerSettings');
+  if (rawSettings) {
+    try {
+      const parsed = JSON.parse(rawSettings) as { services?: unknown; profiles?: unknown; activeId?: unknown; activeServiceId?: unknown; activeModelId?: unknown };
+      // 新结构：services（含 models）
+      if (parsed.services !== undefined) {
+        const services = sanitizeProfiles(parsed.services);
+        if (services.length > 0) {
+          const { activeServiceId, activeModelId } = resolveActiveIds(services, parsed.activeServiceId, parsed.activeModelId);
+          return { services, activeServiceId, activeModelId, geminiApiKey, thinkingEnabled };
+        }
+      }
+      // 上一版平铺结构：profiles（一个 profile = 一个模型）
+      const services = migrateFlatProfiles(parsed.profiles);
+      if (services.length > 0) {
+        // 旧 activeId 指向 service id
+        const byId = typeof parsed.activeId === 'string' && services.find((s) => s.id === parsed.activeId);
+        const target = byId || services[0];
+        return {
+          services,
+          activeServiceId: target.id,
+          activeModelId: target.models[0].id,
+          geminiApiKey,
+          thinkingEnabled,
+        };
+      }
+    } catch {
+      // 解析失败则回退到最旧结构迁移
+    }
+  }
+
+  // 最旧结构迁移
+  const legacy = migrateLegacyProfile(storage);
+  if (legacy.services.length > 0) {
+    return {
+      ...legacy,
+      thinkingEnabled: thinkingEnabled || storage.getItem('deepseekThinkingEnabled') === 'true',
+    };
   }
 
   return {
-    aiProvider,
-    aiModel: normalizeAIModel(aiProvider, storage.getItem('aiModel')),
-    geminiApiKey: geminiApiKey || '',
-    deepseekApiKey: storage.getItem('deepseekApiKey') || '',
-    deepseekThinkingEnabled: false,
+    services: [],
+    activeServiceId: '',
+    activeModelId: '',
+    geminiApiKey,
+    thinkingEnabled,
   };
+}
+
+/** 把 service + models 结构写回存储，并清理旧键 */
+export function saveAISettingsToStorage(storage: StorageLike, settings: StoredAISettings): void {
+  // 先写新键，再清理旧键（geminiApiKey 既作新键也作旧键，最后统一写回）
+  storage.setItem('providerSettings', JSON.stringify({
+    services: settings.services,
+    activeServiceId: settings.activeServiceId,
+    activeModelId: settings.activeModelId,
+  }));
+  storage.setItem('thinkingEnabled', settings.thinkingEnabled ? 'true' : 'false');
+  for (const key of ['aiProvider', 'aiModel', 'deepseekApiKey', 'deepseekThinkingEnabled', 'geminiApiUrl', 'deepseekApiUrl', 'userApiUrl', 'userApiKey']) {
+    try { storage.removeItem(key); } catch { /* 可选清理 */ }
+  }
+  storage.setItem('geminiApiKey', settings.geminiApiKey);
 }
 
 // 获取API请求URL
@@ -213,7 +328,7 @@ export function parseAnalyzeResponseContent(content: string): TokenData[] {
   return normalizeTokenDataArray(JSON.parse(extractJsonText(content)));
 }
 
-export async function summarizeDeepSeekReasoningProgress(
+export async function summarizeReasoningProgress(
   options: ReasoningSummaryRequestOptions
 ): Promise<string> {
   const response = await fetch(getApiEndpoint('/reasoning-summary'), {
@@ -221,6 +336,7 @@ export async function summarizeDeepSeekReasoningProgress(
     headers: getHeaders(options.userApiKey),
     body: JSON.stringify({
       reasoningSnippet: options.reasoningSnippet,
+      ...getRequestProviderPayload(options.endpoint),
     }),
     signal: options.signal,
   });
@@ -800,8 +916,7 @@ export async function readOpenAIContentStream(
 async function analyzeSingleSentence(
   sentence: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   options: AnalyzeRequestOptions = {}
 ): Promise<TokenData[]> {
   if (!sentence) {
@@ -812,15 +927,15 @@ async function analyzeSingleSentence(
     const protectedInput = protectAnalysisUrls(sentence);
     const apiUrl = getApiEndpoint('/analyze');
     const headers = getHeaders(userApiKey);
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
       signal: options.signal,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         prompt: buildAnalyzePrompt(protectedInput.text, protectedInput.instruction),
-        ...getRequestProviderPayload(provider, model),
-        thinkingEnabled: provider === 'deepseek' && options.deepseekThinkingEnabled === true,
+        ...getRequestProviderPayload(endpoint),
+        thinkingEnabled: options.thinkingEnabled === true,
       })
     });
 
@@ -860,8 +975,7 @@ async function analyzeSingleSentence(
 export async function analyzeSentence(
   sentence: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   options: AnalyzeRequestOptions = {}
 ): Promise<TokenData[]> {
   if (!sentence) {
@@ -870,7 +984,7 @@ export async function analyzeSentence(
 
   const chunks = splitJapaneseText(sentence);
   if (chunks.length <= 1) {
-    return analyzeSingleSentence(sentence, userApiKey, provider, model, options);
+    return analyzeSingleSentence(sentence, userApiKey, endpoint, options);
   }
 
   const mergedTokens: TokenData[] = [];
@@ -881,8 +995,7 @@ export async function analyzeSentence(
     const chunkTokens = await analyzeSingleSentence(
       chunk.text,
       userApiKey,
-      provider,
-      model,
+      endpoint,
       {
         ...options,
         onReasoning: options.onReasoning
@@ -918,8 +1031,7 @@ async function streamAnalyzeSingleSentence(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   options: AnalyzeRequestOptions = {}
 ): Promise<void> {
   if (!sentence) {
@@ -931,15 +1043,15 @@ async function streamAnalyzeSingleSentence(
     const protectedInput = protectAnalysisUrls(sentence);
     const apiUrl = getApiEndpoint('/analyze');
     const headers = getHeaders(userApiKey);
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
       signal: options.signal,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         prompt: buildAnalyzePrompt(protectedInput.text, protectedInput.instruction),
-        ...getRequestProviderPayload(provider, model),
-        thinkingEnabled: provider === 'deepseek' && options.deepseekThinkingEnabled === true,
+        ...getRequestProviderPayload(endpoint),
+        thinkingEnabled: options.thinkingEnabled === true,
         stream: true
       })
     });
@@ -982,8 +1094,7 @@ async function streamAnalyzeChunk(
   chunkCount: number,
   onReasoning: ((text: string, done: boolean) => void) | undefined,
   userApiKey: string | undefined,
-  provider: AIProvider,
-  model: string | null | undefined,
+  endpoint: EndpointPayload,
   options: AnalyzeRequestOptions
 ): Promise<TokenData[]> {
   let finalTokens: TokenData[] | null = null;
@@ -998,8 +1109,7 @@ async function streamAnalyzeChunk(
       streamError = error;
     },
     userApiKey,
-    provider,
-    model,
+    endpoint,
     {
       ...options,
       onReasoning,
@@ -1020,8 +1130,7 @@ export async function streamAnalyzeSentence(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   options: AnalyzeRequestOptions = {}
 ): Promise<void> {
   if (!sentence) {
@@ -1036,8 +1145,7 @@ export async function streamAnalyzeSentence(
       onChunk,
       onError,
       userApiKey,
-      provider,
-      model,
+      endpoint,
       options
     );
     return;
@@ -1117,10 +1225,9 @@ export async function streamAnalyzeSentence(
                 reasoningDoneByChunk[chunkIndex] = done;
                 emitReasoning();
               }
-            : undefined,
+             : undefined,
           userApiKey,
-          provider,
-          model,
+          endpoint,
           requestOptions
         );
         if (failed) return;
@@ -1149,21 +1256,20 @@ export async function streamTranslateText(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   signal?: AbortSignal
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/translate');
     const headers = getHeaders(userApiKey);
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
       signal,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         text: japaneseText,
-        ...getRequestProviderPayload(provider, model),
+        ...getRequestProviderPayload(endpoint),
         stream: true
       })
     });
@@ -1194,31 +1300,30 @@ export async function streamTranslateText(
 
 // 获取词汇详情
 export async function getWordDetails(
-  word: string, 
-  pos: string, 
-  sentence: string, 
-  furigana?: string, 
+  word: string,
+  pos: string,
+  sentence: string,
+  furigana?: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   signal?: AbortSignal,
   kind: WordDetailKind = 'word'
 ): Promise<WordDetail> {
   try {
     const apiUrl = getApiEndpoint('/word-detail');
     const headers = getHeaders(userApiKey);
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
       signal,
-      body: JSON.stringify({ 
-        word, 
-        pos, 
-        sentence, 
-        furigana, 
+      body: JSON.stringify({
+        word,
+        pos,
+        sentence,
+        furigana,
         kind,
-        ...getRequestProviderPayload(provider, model)
+        ...getRequestProviderPayload(endpoint)
       })
     });
 
@@ -1259,26 +1364,25 @@ export async function streamWordDetails(
   onError: (error: Error) => void,
   furigana?: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   signal?: AbortSignal,
   kind: WordDetailKind = 'word'
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/word-detail');
     const headers = getHeaders(userApiKey);
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
       signal,
-      body: JSON.stringify({ 
-        word, 
-        pos, 
-        sentence, 
-        furigana, 
+      body: JSON.stringify({
+        word,
+        pos,
+        sentence,
+        furigana,
         kind,
-        ...getRequestProviderPayload(provider, model),
+        ...getRequestProviderPayload(endpoint),
         useStream: true
       })
     });
@@ -1310,21 +1414,20 @@ export async function streamWordDetails(
 export async function translateText(
   japaneseText: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   signal?: AbortSignal
 ): Promise<string> {
   try {
     const apiUrl = getApiEndpoint('/translate');
     const headers = getHeaders(userApiKey);
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
       signal,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         text: japaneseText,
-        ...getRequestProviderPayload(provider, model)
+        ...getRequestProviderPayload(endpoint)
       })
     });
 
@@ -1351,25 +1454,24 @@ export async function translateText(
 
 // 从图片提取文本
 export async function extractTextFromImage(
-  imageData: string, 
+  imageData: string,
   prompt?: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   signal?: AbortSignal
 ): Promise<string> {
   try {
     const apiUrl = getApiEndpoint('/image-to-text');
     const headers = getHeaders(userApiKey);
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
       signal,
-      body: JSON.stringify({ 
-        imageData, 
+      body: JSON.stringify({
+        imageData,
         prompt,
-        ...getRequestProviderPayload(provider, model)
+        ...getRequestProviderPayload(endpoint)
       })
     });
 
@@ -1396,27 +1498,26 @@ export async function extractTextFromImage(
 
 // 从图片提取文本 - 流式版本
 export async function streamExtractTextFromImage(
-  imageData: string, 
+  imageData: string,
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   prompt?: string,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   signal?: AbortSignal
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/image-to-text');
     const headers = getHeaders(userApiKey);
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
       signal,
-      body: JSON.stringify({ 
-        imageData, 
+      body: JSON.stringify({
+        imageData,
         prompt,
-        ...getRequestProviderPayload(provider, model),
+        ...getRequestProviderPayload(endpoint),
         stream: true
       })
     });
@@ -1529,21 +1630,20 @@ export async function streamChat(
   onChunk: (chunk: string, isDone: boolean) => void,
   onError: (error: Error) => void,
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null,
+  endpoint: EndpointPayload = { baseUrl: '', model: '' },
   signal?: AbortSignal
 ): Promise<void> {
   try {
     const apiUrl = getApiEndpoint('/chat');
     const headers = getHeaders(userApiKey);
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
       signal,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         messages,
-        ...getRequestProviderPayload(provider, model),
+        ...getRequestProviderPayload(endpoint),
         useStream: true
       })
     });
@@ -1578,19 +1678,18 @@ export async function streamChat(
 export async function sendChat(
   messages: ChatMessage[],
   userApiKey?: string,
-  provider: AIProvider = DEFAULT_AI_PROVIDER,
-  model?: string | null
+  endpoint: EndpointPayload = { baseUrl: '', model: '' }
 ): Promise<string> {
   try {
     const apiUrl = getApiEndpoint('/chat');
     const headers = getHeaders(userApiKey);
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         messages,
-        ...getRequestProviderPayload(provider, model),
+        ...getRequestProviderPayload(endpoint),
         useStream: false
       })
     });

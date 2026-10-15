@@ -1,0 +1,58 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Japanese Analyzer",
+  "version": "../package.json",
+  "identifier": "ink.howen.japanese-analyzer",
+  "build": {
+    "frontendDist": "./tauri-ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "日本語文章解析器",
+        "width": 1280,
+        "height": 860,
+        "minWidth": 960,
+        "minHeight": 640,
+        "visible": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; font-src 'self' data:; connect-src 'self'",
+      "capabilities": [
+        "desktop"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "resources": [
+      "resources/server/"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/cokice/japanese-analyzer/releases/latest/download/latest-{{target}}.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgzOUQ3MUNENjdDREQyREYKUldUZjBzMW56WEdkZzB5bEh6L2V4WDZaMHVBdXVhbkJuRGlXbTFxY3VqRFBHVi9hdTJCOEJadjgK"
+    }
+  }
+}

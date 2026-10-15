@@ -8,30 +8,26 @@ import './wordDetailDictionary.test';
 import { runLocalOutputTests } from './localOutput.test';
 import { runRequestMetricsTests } from './requestMetrics.test';
 import {
-  DEFAULT_AI_PROVIDER,
-  DEEPSEEK_VISION_MODEL_NAME,
-  DEEPSEEK_MODEL_OPTIONS,
-  GEMINI_MODEL_OPTIONS,
+  PRESETS,
+  createCustomModelId,
+  createCustomProfileId,
   getApiEndpoint,
-  getImageRecognitionModelName,
-  getModelName,
   getTtsModelName,
   getRequestProviderPayload,
   loadAISettingsFromStorage,
-  normalizeAIModel,
-  normalizeAIProvider,
+  normalizeEndpointUrl,
+  sanitizeProfiles,
   parseWordDetailResponseContent,
   readOpenAIContentStream,
   type StorageLike
 } from '../app/services/api';
 import {
-  DEFAULT_AI_PROVIDER as SERVER_DEFAULT_AI_PROVIDER,
-  GEMINI_OPENAI_API_URL,
   ProviderConfigError,
+  buildCompletionPayload,
   getStructuredResponseFormat,
-  normalizeAIProvider as normalizeServerAIProvider,
   resolveProviderConfig,
-  withProviderControls
+  resolveServerProviderConfig,
+  type ProviderCaps
 } from '../app/api/_utils/providerConfig';
 import {
   proxyOpenAICompatibleRequest,
@@ -83,6 +79,7 @@ import {
   REASONING_VIRTUAL_LINE_CHAR_LIMIT,
   ReasoningTextStore
 } from '../app/utils/reasoningTextStore';
+import { PROVIDER_ICONS } from '../app/lib/providerIcons';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
@@ -136,36 +133,47 @@ assert.deepStrictEqual(
   '完成态应合并连续空行并按段落生成虚拟块'
 );
 
-assert.strictEqual(DEFAULT_AI_PROVIDER, 'deepseek');
-assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
-assert.strictEqual(getModelName(), 'deepseek-flash');
 assert.strictEqual(getTtsModelName('edge'), 'edge-tts');
 assert.strictEqual(getTtsModelName('gemini'), 'gemini-3.1-flash-tts-preview');
-assert.deepStrictEqual(GEMINI_MODEL_OPTIONS, ['gemini-flash-latest', 'gemini-flash-lite-latest']);
-assert.deepStrictEqual(DEEPSEEK_MODEL_OPTIONS, ['deepseek-flash']);
-assert.strictEqual(DEEPSEEK_VISION_MODEL_NAME, 'deepseek-flash');
-assert.strictEqual(getImageRecognitionModelName('deepseek'), DEEPSEEK_VISION_MODEL_NAME);
-assert.strictEqual(getImageRecognitionModelName('deepseek', 'deepseek-flash'), DEEPSEEK_VISION_MODEL_NAME);
-assert.strictEqual(getImageRecognitionModelName('gemini'), 'gemini-flash-latest');
-assert.strictEqual(getImageRecognitionModelName('gemini', 'gemini-flash-lite-latest'), 'gemini-flash-lite-latest');
-assert.strictEqual(normalizeAIProvider('gemini'), 'gemini');
-assert.strictEqual(normalizeAIProvider('deepseek'), 'deepseek');
-assert.strictEqual(normalizeAIProvider('unknown'), 'deepseek');
-assert.strictEqual(normalizeAIModel('deepseek', 'deepseek-flash'), 'deepseek-flash');
-assert.strictEqual(normalizeAIModel('deepseek', 'unknown'), 'deepseek-flash');
-for (const legacyModel of ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp']) {
-  assert.strictEqual(normalizeAIModel('deepseek', legacyModel), 'deepseek-flash');
-  assert.strictEqual(getImageRecognitionModelName('deepseek', legacyModel), 'deepseek-flash');
+assert.deepStrictEqual(
+  PRESETS.map((preset) => preset.id),
+  ['deepseek', 'openai', 'openrouter', 'qwen', 'moonshot', 'zhipu', 'siliconflow', 'volcengine', 'gemini', 'groq', 'mistral']
+);
+assert.ok(PRESETS.some((preset) => preset.id === 'deepseek' && preset.models[0]?.caps?.thinking === true));
+for (const preset of PRESETS) {
+  assert.ok(PROVIDER_ICONS[preset.id], `预设 ${preset.id} 缺少对应的本地 logo`);
+  assert.strictEqual(PROVIDER_ICONS[preset.id], `/icons/providers/${preset.id}.svg`);
 }
-assert.strictEqual(normalizeAIModel('gemini', 'gemini-flash-lite-latest'), 'gemini-flash-lite-latest');
-assert.strictEqual(normalizeAIModel('gemini', 'deepseek-flash'), 'gemini-flash-latest');
-assert.strictEqual(normalizeServerAIProvider('gemini'), 'gemini');
-assert.strictEqual(normalizeServerAIProvider('deepseek'), 'deepseek');
-assert.strictEqual(normalizeServerAIProvider('unknown'), 'deepseek');
-assert.strictEqual(getModelName('deepseek'), 'deepseek-flash');
-assert.strictEqual(getModelName('deepseek', 'deepseek-v4-pro'), 'deepseek-flash');
-assert.strictEqual(getModelName('gemini', 'gemini-flash-lite-latest'), 'gemini-flash-lite-latest');
-assert.strictEqual(getModelName('gemini', 'deepseek-flash'), 'gemini-flash-latest');
+assert.strictEqual(normalizeEndpointUrl('https://api.deepseek.com'), 'https://api.deepseek.com/chat/completions');
+assert.strictEqual(normalizeEndpointUrl('https://api.deepseek.com/v1/'), 'https://api.deepseek.com/v1/chat/completions');
+assert.strictEqual(normalizeEndpointUrl('https://api.deepseek.com/chat/completions'), 'https://api.deepseek.com/chat/completions');
+assert.ok(createCustomProfileId().startsWith('custom-'));
+assert.ok(createCustomModelId().startsWith('model-'));
+
+// sanitizeProfiles 只接受 service + models 结构：缺 baseUrl / 缺有效模型的服务被丢弃，
+// jsonSchema 留在服务商，thinking / reasoningEffort 归模型，reasoningEffort trim 后为空则删
+const sanitizedSingle = sanitizeProfiles([
+  { id: 'a', baseUrl: 'https://x.example', models: [{ model: 'm-1' }] },
+  { id: 'skip' },
+  { id: 'no-model', baseUrl: 'https://x.example', models: [{ name: 'x' }] },
+]);
+assert.deepStrictEqual(sanitizedSingle, [
+  { id: 'a', name: 'a', baseUrl: 'https://x.example', apiKey: '', models: [sanitizedSingle[0].models[0]] },
+]);
+assert.ok(sanitizedSingle[0].models[0].id.startsWith('model-'));
+assert.strictEqual(sanitizedSingle[0].models[0].name, 'm-1');
+assert.strictEqual(sanitizedSingle[0].models[0].model, 'm-1');
+assert.deepStrictEqual(sanitizedSingle[0].models[0].caps, {});
+assert.deepStrictEqual(
+  sanitizeProfiles([
+    { id: 'b', baseUrl: 'https://x.example', jsonSchema: false, models: [{ id: 'b1', name: 'B', model: 'm', caps: { thinking: true, reasoningEffort: ' xhigh ' } }] },
+    { id: 'c', baseUrl: 'https://x.example', models: [{ id: 'c1', model: 'm', caps: { thinking: true, reasoningEffort: '   ' } }] },
+  ]),
+  [
+    { id: 'b', name: 'b', baseUrl: 'https://x.example', apiKey: '', jsonSchema: false, models: [{ id: 'b1', name: 'B', model: 'm', caps: { thinking: true, reasoningEffort: 'xhigh' } }] },
+    { id: 'c', name: 'c', baseUrl: 'https://x.example', apiKey: '', models: [{ id: 'c1', name: 'm', model: 'm', caps: { thinking: true } }] },
+  ]
+);
 
 const oldCode = process.env.CODE;
 try {
@@ -206,7 +214,7 @@ assert.ok(umamiLoaderScript.includes('document.createElement'));
 assert.ok(umamiLoaderScript.includes(JSON.stringify('https://umami.example/script.js')));
 assert.ok(umamiLoaderScript.includes(JSON.stringify('site"id')));
 
-assert.deepStrictEqual(getAnalyzeUsageEvent('gemini'), {
+assert.deepStrictEqual(getAnalyzeUsageEvent('gemini', {}, 'gemini-flash-latest'), {
   name: ANALYZE_USAGE_EVENT_NAME,
   data: {
     provider: 'gemini',
@@ -233,24 +241,11 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('gemini', {}, 'gemini-flash-lite-lat
   },
 });
 
-assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek'), {
+assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek', {}, 'deepseek-chat'), {
   name: ANALYZE_USAGE_EVENT_NAME,
   data: {
     provider: 'deepseek',
-    model: 'deepseek-flash',
-    image_recognition: 'false',
-    image_provider: 'none',
-    image_model: 'none',
-    tts: 'false',
-    tts_provider: 'none',
-    tts_model: 'none',
-  },
-});
-assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek', {}, 'deepseek-flash'), {
-  name: ANALYZE_USAGE_EVENT_NAME,
-  data: {
-    provider: 'deepseek',
-    model: 'deepseek-flash',
+    model: 'deepseek-chat',
     image_recognition: 'false',
     image_provider: 'none',
     image_model: 'none',
@@ -260,9 +255,9 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('deepseek', {}, 'deepseek-flash'), {
   },
 });
 assert.deepStrictEqual(getAnalyzeUsageEvent('gemini', {
-  imageRecognition: getImageRecognitionUsage('gemini'),
+  imageRecognition: getImageRecognitionUsage('gemini', 'gemini-flash-latest'),
   tts: getTtsUsage('gemini'),
-}), {
+}, 'gemini-flash-latest'), {
   name: ANALYZE_USAGE_EVENT_NAME,
   data: {
     provider: 'gemini',
@@ -275,18 +270,18 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('gemini', {
     tts_model: 'gemini-3.1-flash-tts-preview',
   },
 });
-assert.deepStrictEqual(getImageRecognitionUsageEvent('gemini'), {
+assert.deepStrictEqual(getImageRecognitionUsageEvent('gemini', 'gemini-flash-latest'), {
   name: IMAGE_RECOGNITION_USAGE_EVENT_NAME,
   data: {
     provider: 'gemini',
     model: 'gemini-flash-latest',
   },
 });
-assert.deepStrictEqual(getImageRecognitionUsageEvent('deepseek'), {
+assert.deepStrictEqual(getImageRecognitionUsageEvent('deepseek', 'deepseek-chat'), {
   name: IMAGE_RECOGNITION_USAGE_EVENT_NAME,
   data: {
     provider: 'deepseek',
-    model: 'deepseek-flash',
+    model: 'deepseek-chat',
   },
 });
 assert.deepStrictEqual(getTtsUsageEvent('edge'), {
@@ -296,18 +291,11 @@ assert.deepStrictEqual(getTtsUsageEvent('edge'), {
     model: 'edge-tts',
   },
 });
-assert.deepStrictEqual(getWordDetailUsageEvent('deepseek'), {
+assert.deepStrictEqual(getWordDetailUsageEvent('deepseek', 'deepseek-chat'), {
   name: WORD_DETAIL_USAGE_EVENT_NAME,
   data: {
     provider: 'deepseek',
-    model: 'deepseek-flash',
-  },
-});
-assert.deepStrictEqual(getWordDetailUsageEvent('deepseek', 'deepseek-flash'), {
-  name: WORD_DETAIL_USAGE_EVENT_NAME,
-  data: {
-    provider: 'deepseek',
-    model: 'deepseek-flash',
+    model: 'deepseek-chat',
   },
 });
 
@@ -385,91 +373,90 @@ const smallTailChunks = splitJapaneseText(smallTailArticle, {
 assert.strictEqual(smallTailChunks.length, 1);
 assert.strictEqual(reconstructJapaneseChunks(smallTailChunks), smallTailArticle);
 
-assert.deepStrictEqual(getRequestProviderPayload('gemini'), {
-  provider: 'gemini',
-  model: 'gemini-flash-latest',
+assert.deepStrictEqual(getRequestProviderPayload({ baseUrl: 'https://a.example', model: 'm-1' }), {
+  baseUrl: 'https://a.example',
+  model: 'm-1',
+  caps: undefined,
 });
 
-assert.deepStrictEqual(getRequestProviderPayload('gemini', 'gemini-flash-lite-latest'), {
-  provider: 'gemini',
-  model: 'gemini-flash-lite-latest',
-});
-
-assert.deepStrictEqual(getRequestProviderPayload('deepseek'), {
-  provider: 'deepseek',
-  model: 'deepseek-flash',
-});
-
-assert.deepStrictEqual(getRequestProviderPayload('deepseek', 'deepseek-v4-pro'), {
-  provider: 'deepseek',
-  model: 'deepseek-flash',
-});
-
-assert.deepStrictEqual(getRequestProviderPayload(), {
-  provider: 'deepseek',
-  model: 'deepseek-flash',
-});
-
-assert.deepStrictEqual(withProviderControls('gemini', { model: 'gemini-flash-latest' }), {
-  model: 'gemini-flash-latest',
-  reasoning_effort: 'low',
-});
-
-assert.deepStrictEqual(withProviderControls('gemini', { model: 'gemini-flash-lite-latest' }), {
-  model: 'gemini-flash-lite-latest',
-  reasoning_effort: 'minimal',
-});
-
-assert.deepStrictEqual(withProviderControls('deepseek', { model: 'deepseek-flash' }), {
-  model: 'deepseek-flash',
-  thinking: { type: 'disabled' },
-});
-
-assert.deepStrictEqual(withProviderControls('deepseek', { model: DEEPSEEK_VISION_MODEL_NAME }, {
-  enableThinking: false,
-}), {
-  model: 'deepseek-flash',
-  thinking: { type: 'disabled' },
-});
-
-assert.deepStrictEqual(withProviderControls(
-  'deepseek',
-  { model: 'deepseek-flash' },
-  { enableThinking: true }
-), {
-  model: 'deepseek-flash',
-  thinking: { type: 'enabled' },
-  reasoning_effort: 'high',
-});
-
-assert.deepStrictEqual(getStructuredResponseFormat('deepseek', 'analysisTokens'), {
-  type: 'json_object',
-});
-
-const geminiAnalysisResponseFormat = getStructuredResponseFormat('gemini', 'analysisTokens');
-assert.strictEqual(geminiAnalysisResponseFormat.type, 'json_schema');
-assert.ok(
-  JSON.stringify(geminiAnalysisResponseFormat).includes('"tokens"')
+assert.deepStrictEqual(
+  getRequestProviderPayload({ baseUrl: 'https://b.example', model: 'm-2', caps: { thinking: true } }),
+  {
+    baseUrl: 'https://b.example',
+    model: 'm-2',
+    caps: { thinking: true },
+  }
 );
 
-assert.deepStrictEqual(withProviderControls(
-  'deepseek',
-  { model: 'deepseek-flash' },
+const deepseekCaps: ProviderCaps = { jsonSchema: false, thinking: true };
+assert.deepStrictEqual(buildCompletionPayload(deepseekCaps, { model: 'deepseek-chat' }), {
+  model: 'deepseek-chat',
+  thinking: { type: 'disabled' },
+});
+
+// 未声明 reasoning_effort 时不发送该字段，由服务商使用自身默认值
+assert.deepStrictEqual(buildCompletionPayload(
+  deepseekCaps,
+  { model: 'deepseek-chat' },
+  { enableThinking: true }
+), {
+  model: 'deepseek-chat',
+  thinking: { type: 'enabled' },
+});
+
+// 声明了 reasoning_effort 且开启思考时才发送，取值原样透传
+assert.deepStrictEqual(buildCompletionPayload(
+  { ...deepseekCaps, reasoningEffort: 'xhigh' },
+  { model: 'qwen-test' },
+  { enableThinking: true }
+), {
+  model: 'qwen-test',
+  thinking: { type: 'enabled' },
+  reasoning_effort: 'xhigh',
+});
+
+// 声明了 reasoning_effort 但关闭思考时同样不发送
+assert.deepStrictEqual(buildCompletionPayload(
+  { ...deepseekCaps, reasoningEffort: 'xhigh' },
+  { model: 'qwen-test' },
+  { enableThinking: false }
+), {
+  model: 'qwen-test',
+  thinking: { type: 'disabled' },
+});
+
+assert.deepStrictEqual(buildCompletionPayload(
+  deepseekCaps,
+  { model: 'deepseek-chat' },
   { structuredOutput: 'wordDetail' }
 ), {
-  model: 'deepseek-flash',
+  model: 'deepseek-chat',
   response_format: { type: 'json_object' },
   thinking: { type: 'disabled' },
 });
 
-const geminiStructuredPayload = withProviderControls(
-  'gemini',
-  { model: 'gemini-flash-latest' },
+const openaiCaps: ProviderCaps = {};
+assert.deepStrictEqual(buildCompletionPayload(openaiCaps, { model: 'gpt-4o-mini' }), {
+  model: 'gpt-4o-mini',
+});
+
+assert.deepStrictEqual(getStructuredResponseFormat(deepseekCaps, 'analysisTokens'), {
+  type: 'json_object',
+});
+
+const openaiAnalysisResponseFormat = getStructuredResponseFormat(openaiCaps, 'analysisTokens');
+assert.strictEqual(openaiAnalysisResponseFormat.type, 'json_schema');
+assert.ok(
+  JSON.stringify(openaiAnalysisResponseFormat).includes('"tokens"')
+);
+
+const openaiStructuredPayload = buildCompletionPayload(
+  openaiCaps,
+  { model: 'gpt-4o-mini' },
   { structuredOutput: 'analysisTokens' }
 );
-assert.strictEqual(geminiStructuredPayload.reasoning_effort, 'low');
 assert.deepStrictEqual(
-  (geminiStructuredPayload.response_format as Record<string, unknown>).type,
+  (openaiStructuredPayload.response_format as Record<string, unknown>).type,
   'json_schema'
 );
 
@@ -671,79 +658,88 @@ async function runOpenAIContentStreamTests() {
   assert.strictEqual(stalledController.signal.aborted, true);
 }
 
-const oldGeminiApiKey = process.env.GEMINI_API_KEY;
-const oldGeminiApiUrl = process.env.GEMINI_API_URL;
-const oldLegacyApiKey = process.env.API_KEY;
-const oldLegacyApiUrl = process.env.API_URL;
-const createProviderConfigRequest = () => (
-  { headers: new Headers() } as Parameters<typeof resolveProviderConfig>[0]
+const createProviderConfigRequest = (auth?: string) => (
+  { headers: new Headers(auth ? { Authorization: auth } : {}) } as Parameters<typeof resolveProviderConfig>[0]
 );
+
+const resolved = resolveProviderConfig(
+  createProviderConfigRequest('Bearer test-key'),
+  { baseUrl: 'https://api.deepseek.com', model: 'deepseek-chat', caps: { jsonSchema: false, thinking: true } }
+);
+assert.strictEqual(resolved.apiKey, 'test-key');
+assert.strictEqual(resolved.baseUrl, 'https://api.deepseek.com/chat/completions');
+assert.strictEqual(resolved.model, 'deepseek-chat');
+assert.deepStrictEqual(resolved.caps, { jsonSchema: false, thinking: true });
 
 assert.throws(
-  () => resolveProviderConfig(
-    createProviderConfigRequest(),
-    { provider: 'gemini', apiUrl: 'https://attacker.example/chat/completions' }
-  ),
-  (error) => (
-    error instanceof ProviderConfigError &&
-    error.status === 400 &&
-    error.message.includes('客户端不再支持自定义 API URL')
-  )
+  () => resolveProviderConfig(createProviderConfigRequest('Bearer k'), { baseUrl: 'http://127.0.0.1', model: 'm' }),
+  (error) => error instanceof ProviderConfigError && error.status === 400
+);
+assert.throws(
+  () => resolveProviderConfig(createProviderConfigRequest('Bearer k'), { baseUrl: 'http://169.254.169.254', model: 'm' }),
+  (error) => error instanceof ProviderConfigError && error.status === 400
+);
+assert.throws(
+  () => resolveProviderConfig(createProviderConfigRequest('Bearer k'), { baseUrl: 'http://foo.local', model: 'm' }),
+  (error) => error instanceof ProviderConfigError && error.status === 400
+);
+assert.throws(
+  () => resolveProviderConfig(createProviderConfigRequest('Bearer k'), { baseUrl: 'ftp://x.example', model: 'm' }),
+  (error) => error instanceof ProviderConfigError && error.status === 400
+);
+assert.throws(
+  () => resolveProviderConfig(createProviderConfigRequest('Bearer k'), { baseUrl: 'https://ok.example', model: '' }),
+  (error) => error instanceof ProviderConfigError && error.status === 400
+);
+assert.throws(
+  () => resolveProviderConfig(createProviderConfigRequest('Bearer k'), { model: 'm' }),
+  (error) => error instanceof ProviderConfigError && error.status === 400
 );
 
+const oldDailyUrl = process.env.DAILY_SENTENCE_API_URL;
+const oldDailyKey = process.env.DAILY_SENTENCE_API_KEY;
+const oldDailyModel = process.env.DAILY_SENTENCE_API_MODEL;
+const oldDeepseekKey = process.env.DEEPSEEK_API_KEY;
+const oldGeminiKey = process.env.GEMINI_API_KEY;
 try {
+  delete process.env.DAILY_SENTENCE_API_URL;
+  delete process.env.DAILY_SENTENCE_API_KEY;
+  delete process.env.DAILY_SENTENCE_API_MODEL;
+  delete process.env.DEEPSEEK_API_KEY;
   delete process.env.GEMINI_API_KEY;
-  delete process.env.GEMINI_API_URL;
-  process.env.API_KEY = 'legacy-key';
-  process.env.API_URL = 'https://legacy.example/chat/completions';
+  assert.strictEqual(resolveServerProviderConfig(), null);
 
-  const defaultGeminiConfig = resolveProviderConfig(
-    createProviderConfigRequest(),
-    { provider: 'gemini' }
-  );
-  assert.strictEqual(defaultGeminiConfig.apiKey, '');
-  assert.strictEqual(defaultGeminiConfig.apiUrl, GEMINI_OPENAI_API_URL);
-  assert.strictEqual(defaultGeminiConfig.model, 'gemini-flash-latest');
+  process.env.DEEPSEEK_API_KEY = 'deepseek-key';
+  const serverConfig = resolveServerProviderConfig();
+  assert.strictEqual(serverConfig?.name, 'deepseek');
+  assert.strictEqual(serverConfig?.apiKey, 'deepseek-key');
+  assert.strictEqual(serverConfig?.model, 'deepseek-chat');
+  assert.strictEqual(serverConfig?.caps.jsonSchema, false);
 
-  const liteGeminiConfig = resolveProviderConfig(
-    createProviderConfigRequest(),
-    { provider: 'gemini', model: 'gemini-flash-lite-latest' }
-  );
-  assert.strictEqual(liteGeminiConfig.model, 'gemini-flash-lite-latest');
-
-  const invalidGeminiConfig = resolveProviderConfig(
-    createProviderConfigRequest(),
-    { provider: 'gemini', model: 'deepseek-flash' }
-  );
-  assert.strictEqual(invalidGeminiConfig.model, 'gemini-flash-latest');
-
-  process.env.GEMINI_API_KEY = 'gemini-key';
-  process.env.GEMINI_API_URL = 'https://gemini.example/chat/completions';
-
-  const envGeminiConfig = resolveProviderConfig(
-    createProviderConfigRequest(),
-    { provider: 'gemini' }
-  );
-  assert.strictEqual(envGeminiConfig.apiKey, 'gemini-key');
-  assert.strictEqual(envGeminiConfig.apiUrl, 'https://gemini.example/chat/completions');
+  process.env.DAILY_SENTENCE_API_URL = 'https://daily.example/v1';
+  process.env.DAILY_SENTENCE_API_KEY = 'daily-key';
+  process.env.DAILY_SENTENCE_API_MODEL = 'daily-model';
+  const dailyConfig = resolveServerProviderConfig();
+  assert.strictEqual(dailyConfig?.name, 'daily-sentence');
+  assert.strictEqual(dailyConfig?.apiUrl, 'https://daily.example/v1/chat/completions');
+  assert.strictEqual(dailyConfig?.apiKey, 'daily-key');
 } finally {
-  if (oldGeminiApiKey === undefined) delete process.env.GEMINI_API_KEY;
-  else process.env.GEMINI_API_KEY = oldGeminiApiKey;
-
-  if (oldGeminiApiUrl === undefined) delete process.env.GEMINI_API_URL;
-  else process.env.GEMINI_API_URL = oldGeminiApiUrl;
-
-  if (oldLegacyApiKey === undefined) delete process.env.API_KEY;
-  else process.env.API_KEY = oldLegacyApiKey;
-
-  if (oldLegacyApiUrl === undefined) delete process.env.API_URL;
-  else process.env.API_URL = oldLegacyApiUrl;
+  if (oldDailyUrl === undefined) delete process.env.DAILY_SENTENCE_API_URL;
+  else process.env.DAILY_SENTENCE_API_URL = oldDailyUrl;
+  if (oldDailyKey === undefined) delete process.env.DAILY_SENTENCE_API_KEY;
+  else process.env.DAILY_SENTENCE_API_KEY = oldDailyKey;
+  if (oldDailyModel === undefined) delete process.env.DAILY_SENTENCE_API_MODEL;
+  else process.env.DAILY_SENTENCE_API_MODEL = oldDailyModel;
+  if (oldDeepseekKey === undefined) delete process.env.DEEPSEEK_API_KEY;
+  else process.env.DEEPSEEK_API_KEY = oldDeepseekKey;
+  if (oldGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+  else process.env.GEMINI_API_KEY = oldGeminiKey;
 }
 
 class MemoryStorage implements StorageLike {
   private values = new Map<string, string>();
 
-  constructor(initialValues: Record<string, string>) {
+  constructor(initialValues: Record<string, string> = {}) {
     Object.entries(initialValues).forEach(([key, value]) => this.values.set(key, value));
   }
 
@@ -754,52 +750,99 @@ class MemoryStorage implements StorageLike {
   setItem(key: string, value: string): void {
     this.values.set(key, value);
   }
+
+  removeItem(key: string): void {
+    this.values.delete(key);
+  }
 }
 
 const migratedStorage = new MemoryStorage({
-  userApiKey: 'legacy-gemini-key',
-  userApiUrl: 'https://legacy.example/v1/chat/completions',
   aiProvider: 'deepseek',
-  aiModel: 'deepseek-v4-pro',
+  aiModel: 'deepseek-chat',
   deepseekApiKey: 'deepseek-key',
   deepseekThinkingEnabled: 'true',
+  geminiApiKey: 'gemini-key',
 });
+// 最旧结构（aiProvider/aiModel/*ApiKey）迁移成 service + models
 const migratedSettings = loadAISettingsFromStorage(migratedStorage);
-assert.deepStrictEqual(migratedSettings, {
-  aiProvider: 'deepseek',
-  aiModel: 'deepseek-flash',
-  geminiApiKey: 'legacy-gemini-key',
-  deepseekApiKey: 'deepseek-key',
-  deepseekThinkingEnabled: false,
-});
-assert.strictEqual(migratedStorage.getItem('geminiApiKey'), 'legacy-gemini-key');
-assert.strictEqual(migratedStorage.getItem('geminiApiUrl'), null);
-assert.strictEqual(migratedStorage.getItem('deepseekThinkingEnabled'), 'false');
+assert.strictEqual(migratedSettings.services.length, 1);
+assert.strictEqual(migratedSettings.services[0].id, 'deepseek');
+assert.strictEqual(migratedSettings.services[0].name, 'DeepSeek');
+assert.strictEqual(migratedSettings.services[0].baseUrl, 'https://api.deepseek.com');
+assert.strictEqual(migratedSettings.services[0].apiKey, 'deepseek-key');
+assert.strictEqual(migratedSettings.services[0].jsonSchema, false);
+assert.strictEqual(migratedSettings.services[0].models.length, 1);
+assert.strictEqual(migratedSettings.services[0].models[0].model, 'deepseek-chat');
+assert.deepStrictEqual(migratedSettings.services[0].models[0].caps, { thinking: true });
+assert.strictEqual(migratedSettings.activeServiceId, 'deepseek');
+assert.strictEqual(migratedSettings.activeModelId, migratedSettings.services[0].models[0].id);
+assert.strictEqual(migratedSettings.geminiApiKey, 'gemini-key');
+assert.strictEqual(migratedSettings.thinkingEnabled, true);
 
-const defaultStorage = new MemoryStorage({
-  aiProvider: 'unknown',
-});
-const defaultSettings = loadAISettingsFromStorage(defaultStorage);
-assert.strictEqual(defaultSettings.aiProvider, 'deepseek');
-assert.strictEqual(defaultSettings.aiModel, 'deepseek-flash');
-assert.strictEqual(defaultSettings.geminiApiKey, '');
-assert.strictEqual(defaultSettings.deepseekApiKey, '');
-assert.strictEqual(defaultSettings.deepseekThinkingEnabled, false);
+const emptyStorage = new MemoryStorage({ aiProvider: 'unknown' });
+const emptySettings = loadAISettingsFromStorage(emptyStorage);
+assert.deepStrictEqual(emptySettings.services, []);
+assert.strictEqual(emptySettings.activeServiceId, '');
+assert.strictEqual(emptySettings.activeModelId, '');
+assert.strictEqual(emptySettings.geminiApiKey, '');
+assert.strictEqual(emptySettings.thinkingEnabled, false);
 
-const geminiLiteStorage = new MemoryStorage({
+const legacyGeminiStorage = new MemoryStorage({
   aiProvider: 'gemini',
-  aiModel: 'gemini-3.5-flash-lite',
+  aiModel: 'gemini-flash-latest',
+  geminiApiKey: 'gemini-key',
 });
-assert.strictEqual(loadAISettingsFromStorage(geminiLiteStorage).aiModel, 'gemini-flash-lite-latest');
+const legacyGeminiSettings = loadAISettingsFromStorage(legacyGeminiStorage);
+assert.strictEqual(legacyGeminiSettings.services.length, 1);
+assert.strictEqual(legacyGeminiSettings.services[0].id, 'gemini');
+assert.strictEqual(legacyGeminiSettings.services[0].baseUrl, 'https://generativelanguage.googleapis.com/v1beta/openai');
+assert.strictEqual(legacyGeminiSettings.services[0].models[0].model, 'gemini-flash-latest');
 
-for (const [legacyModel, latestModel] of [
-  ['gemini-3.7-flash', 'gemini-flash-latest'],
-  ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest'],
-]) {
-  assert.strictEqual(normalizeAIModel('gemini', legacyModel), latestModel);
-  assert.strictEqual(getImageRecognitionModelName('gemini', legacyModel), latestModel);
-  assert.strictEqual(getRequestProviderPayload('gemini', legacyModel).model, latestModel);
-}
+// 上一版平铺结构（profiles，一个 profile = 一个模型）迁移成 service + models
+const flatFormatStorage = new MemoryStorage({
+  providerSettings: JSON.stringify({
+    profiles: [{ id: 'my', name: 'My', baseUrl: 'https://my.example', apiKey: 'k', model: 'm', caps: { jsonSchema: false, thinking: true, reasoningEffort: 'xhigh' } }],
+    activeId: 'my',
+  }),
+  thinkingEnabled: 'true',
+});
+const flatFormatSettings = loadAISettingsFromStorage(flatFormatStorage);
+assert.strictEqual(flatFormatSettings.services.length, 1);
+assert.strictEqual(flatFormatSettings.services[0].id, 'my');
+assert.strictEqual(flatFormatSettings.services[0].jsonSchema, false);
+assert.strictEqual(flatFormatSettings.services[0].models.length, 1);
+assert.strictEqual(flatFormatSettings.services[0].models[0].model, 'm');
+assert.deepStrictEqual(flatFormatSettings.services[0].models[0].caps, { thinking: true, reasoningEffort: 'xhigh' });
+assert.strictEqual(flatFormatSettings.activeServiceId, 'my');
+assert.strictEqual(flatFormatSettings.activeModelId, flatFormatSettings.services[0].models[0].id);
+assert.strictEqual(flatFormatSettings.thinkingEnabled, true);
+
+// 新结构（services + activeServiceId/activeModelId）原样读回
+const newFormatStorage = new MemoryStorage({
+  providerSettings: JSON.stringify({
+    services: [{ id: 'my', name: 'My', baseUrl: 'https://my.example', apiKey: 'k', jsonSchema: true, models: [{ id: 'm1', name: 'M', model: 'm', caps: { thinking: true } }, { id: 'm2', name: 'M2', model: 'm2' }] }],
+    activeServiceId: 'my',
+    activeModelId: 'm2',
+  }),
+  thinkingEnabled: 'true',
+});
+const newFormatSettings = loadAISettingsFromStorage(newFormatStorage);
+assert.strictEqual(newFormatSettings.services.length, 1);
+assert.strictEqual(newFormatSettings.services[0].models.length, 2);
+assert.strictEqual(newFormatSettings.activeServiceId, 'my');
+assert.strictEqual(newFormatSettings.activeModelId, 'm2');
+assert.strictEqual(newFormatSettings.thinkingEnabled, true);
+
+// activeModelId 指向不存在的模型时回退到该服务第一个模型
+const staleModelStorage = new MemoryStorage({
+  providerSettings: JSON.stringify({
+    services: [{ id: 'my', name: 'My', baseUrl: 'https://my.example', apiKey: 'k', models: [{ id: 'm1', name: 'M', model: 'm' }] }],
+    activeServiceId: 'my',
+    activeModelId: 'missing',
+  }),
+});
+const staleModelSettings = loadAISettingsFromStorage(staleModelStorage);
+assert.strictEqual(staleModelSettings.activeModelId, 'm1');
 
 async function runOpenAIProxyErrorBodyTests() {
   const originalFetch = globalThis.fetch;

@@ -5,7 +5,7 @@ import { getTranslationSystemPrompt } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
-import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
+import { ProviderConfigError, resolveProviderConfig, buildCompletionPayload } from '../_utils/providerConfig';
 import { isUpstreamTimeoutError } from '../_utils/requestTimeout';
 import { requireApiSession } from '../_utils/sessionAuth';
 
@@ -16,12 +16,12 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     // 解析请求体
-    const { text, model, apiUrl, stream = false, provider } = await readJsonBody(req);
-    const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
-    
+    const { text, model, baseUrl, caps, stream = false } = await readJsonBody(req);
+    const providerConfig = resolveProviderConfig(req, { baseUrl, model, caps });
+
     if (!providerConfig.apiKey) {
       return NextResponse.json(
-        { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
+        { error: { message: '未提供API密钥，请在设置中配置API密钥' } },
         { status: 500 }
       );
     }
@@ -35,14 +35,14 @@ export async function POST(req: NextRequest) {
 
     // 构建翻译请求
     const translationPrompt = getTranslationSystemPrompt(locale);
-    const payload = withProviderControls(providerConfig.provider, {
+    const payload = buildCompletionPayload(providerConfig.caps, {
       model: providerConfig.model,
       messages: [{ role: "system", content: translationPrompt }, { role: "user", content: text }],
       stream: stream
     });
 
     const proxied = await proxyOpenAICompatibleRequest({
-      url: providerConfig.apiUrl,
+      url: providerConfig.baseUrl,
       apiKey: providerConfig.apiKey,
       payload,
       signal: req.signal,

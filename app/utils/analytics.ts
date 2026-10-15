@@ -1,11 +1,4 @@
-import {
-  AIModelName,
-  AIProvider,
-  TTSProvider,
-  getImageRecognitionModelName,
-  getModelName,
-  getTtsModelName,
-} from '../services/api';
+import { TTSProvider, getTtsModelName } from '../services/api';
 import { ApiRequestError, InvalidResponseError } from './requestErrors';
 
 type EventData = Record<string, string | number>;
@@ -25,7 +18,7 @@ export const TTS_USAGE_EVENT_NAME = 'tts_speech';
 export const WORD_DETAIL_USAGE_EVENT_NAME = 'word_detail_click';
 
 export interface ImageRecognitionUsage {
-  provider: AIProvider;
+  provider: string;
   model: string;
 }
 
@@ -44,10 +37,10 @@ interface AnalyticsEvent {
   data: EventData;
 }
 
-export function getImageRecognitionUsage(provider: AIProvider, model?: AIModelName): ImageRecognitionUsage {
+export function getImageRecognitionUsage(provider: string, model?: string): ImageRecognitionUsage {
   return {
     provider,
-    model: getImageRecognitionModelName(provider, model),
+    model: model ?? '',
   };
 }
 
@@ -59,15 +52,15 @@ export function getTtsUsage(provider: TTSProvider): TtsUsage {
 }
 
 export function getAnalyzeUsageEvent(
-  provider: AIProvider,
+  provider: string,
   usage: AnalyzeUsageMetadata = {},
-  model?: AIModelName
+  model?: string
 ): AnalyticsEvent {
   return {
     name: ANALYZE_USAGE_EVENT_NAME,
     data: {
       provider,
-      model: getModelName(provider, model),
+      model: model ?? '',
       image_recognition: usage.imageRecognition ? 'true' : 'false',
       image_provider: usage.imageRecognition?.provider || 'none',
       image_model: usage.imageRecognition?.model || 'none',
@@ -78,7 +71,7 @@ export function getAnalyzeUsageEvent(
   };
 }
 
-export function getImageRecognitionUsageEvent(provider: AIProvider, model?: AIModelName): AnalyticsEvent {
+export function getImageRecognitionUsageEvent(provider: string, model?: string): AnalyticsEvent {
   const usage = getImageRecognitionUsage(provider, model);
 
   return {
@@ -102,12 +95,12 @@ export function getTtsUsageEvent(provider: TTSProvider): AnalyticsEvent {
   };
 }
 
-export function getWordDetailUsageEvent(provider: AIProvider, model?: AIModelName): AnalyticsEvent {
+export function getWordDetailUsageEvent(provider: string, model?: string): AnalyticsEvent {
   return {
     name: WORD_DETAIL_USAGE_EVENT_NAME,
     data: {
       provider,
-      model: getModelName(provider, model),
+      model: model ?? '',
     },
   };
 }
@@ -138,14 +131,14 @@ function trackUmamiEvent(event: AnalyticsEvent, debugLabel: string): void {
 }
 
 export function trackAnalyzeUsage(
-  provider: AIProvider,
+  provider: string,
   usage?: AnalyzeUsageMetadata,
-  model?: AIModelName
+  model?: string
 ): void {
   trackUmamiEvent(getAnalyzeUsageEvent(provider, usage, model), 'analyze usage');
 }
 
-export function trackImageRecognitionUsage(provider: AIProvider, model?: AIModelName): void {
+export function trackImageRecognitionUsage(provider: string, model?: string): void {
   trackUmamiEvent(getImageRecognitionUsageEvent(provider, model), 'image recognition usage');
 }
 
@@ -153,7 +146,7 @@ export function trackTtsUsage(provider: TTSProvider): void {
   trackUmamiEvent(getTtsUsageEvent(provider), 'tts usage');
 }
 
-export function trackWordDetailUsage(provider: AIProvider, model?: AIModelName): void {
+export function trackWordDetailUsage(provider: string, model?: string): void {
   trackUmamiEvent(getWordDetailUsageEvent(provider, model), 'word detail usage');
 }
 
@@ -174,8 +167,8 @@ export function getRequestErrorCategory(error: unknown): string {
 /** 每次请求只记录一个终态。入口只接受统计元数据，不接受原文、聊天或密钥。 */
 export function createRequestMetrics(
   kind: 'analyze' | 'chat',
-  provider: AIProvider,
-  model: AIModelName,
+  provider: string,
+  model: string,
   streaming: boolean,
   signal?: AbortSignal,
   dependencies: { now?: () => number; emit?: (event: AnalyticsEvent) => void } = {},
@@ -183,7 +176,7 @@ export function createRequestMetrics(
   const now = dependencies.now ?? (() => performance.now());
   const emit = dependencies.emit ?? ((event: AnalyticsEvent) => trackUmamiEvent(event, 'request metrics'));
   const started = now();
-  const metadata = { provider, model: getModelName(provider, model), mode: streaming ? 'stream' : 'complete' };
+  const metadata = { provider, model: model ?? '', mode: streaming ? 'stream' : 'complete' };
   let firstResultMs: number | undefined;
   let ended = false;
   const elapsed = () => Math.max(0, Math.round(now() - started));

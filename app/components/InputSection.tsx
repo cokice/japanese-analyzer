@@ -7,7 +7,7 @@ import { getImageExtractionPrompt } from '../lib/languagePrompts';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
-import type { AIProvider, AIModelName, TTSProvider } from '../services/api';
+import type { EndpointPayload, ProviderProfile, TTSProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
 import {
   getImageRecognitionUsage,
@@ -17,6 +17,7 @@ import {
   type AnalyzeUsageMetadata
 } from '../utils/analytics';
 import { Icon } from './Icons';
+import ModelSwitcher from './ModelSwitcher';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { TextShimmer } from '@/components/ui/text-shimmer';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
@@ -30,8 +31,13 @@ interface InputSectionProps {
   onAnalyze: (text: string, usage?: AnalyzeUsageMetadata) => void;
   onCancelAnalyze: () => void;
   userApiKey?: string;
-  aiProvider: AIProvider;
-  aiModel?: AIModelName;
+  activeService: ProviderProfile | null;
+  /** 模型选择：输入区下方级联切换已配置的服务商/模型 */
+  services?: ProviderProfile[];
+  activeServiceId?: string;
+  activeModelId?: string;
+  onSelectModel?: (serviceId: string, modelId: string) => void;
+  endpoint: EndpointPayload;
   geminiApiKey?: string;
   useStream?: boolean;
   ttsProvider: TTSProvider;
@@ -92,8 +98,12 @@ export default function InputSection({
   onAnalyze,
   onCancelAnalyze,
   userApiKey,
-  aiProvider,
-  aiModel,
+  activeService,
+  services = [],
+  activeServiceId = '',
+  activeModelId = '',
+  onSelectModel,
+  endpoint,
   geminiApiKey,
   useStream = true, // 默认启用流式输出
   ttsProvider,
@@ -152,7 +162,7 @@ export default function InputSection({
     setUploadStatus('');
     setTtsAudioUrl(null);
     window.speechSynthesis?.cancel();
-  }, [aiProvider, aiModel, locale, ttsProvider]);
+  }, [endpoint, locale, ttsProvider]);
 
   const cancelInputRequests = () => {
     imageRequest.current.cancel();
@@ -290,9 +300,9 @@ export default function InputSection({
   const markImageRecognitionUsed = () => {
     usageMetadataRef.current = {
       ...usageMetadataRef.current,
-      imageRecognition: getImageRecognitionUsage(aiProvider, aiModel),
+      imageRecognition: getImageRecognitionUsage(activeService?.id ?? '', endpoint.model),
     };
-    trackImageRecognitionUsage(aiProvider, aiModel);
+    trackImageRecognitionUsage(activeService?.id ?? '', endpoint.model);
   };
 
   const markTtsUsed = (provider: TTSProvider) => {
@@ -454,15 +464,14 @@ export default function InputSection({
             setUploadStatusClass('mt-2 text-sm');
             setIsImageUploading(false);
           },
-          imageExtractionPrompt,
-          userApiKey,
-          aiProvider,
-          aiModel,
-          request.signal
-        );
-      } else {
-        // 使用传统API进行图片文字提取
-        const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, aiProvider, aiModel, request.signal);
+           imageExtractionPrompt,
+           userApiKey,
+           endpoint,
+           request.signal
+         );
+       } else {
+         // 使用传统API进行图片文字提取
+         const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, endpoint, request.signal);
         if (!request.isCurrent()) return;
         setInputText(extractedText);
         markImageRecognitionUsed();
@@ -772,6 +781,16 @@ export default function InputSection({
               <div className="input-action-bar mt-3.5 flex items-center">
                 {/* 左侧工具按钮区域 */}
                 <div className="input-tools flex items-center gap-2">
+                  {/* 模型选择：先选服务商，再选其下的模型 */}
+                  {onSelectModel && (
+                    <ModelSwitcher
+                      services={services}
+                      activeServiceId={activeServiceId}
+                      activeModelId={activeModelId}
+                      onSelectModel={onSelectModel}
+                    />
+                  )}
+
                   {/* 上传图片按钮 */}
                   <button
                     id="uploadImageButton"

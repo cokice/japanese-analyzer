@@ -50,3 +50,12 @@ next-env.d.ts
 
 # IDE
 /.idea/
+
+# Desktop build outputs and downloaded runtimes (never signing keys)
+/src-tauri/target/
+/src-tauri/gen/
+/src-tauri/resources/server/
+/.desktop-cache/
+/src-tauri/tauri.signing.conf.json
+*.key
+*.key.pub

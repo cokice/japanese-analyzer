@@ -3,11 +3,11 @@
 import { useLanguage } from "../contexts/LanguageContext";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getWordDetails, parseWordDetailResponseContent, streamWordDetails, type WordDetail, type WordDetailKind, type AIModelName, type AIProvider } from '../services/api';
+import { getWordDetails, parseWordDetailResponseContent, streamWordDetails, type WordDetail, type WordDetailKind, type EndpointPayload } from '../services/api';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
 import { getLocalRomaji } from '../utils/romaji';
 
-interface UseWordDetailOptions { userApiKey?: string; aiProvider: AIProvider; aiModel: AIModelName; useStream?: boolean; }
+interface UseWordDetailOptions { userApiKey?: string; endpoint: EndpointPayload; useStream?: boolean; }
 interface FetchWordDetailsOptions { force?: boolean; kind?: WordDetailKind; }
 
 function partialField(content: string, name: string, completeOnly = false): string {
@@ -30,7 +30,7 @@ function partialField(content: string, name: string, completeOnly = false): stri
   catch { return ''; }
 }
 
-export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = true }: UseWordDetailOptions) {
+export function useWordDetail({ userApiKey, endpoint, useStream = true }: UseWordDetailOptions) {
   const { t, locale } = useLanguage();
   const [wordDetail, setWordDetail] = useState<WordDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,13 +52,13 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
     cacheRef.current.clear();
     clearWordDetail();
     return () => { activeRef.current?.controller.abort(); activeRef.current = null; };
-  }, [userApiKey, aiProvider, aiModel, useStream, clearWordDetail, locale]);
+  }, [userApiKey, endpoint, useStream, clearWordDetail, locale]);
 
   const fetchWordDetails = useCallback(async (
     word: string, pos: string, sentence: string, furigana?: string, options: FetchWordDetailsOptions = {}
   ) => {
     const kind = options.kind ?? 'word';
-    const key = JSON.stringify([locale, aiProvider, aiModel, kind, sentence, word, pos, furigana || '']);
+    const key = JSON.stringify([locale, endpoint.baseUrl, endpoint.model, kind, sentence, word, pos, furigana || '']);
     if (!options.force && activeRef.current?.key === key) return;
     activeRef.current?.controller.abort();
     activeRef.current = null;
@@ -113,14 +113,14 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
               breakdown: partialField(content, 'breakdown'),
             } : {}),
           });
-        }, fail, furigana, userApiKey, aiProvider, aiModel, signal, kind);
+        }, fail, furigana, userApiKey, endpoint, signal, kind);
       } else {
-        finish(await getWordDetails(word, pos, sentence, furigana, userApiKey, aiProvider, aiModel, signal, kind));
+        finish(await getWordDetails(word, pos, sentence, furigana, userApiKey, endpoint, signal, kind));
       }
     } catch (error) {
       if (isCurrent()) fail(error instanceof Error ? error : new Error(t("查询释义失败")));
     }
-  }, [userApiKey, aiProvider, aiModel, useStream, locale, t]);
+  }, [userApiKey, endpoint, useStream, locale, t]);
 
   return { wordDetail, isLoading, isStreamLoading, streamContent, streamError, fetchWordDetails, clearWordDetail };
 }

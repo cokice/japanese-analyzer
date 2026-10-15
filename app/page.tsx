@@ -3,7 +3,7 @@
 import { browserStorage } from './utils/storage';
 
 import { useLanguage } from './contexts/LanguageContext';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import InputSection from './components/InputSection';
 import AnalysisResult, { DisplayOptions } from './components/AnalysisResult';
@@ -24,16 +24,16 @@ import { localizeError } from './i18n';
 import { InvalidResponseError } from './utils/requestErrors';
 import {
   analyzeSentence,
-  AIModelName,
   TokenData,
-  DEFAULT_AI_PROVIDER,
-  AIProvider,
   TTSProvider,
-  getModelName,
   loadAISettingsFromStorage,
+  saveAISettingsToStorage,
   parseAnalyzeResponseContent,
-  summarizeDeepSeekReasoningProgress,
-  streamAnalyzeSentence
+  summarizeReasoningProgress,
+  streamAnalyzeSentence,
+  type EndpointPayload,
+  type ProviderProfile,
+  effectiveCaps,
 } from './services/api';
 import { ReasoningSummaryController } from './utils/reasoningSummary';
 import { ReasoningTextStore } from './utils/reasoningTextStore';
@@ -60,11 +60,25 @@ export default function Home() {
 
   // API设置相关状态
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [aiProvider, setAiProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
-  const [aiModel, setAiModel] = useState<AIModelName>(getModelName(DEFAULT_AI_PROVIDER));
+  const [services, setServices] = useState<ProviderProfile[]>([]);
+  const [activeServiceId, setActiveServiceId] = useState('');
+  const [activeModelId, setActiveModelId] = useState('');
   const [geminiApiKey, setGeminiApiKey] = useState('');
-  const [deepseekApiKey, setDeepseekApiKey] = useState('');
-  const [deepseekThinkingEnabled, setDeepseekThinkingEnabled] = useState(false);
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  const activeService = useMemo(
+    () => services.find((service) => service.id === activeServiceId) ?? services[0] ?? null,
+    [services, activeServiceId]
+  );
+  const activeModel = useMemo(
+    () => activeService?.models.find((model) => model.id === activeModelId) ?? activeService?.models[0] ?? null,
+    [activeService, activeModelId]
+  );
+  const endpoint: EndpointPayload = useMemo(
+    () => activeService && activeModel
+      ? { baseUrl: activeService.baseUrl, model: activeModel.model, caps: effectiveCaps(activeService, activeModel) }
+      : { baseUrl: '', model: '' },
+    [activeService, activeModel]
+  );
   const [hasDeepseekReasoning, setHasDeepseekReasoning] = useState(false);
   const hasDeepseekReasoningRef = useRef(false);
   const reasoningTextStoreRef = useRef<ReasoningTextStore | null>(null);
@@ -84,7 +98,7 @@ export default function Home() {
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [authError, setAuthError] = useState('');
 
-  const userApiKey = aiProvider === 'gemini' ? geminiApiKey : deepseekApiKey;
+  const userApiKey = activeService?.apiKey || '';
 
   // 选中词汇（右侧详情面板 / 移动端模态）
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -97,7 +111,7 @@ export default function Home() {
     streamError: wordDetailStreamError,
     fetchWordDetails,
     clearWordDetail,
-  } = useWordDetail({ userApiKey, aiProvider, aiModel, useStream });
+  } = useWordDetail({ userApiKey, endpoint, useStream });
 
   useEffect(() => {
     analysisAbortControllerRef.current?.abort('language-change');
@@ -164,11 +178,11 @@ export default function Home() {
     const storedUseStream = browserStorage.getItem('useStream');
     const storedTtsProvider = (browserStorage.getItem('ttsProvider') || 'edge') as TTSProvider;
 
-    setAiProvider(storedAISettings.aiProvider);
-    setAiModel(storedAISettings.aiModel);
+    setServices(storedAISettings.services);
+    setActiveServiceId(storedAISettings.activeServiceId);
+    setActiveModelId(storedAISettings.activeModelId);
     setGeminiApiKey(storedAISettings.geminiApiKey);
-    setDeepseekApiKey(storedAISettings.deepseekApiKey);
-    setDeepseekThinkingEnabled(storedAISettings.deepseekThinkingEnabled);
+    setThinkingEnabled(storedAISettings.thinkingEnabled);
     setTtsProvider(storedTtsProvider);
 
     // 只有当明确设置了值时才更新，否则保持默认值
@@ -177,34 +191,8 @@ export default function Home() {
     }
   }, []);
 
-  // 保存用户API设置
-  const handleSaveSettings = (settings: {
-    aiProvider: AIProvider;
-    aiModel: AIModelName;
-    geminiApiKey: string;
-    deepseekApiKey: string;
-    deepseekThinkingEnabled: boolean;
-    useStream: boolean;
-  }) => {
-    browserStorage.setItem('aiProvider', settings.aiProvider);
-    browserStorage.setItem('aiModel', settings.aiModel);
-    browserStorage.setItem('geminiApiKey', settings.geminiApiKey);
-    browserStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
-    browserStorage.setItem('deepseekThinkingEnabled', settings.deepseekThinkingEnabled.toString());
-    browserStorage.setItem('useStream', settings.useStream.toString());
-    browserStorage.removeItem('geminiApiUrl');
-    browserStorage.removeItem('deepseekApiUrl');
-    browserStorage.removeItem('userApiUrl');
-
-    // 保留旧键，方便旧版本或其他工具读取 Gemini 密钥配置。
-    browserStorage.setItem('userApiKey', settings.geminiApiKey);
-
-    setAiProvider(settings.aiProvider);
-    setAiModel(settings.aiModel);
-    setGeminiApiKey(settings.geminiApiKey);
-    setDeepseekApiKey(settings.deepseekApiKey);
-    setDeepseekThinkingEnabled(settings.deepseekThinkingEnabled);
-    setUseStream(settings.useStream);
+  // 切换模型 / 保存设置后都要清掉的解析与思考状态
+  const resetAnalysisState = () => {
     reasoningTextStore.reset();
     hasDeepseekReasoningRef.current = false;
     setHasDeepseekReasoning(false);
@@ -213,6 +201,47 @@ export default function Home() {
     setDeepseekReasoningCompletionLabel(t("已深度思考"));
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;
+  };
+
+  // 保存用户API设置
+  const handleSaveSettings = (settings: {
+    services: ProviderProfile[];
+    activeServiceId: string;
+    activeModelId: string;
+    geminiApiKey: string;
+    thinkingEnabled: boolean;
+    useStream: boolean;
+  }) => {
+    saveAISettingsToStorage(browserStorage, {
+      services: settings.services,
+      activeServiceId: settings.activeServiceId,
+      activeModelId: settings.activeModelId,
+      geminiApiKey: settings.geminiApiKey,
+      thinkingEnabled: settings.thinkingEnabled,
+    });
+    browserStorage.setItem('useStream', settings.useStream.toString());
+
+    setServices(settings.services);
+    setActiveServiceId(settings.activeServiceId);
+    setActiveModelId(settings.activeModelId);
+    setGeminiApiKey(settings.geminiApiKey);
+    setThinkingEnabled(settings.thinkingEnabled);
+    setUseStream(settings.useStream);
+    resetAnalysisState();
+  };
+
+  // 顶栏快捷切换当前模型：更新选中项并立即持久化
+  const handleSelectModel = (serviceId: string, modelId: string) => {
+    setActiveServiceId(serviceId);
+    setActiveModelId(modelId);
+    saveAISettingsToStorage(browserStorage, {
+      services,
+      activeServiceId: serviceId,
+      activeModelId: modelId,
+      geminiApiKey,
+      thinkingEnabled,
+    });
+    resetAnalysisState();
   };
 
   const handleTtsProviderChange = (provider: TTSProvider) => {
@@ -264,10 +293,10 @@ export default function Home() {
     }
     setSelectedRange(null);
     setSelectedIndex(index);
-    trackWordDetailUsage(aiProvider, aiModel);
+    trackWordDetailUsage(activeService?.id ?? '', activeModel?.model ?? '');
     const context = selectWordDetailContext(currentSentence, analyzedTokens, index);
     fetchWordDetails(token.word, token.pos, context, token.furigana);
-  }, [aiProvider, aiModel, selectedIndex, currentSentence, analyzedTokens, fetchWordDetails, handleCloseWordDetail]);
+  }, [activeService, activeModel, selectedIndex, currentSentence, analyzedTokens, fetchWordDetails, handleCloseWordDetail]);
 
   const fetchPhraseDetails = useCallback((range: PhraseRange, force = false) => {
     fetchWordDetails(
@@ -287,9 +316,9 @@ export default function Home() {
     if (!range) return;
     setSelectedIndex(null);
     setSelectedRange(range);
-    trackWordDetailUsage(aiProvider, aiModel);
+    trackWordDetailUsage(activeService?.id ?? '', activeModel?.model ?? '');
     fetchPhraseDetails(range);
-  }, [aiModel, aiProvider, analyzedTokens, fetchPhraseDetails]);
+  }, [activeService, activeModel, analyzedTokens, fetchPhraseDetails]);
 
   const handleRefreshWordDetail = useCallback(() => {
     if (selectedRange) {
@@ -333,6 +362,12 @@ export default function Home() {
   const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
     if (!text.trim()) return;
 
+    if (!activeService || !activeModel) {
+      setAnalysisError(t("请先在设置中配置模型服务"));
+      setIsSettingsModalOpen(true);
+      return;
+    }
+
     analysisAbortControllerRef.current?.abort('superseded');
     const analysisAbortController = new AbortController();
     analysisAbortControllerRef.current = analysisAbortController;
@@ -343,15 +378,16 @@ export default function Home() {
       && !analysisAbortController.signal.aborted
     );
 
-    trackAnalyzeUsage(aiProvider, usage, aiModel);
-    const metrics = createRequestMetrics('analyze', aiProvider, aiModel, useStream, analysisAbortController.signal);
+    const providerName = activeService?.id ?? '';
+    trackAnalyzeUsage(providerName, usage, endpoint.model);
+    const metrics = createRequestMetrics('analyze', providerName, endpoint.model, useStream, analysisAbortController.signal);
     setIsAnalyzing(true);
     setIsEditingInput(false);
     setAnalysisError('');
     setCurrentSentence(text);
     setTranslationTrigger(Date.now());
     setAnalyzedTokens([]);
-    const deepseekThinkingActive = aiProvider === 'deepseek' && deepseekThinkingEnabled;
+    const deepseekThinkingActive = !!activeModel?.caps?.thinking && thinkingEnabled;
     reasoningTextStore.reset();
     hasDeepseekReasoningRef.current = false;
     setHasDeepseekReasoning(false);
@@ -362,8 +398,9 @@ export default function Home() {
     const reasoningSummaryController = deepseekThinkingActive
       ? new ReasoningSummaryController({
           requestSummary: ({ reasoningSnippet, signal }) => (
-            summarizeDeepSeekReasoningProgress({
+            summarizeReasoningProgress({
               reasoningSnippet,
+              endpoint,
               userApiKey,
               signal,
             })
@@ -393,7 +430,7 @@ export default function Home() {
     handleCloseWordDetail();
 
     const reasoningOptions = {
-      deepseekThinkingEnabled: deepseekThinkingActive,
+      thinkingEnabled: deepseekThinkingActive,
       signal: analysisAbortController.signal,
       onReasoning: (reasoningText: string) => {
         if (!isCurrentAnalysis()) return;
@@ -453,8 +490,7 @@ export default function Home() {
             analysisAbortControllerRef.current = null;
           },
           userApiKey,
-          aiProvider,
-          aiModel,
+          endpoint,
           reasoningOptions
         );
       } else {
@@ -462,8 +498,7 @@ export default function Home() {
         const tokens = await analyzeSentence(
           text,
           userApiKey,
-          aiProvider,
-          aiModel,
+          endpoint,
           reasoningOptions
         );
         if (!isCurrentAnalysis()) return;
@@ -576,7 +611,10 @@ export default function Home() {
       <div className="flex min-h-screen flex-col">
         <Header
           thinking={isAnalyzing}
-          aiProvider={aiProvider}
+          services={services}
+          activeServiceId={activeService?.id ?? ''}
+          activeModelId={activeModel?.id ?? ''}
+          onSelectModel={handleSelectModel}
           onSettingsClick={() => setIsSettingsModalOpen(true)}
         />
 
@@ -596,12 +634,16 @@ export default function Home() {
               history={history}
               onAnalyze={handleAnalyze}
               onCancelAnalyze={handleCancelAnalysis}
-              userApiKey={userApiKey}
-              aiProvider={aiProvider}
-              aiModel={aiModel}
-              geminiApiKey={geminiApiKey}
-              useStream={useStream}
-              ttsProvider={ttsProvider}
+                userApiKey={userApiKey}
+                activeService={activeService}
+                services={services}
+                activeServiceId={activeService?.id ?? ''}
+                activeModelId={activeModel?.id ?? ''}
+                onSelectModel={handleSelectModel}
+                endpoint={endpoint}
+                geminiApiKey={geminiApiKey}
+               useStream={useStream}
+               ttsProvider={ttsProvider}
               onTtsProviderChange={handleTtsProviderChange}
               isAnalyzing={isAnalyzing}
               compactExtras={shouldShowAnalyzer() && (
@@ -615,8 +657,8 @@ export default function Home() {
               )}
             />
 
-            {aiProvider === 'deepseek'
-              && deepseekThinkingEnabled
+            {!!activeModel?.caps?.thinking
+              && thinkingEnabled
               && (isAnalyzing || hasDeepseekReasoning) && (
                 <ReasoningStream
                   store={reasoningTextStore}
@@ -672,8 +714,7 @@ export default function Home() {
                   <TranslationSection
                     japaneseText={currentSentence}
                     userApiKey={userApiKey}
-                    aiProvider={aiProvider}
-                    aiModel={aiModel}
+                    endpoint={endpoint}
                     useStream={useStream}
                     trigger={translationTrigger}
                     analysisSignal={analysisSignal}
@@ -697,10 +738,11 @@ export default function Home() {
 
         {/* 设置模态框 */}
         <SettingsModal
-          aiProvider={aiProvider}
-          aiModel={aiModel}
+          services={services}
+          activeServiceId={activeServiceId}
+          activeModelId={activeModelId}
           geminiApiKey={geminiApiKey}
-          deepseekApiKey={deepseekApiKey}
+          thinkingEnabled={thinkingEnabled}
           useStream={useStream}
           onSaveSettings={handleSaveSettings}
           isModalOpen={isSettingsModalOpen}
@@ -746,8 +788,8 @@ export default function Home() {
       <AIChat
         hidden={isSettingsModalOpen}
         userApiKey={userApiKey}
-        aiProvider={aiProvider}
-        aiModel={aiModel}
+        activeService={activeService}
+        endpoint={endpoint}
         currentSentence={currentSentence}
       />
     </>

@@ -1,18 +1,20 @@
 import { NextRequest } from 'next/server';
 import {
-  DEFAULT_AI_PROVIDER,
-  getModelName,
-  normalizeAIModel,
-  normalizeAIProvider,
-  type AIProvider,
+  normalizeEndpointUrl,
+  type ModelEndpoint,
+  type ProviderCaps,
 } from '../../lib/aiModels';
+import { BaseUrlError, validateBaseUrl } from './validateBaseUrl';
+
+export type { ProviderCaps, ModelEndpoint } from '../../lib/aiModels';
 
 export type StructuredOutputKind = 'analysisTokens' | 'wordDetail' | 'phraseDetail' | 'dailySentence';
-export { DEFAULT_AI_PROVIDER, normalizeAIProvider };
-export type { AIProvider };
 
-export const GEMINI_OPENAI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const DEEPSEEK_OPENAI_API_URL = 'https://api.deepseek.com/chat/completions';
+/** 解析后的上游调用配置：端点 + 密钥 + 能力位 */
+export interface ResolvedProviderConfig extends ModelEndpoint {
+  apiKey: string;
+  caps: ProviderCaps;
+}
 
 export class ProviderConfigError extends Error {
   readonly status: number;
@@ -29,55 +31,83 @@ function getBearerToken(req: NextRequest): string {
   return authHeader ? authHeader.replace('Bearer ', '').trim() : '';
 }
 
-function getDefaultApiUrl(provider: AIProvider): string {
-  if (provider === 'deepseek') {
-    return process.env.DEEPSEEK_API_URL || DEEPSEEK_OPENAI_API_URL;
+/** 服务端自发请求（如今日一句）使用的固定端点配置 */
+export interface ServerProviderConfig {
+  name: string;
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+  caps: ProviderCaps;
+}
+
+/** 仅供服务端自发的请求（无用户上下文）使用：按环境变量探测可用的模型服务 */
+export function resolveServerProviderConfig(): ServerProviderConfig | null {
+  const candidates: ServerProviderConfig[] = [];
+
+  // 显式覆盖：今日一句专用端点
+  const dsUrl = process.env.DAILY_SENTENCE_API_URL?.trim();
+  const dsKey = process.env.DAILY_SENTENCE_API_KEY?.trim();
+  const dsModel = process.env.DAILY_SENTENCE_API_MODEL?.trim();
+  if (dsKey && dsModel && dsUrl) {
+    candidates.push({ name: 'daily-sentence', apiUrl: normalizeEndpointUrl(dsUrl), apiKey: dsKey, model: dsModel, caps: { jsonSchema: false } });
   }
 
-  return process.env.GEMINI_API_URL || GEMINI_OPENAI_API_URL;
-}
-
-function getDefaultApiKey(provider: AIProvider): string {
-  if (provider === 'deepseek') {
-    return process.env.DEEPSEEK_API_KEY || '';
+  // 复用既有 DeepSeek 端点（结构化输出用 json_object 降级，兼容性最好）
+  const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
+  if (deepseekKey) {
+    const deepseekUrl = process.env.DEEPSEEK_API_URL?.trim() || 'https://api.deepseek.com';
+    candidates.push({ name: 'deepseek', apiUrl: normalizeEndpointUrl(deepseekUrl), apiKey: deepseekKey, model: process.env.DEEPSEEK_MODEL_NAME?.trim() || 'deepseek-chat', caps: { jsonSchema: false } });
   }
 
-  return process.env.GEMINI_API_KEY || '';
+  // 复用既有 Gemini 端点
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  if (geminiKey) {
+    const geminiUrl = process.env.GEMINI_API_URL?.trim() || 'https://generativelanguage.googleapis.com/v1beta/openai';
+    candidates.push({ name: 'gemini', apiUrl: normalizeEndpointUrl(geminiUrl), apiKey: geminiKey, model: process.env.GEMINI_MODEL_NAME?.trim() || 'gemini-flash-latest', caps: {} });
+  }
+
+  return candidates[0] ?? null;
 }
 
-/** 只用服务器环境变量里的密钥（不带用户密钥），供服务端自发的请求使用 */
-export function resolveServerProviderConfig(provider: AIProvider) {
-  return {
-    provider,
-    apiKey: getDefaultApiKey(provider),
-    apiUrl: getDefaultApiUrl(provider),
-    model: getModelName(provider),
-  };
+function normalizeCaps(value: unknown): ProviderCaps {
+  if (!value || typeof value !== 'object') return {};
+  const item = value as Record<string, unknown>;
+  const caps: ProviderCaps = {};
+  if (typeof item.jsonSchema === 'boolean') caps.jsonSchema = item.jsonSchema;
+  if (typeof item.thinking === 'boolean') caps.thinking = item.thinking;
+  return caps;
 }
 
+/**
+ * 解析用户请求的模型端点。端点（baseUrl + model）与能力位由客户端提供，密钥来自 Bearer。
+ * 不再支持服务端预设密钥，也不再允许服务端代客选择端点。
+ */
 export function resolveProviderConfig(
   req: NextRequest,
   options: {
-    provider?: unknown;
-    apiUrl?: unknown;
+    baseUrl?: unknown;
     model?: unknown;
+    caps?: unknown;
   } = {}
-) {
-  const provider = normalizeAIProvider(options.provider);
-  const customModel = typeof options.model === 'string' ? options.model.trim() : '';
-  const hasClientApiUrl = typeof options.apiUrl === 'string'
-    ? options.apiUrl.trim().length > 0
-    : options.apiUrl !== undefined && options.apiUrl !== null;
+): ResolvedProviderConfig {
+  let baseUrl: string;
+  try {
+    baseUrl = validateBaseUrl(options.baseUrl);
+  } catch (error) {
+    if (error instanceof BaseUrlError) throw new ProviderConfigError(error.message, error.status);
+    throw error;
+  }
 
-  if (hasClientApiUrl) {
-    throw new ProviderConfigError('客户端不再支持自定义 API URL，请在服务器环境变量中配置上游端点。');
+  const model = typeof options.model === 'string' ? options.model.trim() : '';
+  if (!model) {
+    throw new ProviderConfigError('缺少模型名称，请在设置中填写模型');
   }
 
   return {
-    provider,
-    apiKey: getBearerToken(req) || getDefaultApiKey(provider),
-    apiUrl: getDefaultApiUrl(provider),
-    model: customModel ? normalizeAIModel(provider, customModel) : getModelName(provider),
+    baseUrl: normalizeEndpointUrl(baseUrl),
+    apiKey: getBearerToken(req),
+    model,
+    caps: normalizeCaps(options.caps),
   };
 }
 
@@ -185,11 +215,12 @@ const structuredOutputSchemas = {
   },
 } as const;
 
+/** 按能力位选择结构化输出方式：默认 json_schema strict，降级时只用 json_object */
 export function getStructuredResponseFormat(
-  provider: AIProvider,
+  caps: ProviderCaps,
   kind: StructuredOutputKind
 ): Record<string, unknown> {
-  if (provider === 'deepseek') {
+  if (caps.jsonSchema === false) {
     return { type: 'json_object' };
   }
 
@@ -204,8 +235,12 @@ export function getStructuredResponseFormat(
   };
 }
 
-export function withProviderControls(
-  provider: AIProvider,
+/**
+ * 在上游请求体上追加结构化输出 / 思考参数。
+ * 仅在能力位声明支持时才附加，保证对任意 OpenAI 兼容厂商安全。
+ */
+export function buildCompletionPayload(
+  caps: ProviderCaps,
   payload: Record<string, unknown>,
   options: {
     structuredOutput?: StructuredOutputKind;
@@ -213,23 +248,25 @@ export function withProviderControls(
   } = {}
 ): Record<string, unknown> {
   const responseFormat = options.structuredOutput
-    ? { response_format: getStructuredResponseFormat(provider, options.structuredOutput) }
+    ? { response_format: getStructuredResponseFormat(caps, options.structuredOutput) }
     : {};
 
-  if (provider === 'deepseek') {
+  if (caps.thinking === true) {
     const thinkingEnabled = options.enableThinking === true;
-
     return {
       ...payload,
       ...responseFormat,
       thinking: { type: thinkingEnabled ? 'enabled' : 'disabled' },
-      ...(thinkingEnabled ? { reasoning_effort: 'high' } : {}),
+      // reasoning_effort 的合法取值因厂商而异，只发送用户为该服务声明的值，
+      // 未声明时省略、由服务商使用自身默认值。
+      ...(thinkingEnabled && caps.reasoningEffort
+        ? { reasoning_effort: caps.reasoningEffort }
+        : {}),
     };
   }
 
   return {
     ...payload,
     ...responseFormat,
-    reasoning_effort: payload.model === 'gemini-flash-latest' ? 'low' : 'minimal',
   };
 }

@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { protectAnalysisUrls } from '../app/utils/analysisUrls';
 import { analyzeSentence, parseAnalyzeResponseContent, streamAnalyzeSentence } from '../app/services/api';
 
+const testEndpoint = { baseUrl: 'https://api.test.example', model: 'test-model' };
+
 export async function runAnalysisUrlTests() {
   const url = 'https://search.example/search?p=%E3%81%A6%E3%81%A3&other=$&';
   const article = `「算数」の相談を送ったのは、[てっちゃん](${url})です。`;
@@ -27,25 +29,25 @@ export async function runAnalysisUrlTests() {
     };
 
     for (const source of [article, article.repeat(12), `参照：https://example.org/a_(b)。\n次です。`, `JAURL0END と "引用" [記事](${url})`]) {
-      const tokens = await analyzeSentence(source, undefined, 'deepseek');
+      const tokens = await analyzeSentence(source, undefined, testEndpoint);
       assert.equal(tokens.map(token => token.word).join(''), source);
       let completed = false;
       await streamAnalyzeSentence(source, (content, done) => {
         if (!done) return;
         completed = true;
         assert.equal(parseAnalyzeResponseContent(content).map(token => token.word).join(''), source);
-      }, error => { throw error; }, undefined, 'deepseek');
+      }, error => { throw error; }, undefined, testEndpoint);
       assert.ok(completed, 'Streaming output restores exact URLs in single and multiple chunks');
     }
     assert.ok(requests > 8, 'Long articles exercise multiple requests');
 
     omitWhitespace = true;
     const spacedSource = '本の題名　AERA with Kids\nを読みます。';
-    assert.equal((await analyzeSentence(spacedSource, undefined, 'deepseek')).map(token => token.word).join(''), spacedSource);
+    assert.equal((await analyzeSentence(spacedSource, undefined, testEndpoint)).map(token => token.word).join(''), spacedSource);
     let restored = '';
     await streamAnalyzeSentence(spacedSource, (content, done) => {
       if (done) restored = parseAnalyzeResponseContent(content).map(token => token.word).join('');
-    }, error => { throw error; }, undefined, 'deepseek');
+    }, error => { throw error; }, undefined, testEndpoint);
     assert.equal(restored, spacedSource, 'Single-chunk completion restores original whitespace too');
     omitWhitespace = false;
 
@@ -54,7 +56,7 @@ export async function runAnalysisUrlTests() {
       omitLink = failure === 'omitted';
       let error: Error | undefined;
       let completed = false;
-      await streamAnalyzeSentence(article, (_content, done) => { completed ||= done; }, value => { error = value; }, undefined, 'deepseek');
+      await streamAnalyzeSentence(article, (_content, done) => { completed ||= done; }, value => { error = value; }, undefined, testEndpoint);
       assert.ok(error, 'Incomplete JSON or missing source text must still fail');
       assert.equal(completed, false);
     }
