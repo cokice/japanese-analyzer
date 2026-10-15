@@ -101,6 +101,8 @@ npx tauri signer generate --ci -w ~/.tauri/japanese-analyzer.key
 
 ## 排障
 
+桌面打包必须使用 Node.js 22。`desktop:build` 会先检查当前 Node 版本，再开始 Web 构建；直接调用 `desktop:package-server` 也会检查 `.next/desktop-build.json` 记录的构建版本。若当前或构建版本为 Node 24/26，切换到 Node 22（建议使用 `desktop.nodeVersion` 锁定的版本），重新打开终端，通过 `node -v` 确认后运行 `npm ci` 和 `npm run desktop:build`。仅在同一个 Node 24 终端重复构建无法解决版本不匹配。
+
 `stdout` 和 `stderr` 合并写入 `server.log`，保留最近 500 KiB。启动错误页及桌面设置显示实际绝对路径：
 
 | 系统 | 默认日志位置 |

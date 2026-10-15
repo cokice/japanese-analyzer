@@ -5,6 +5,20 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { distributable, runtimeTarget, sha256 } from '../scripts/desktop/package-server.mjs';
 import { publishManifests } from '../scripts/desktop/publish-manifests.mjs';
+import { assertDesktopBuildNode } from '../scripts/desktop/check-node.mjs';
+
+test('desktop builds reject Node 24 with the actual version and actionable recovery steps', () => {
+  assert.throws(() => assertDesktopBuildNode('24.11.1', '22.23.3'), (error) => {
+    assert.match(error.message, /Current Node.js: v24\.11\.1/);
+    assert.match(error.message, /require Node.js 22/);
+    assert.match(error.message, /v22\.23\.3/);
+    assert.match(error.message, /npm ci and npm run desktop:build/);
+    return true;
+  });
+  assert.throws(() => assertDesktopBuildNode('24.11.1', '22.23.3', 'Standalone build Node.js'), /Standalone build Node.js: v24\.11\.1/);
+  assert.doesNotThrow(() => assertDesktopBuildNode('22.23.3', '22.23.3'));
+  assert.doesNotThrow(() => assertDesktopBuildNode('22.22.0', '22.23.3'));
+});
 
 test('only supported native desktop targets are packaged', () => {
   assert.equal(runtimeTarget('darwin', 'arm64'), 'darwin-arm64');
