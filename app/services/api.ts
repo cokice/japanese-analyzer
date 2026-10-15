@@ -2,6 +2,7 @@ import { createTranslator, getClientLocale } from '../i18n';
 // API与分析相关的服务函数
 import {
   sanitizeProfiles,
+  resolveModelSelection,
   createCustomModelId,
   type ModelCaps,
   type ModelEndpoint,
@@ -187,10 +188,8 @@ function migrateLegacyProfile(storage: StorageLike): { services: ProviderProfile
 }
 
 function resolveActiveIds(services: ProviderProfile[], serviceId: unknown, modelId: unknown): { activeServiceId: string; activeModelId: string } {
-  if (services.length === 0) return { activeServiceId: '', activeModelId: '' };
-  const service = (typeof serviceId === 'string' && services.find((s) => s.id === serviceId)) || services[0];
-  const model = (typeof modelId === 'string' && service.models.find((m) => m.id === modelId)) || service.models[0];
-  return { activeServiceId: service.id, activeModelId: model.id };
+  const { service, model } = resolveModelSelection(services, serviceId, modelId);
+  return { activeServiceId: service?.id ?? '', activeModelId: model?.id ?? '' };
 }
 
 export function loadAISettingsFromStorage(storage: StorageLike): StoredAISettings {

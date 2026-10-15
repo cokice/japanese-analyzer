@@ -15,7 +15,9 @@ import { browserStorage } from '../app/utils/storage';
 import { getPhraseReading } from '../app/utils/phraseRange';
 import { getLocalRomaji } from '../app/utils/romaji';
 import { secondsUntilJstMidnight } from '../app/utils/dailySentences';
-import { extractTextFromImage, translateText, loadAISettingsFromStorage } from '../app/services/api';
+import { extractTextFromImage, translateText, loadAISettingsFromStorage, saveAISettingsToStorage } from '../app/services/api';
+import { sanitizeProfiles, resolveModelSelection, type ProviderProfile } from '../app/lib/aiModels';
+import { testProviderConnection } from '../app/lib/providerConnection';
 
 const request = (body: string, url = 'http://localhost/api/auth', headers: Record<string, string> = {}) =>
   new NextRequest(url, { method: 'POST', body, headers: { 'Content-Type': 'application/json', ...headers } });
@@ -28,6 +30,48 @@ async function run() {
   try {
     delete process.env.CODE;
     delete process.env.AUTH_COOKIE_SECURE;
+    const testService = { id: 'test', name: 'Test', baseUrl: ' https://api.test.example/v1 ', apiKey: ' test-key ', models: [] };
+    const testController = new AbortController();
+    globalThis.fetch = async (url, init) => {
+      assert.equal(url, '/api/chat');
+      const payload = JSON.parse(String(init?.body));
+      assert.equal(payload.model, 'chosen-model');
+      assert.equal(payload.baseUrl, 'https://api.test.example/v1');
+      assert.equal(payload.useStream, false);
+      assert.equal(payload.caps, undefined, 'Connection testing does not require structured output support');
+      assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer test-key');
+      assert.equal(new Headers(init?.headers).get('X-App-Locale'), 'en');
+      assert.ok(init?.signal);
+      return Response.json(completion());
+    };
+    await testProviderConnection(testService, ' chosen-model ', 'en', testController.signal);
+    for (const result of [Response.json({}), new Response('<html>gateway</html>'), Response.json({ choices: [{ message: { content: '' } }] })]) {
+      globalThis.fetch = async () => result;
+      await assert.rejects(testProviderConnection(testService, 'chosen-model', 'en', testController.signal), /未返回有效/);
+    }
+    globalThis.fetch = async () => Response.json({ error: { message: 'Unknown model' } }, { status: 404 });
+    await assert.rejects(testProviderConnection(testService, 'chosen-model', 'en', testController.signal), /Unknown model/);
+    globalThis.fetch = async (_url, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true });
+    });
+    const pendingTest = testProviderConnection(testService, 'chosen-model', 'en', testController.signal);
+    testController.abort();
+    await assert.rejects(pendingTest, { name: 'AbortError' });
+    globalThis.fetch = originalFetch;
+    const emptyProvider: ProviderProfile = { id: 'empty', name: 'Keep credentials', baseUrl: 'https://api.test.example/v1', apiKey: 'saved-key', models: [] };
+    assert.deepEqual(sanitizeProfiles([emptyProvider]), [emptyProvider]);
+    const availableProvider: ProviderProfile = { ...emptyProvider, id: 'available', models: [{ id: 'm', name: 'Model', model: 'model' }] };
+    assert.equal(resolveModelSelection([emptyProvider, availableProvider], 'empty', 'deleted-model').service?.id, 'available');
+    const settingsMap = new Map<string, string>();
+    const settingsStorage = {
+      getItem: (key: string) => settingsMap.get(key) ?? null,
+      setItem: (key: string, value: string) => { settingsMap.set(key, value); },
+      removeItem: (key: string) => { settingsMap.delete(key); },
+    };
+    saveAISettingsToStorage(settingsStorage, { services: [emptyProvider], activeServiceId: 'empty', activeModelId: '', geminiApiKey: '', thinkingEnabled: false });
+    const loadedEmptyProvider = loadAISettingsFromStorage(settingsStorage);
+    assert.deepEqual(loadedEmptyProvider.services, [emptyProvider], 'Removing the last model must retain the provider and credentials after reload');
+    assert.equal(loadedEmptyProvider.activeModelId, '');
     for (const handler of [login, translate, imageToText, analyze, chat, wordDetail, summary, tts]) {
       for (const body of ['{', 'null', '[]', '"value"']) {
         assert.equal((await handler(request(body)))?.status, 400);

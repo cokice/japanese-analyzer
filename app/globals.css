@@ -1476,7 +1476,7 @@ input, textarea {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--bg);
-  overflow: hidden;
+  overflow: visible;
 }
 .provider-group-header {
   display: flex;
@@ -1612,6 +1612,7 @@ input, textarea {
 }
 .settings-config-dialog .settings-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;

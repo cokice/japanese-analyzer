@@ -174,7 +174,16 @@ function sanitizeModel(raw: unknown): ModelConfig | null {
   };
 }
 
-/** 把一个未知来源的 service 数组清洗成合法结构，过滤缺地址 / 缺模型的条目 */
+/** Prefer a usable model while retaining providers whose last model was deleted. */
+export function resolveModelSelection(services: ProviderProfile[], serviceId: unknown, modelId: unknown) {
+  const requested = services.find((service) => service.id === serviceId);
+  const service = (requested?.models.length ? requested : services.find((item) => item.models.length > 0))
+    ?? requested ?? services[0] ?? null;
+  const model = service?.models.find((item) => item.id === modelId) ?? service?.models[0] ?? null;
+  return { service, model };
+}
+
+/** 清洗服务商配置；保留显式空模型列表，避免删除最后一个模型时丢失地址和密钥。 */
 export function sanitizeProfiles(raw: unknown): ProviderProfile[] {
   if (!Array.isArray(raw)) return [];
   const profiles: ProviderProfile[] = [];
@@ -187,7 +196,7 @@ export function sanitizeProfiles(raw: unknown): ProviderProfile[] {
     const models = Array.isArray(item.models)
       ? item.models.map(sanitizeModel).filter((m): m is ModelConfig => m !== null)
       : [];
-    if (models.length === 0) continue;
+    if (models.length === 0 && (!Array.isArray(item.models) || item.models.length > 0)) continue;
     profiles.push({
       id,
       name: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : id,

@@ -13,10 +13,11 @@ interface ModelConfigDialogProps {
   /** 正在编辑的模型 */
   model: ModelConfig;
   onSave: (serviceId: string, modelId: string, patch: Partial<ModelConfig>) => void;
+  onDelete?: () => void;
   onClose: () => void;
 }
 
-export default function ModelConfigDialog({ serviceId, serviceName, model, onSave, onClose }: ModelConfigDialogProps) {
+export default function ModelConfigDialog({ serviceId, serviceName, model, onSave, onDelete, onClose }: ModelConfigDialogProps) {
   const { t } = useLanguage();
   const [modelName, setModelName] = useState(model.model);
   const [thinking, setThinking] = useState(model.caps?.thinking === true);
@@ -41,7 +42,7 @@ export default function ModelConfigDialog({ serviceId, serviceName, model, onSav
   const handleSave = () => {
     const trimmed = modelName.trim();
     const caps: ModelCaps = { thinking };
-    if (trimmed) {
+    if (thinking && trimmed) {
       const effort = reasoningEffort.trim();
       if (effort) caps.reasoningEffort = effort;
     }
@@ -115,6 +116,11 @@ export default function ModelConfigDialog({ serviceId, serviceName, model, onSav
         </div>
 
         <div className="settings-actions">
+          {onDelete && (
+            <button type="button" className="nd-ghost-btn provider-danger" style={{ marginRight: 'auto' }} onClick={onDelete}>
+              {t('删除此模型')}
+            </button>
+          )}
           <button type="button" className="nd-ghost-btn" onClick={onClose}>
             {t('取消')}
           </button>
