@@ -22,12 +22,12 @@ interface ChatMessage {
 interface AIChatProps {
   hidden?: boolean;
   userApiKey?: string;
-  activeProfile: ProviderProfile | null;
+  activeService: ProviderProfile | null;
   endpoint: EndpointPayload;
   currentSentence?: string;
 }
 
-export default function AIChat({ userApiKey, activeProfile, endpoint, currentSentence, hidden = false }: AIChatProps) {
+export default function AIChat({ userApiKey, activeService, endpoint, currentSentence, hidden = false }: AIChatProps) {
   const { t, locale, errorText } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -104,7 +104,7 @@ export default function AIChat({ userApiKey, activeProfile, endpoint, currentSen
     const controller = new AbortController();
     requestRef.current = controller;
     const isCurrent = () => requestRef.current === controller && !controller.signal.aborted;
-    const metrics = createRequestMetrics('chat', activeProfile?.id ?? '', endpoint.model, true, controller.signal);
+    const metrics = createRequestMetrics('chat', activeService?.id ?? '', endpoint.model, true, controller.signal);
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),

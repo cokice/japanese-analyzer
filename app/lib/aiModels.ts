@@ -1,11 +1,9 @@
-// 模型服务的通用类型与预设。任意 OpenAI 兼容厂商都以「base URL + 模型名 + 密钥」描述，
-// 不再用固定的厂商枚举。能力位（caps）告诉服务端按哪种结构化输出 / 思考参数调用上游。
+// 模型服务的通用类型与预设。任意 OpenAI 兼容厂商都以「服务商（base URL + 密钥 + 模型列表）」描述，
+// 不再用固定的厂商枚举。jsonSchema 是网关能力（挂在服务商），thinking / reasoningEffort 是模型能力（挂在模型）。
 
-/** 上游能力的开关，决定请求体里附加哪些字段 */
-export interface ProviderCaps {
-  /** true=用 json_schema strict（默认）；false=降级为 json_object（部分网关只认后者） */
-  jsonSchema?: boolean;
-  /** 该厂商支持 DeepSeek 风格的 thinking / reasoning_effort 参数 */
+/** 模型级能力位，决定该模型请求体里附加哪些字段 */
+export interface ModelCaps {
+  /** 该模型支持 DeepSeek 风格的 thinking / reasoning_effort 参数 */
   thinking?: boolean;
   /**
    * 启用深度思考时随请求发送的 reasoning_effort 取值。
@@ -14,13 +12,18 @@ export interface ProviderCaps {
   reasoningEffort?: string;
 }
 
-/** 每次请求要发给服务端的最小端点信息（apiKey 走 Authorization: Bearer，不在此列） */
-export interface ModelEndpoint {
-  baseUrl: string;
+/** 服务商下挂的一个模型 */
+export interface ModelConfig {
+  /** 稳定标识 */
+  id: string;
+  /** 展示名称（默认同模型名） */
+  name: string;
+  /** 上游模型名，例如 deepseek-chat / Qwen/Qwen3.8-27B */
   model: string;
+  caps?: ModelCaps;
 }
 
-/** 浏览器里持久化的一个模型服务配置 */
+/** 浏览器里持久化的一个模型服务商配置（可挂多个模型） */
 export interface ProviderProfile {
   /** 稳定标识：预设 id（如 'deepseek'）或自定义 slug */
   id: string;
@@ -30,19 +33,47 @@ export interface ProviderProfile {
   baseUrl: string;
   /** 用户自己的 API 密钥，随请求以 Bearer 发送 */
   apiKey: string;
-  /** 任意模型名，例如 deepseek-chat / gpt-4o-mini */
-  model: string;
-  caps?: ProviderCaps;
+  /** 网关能力：true=用 json_schema strict（默认）；false=降级为 json_object（部分网关只认后者） */
+  jsonSchema?: boolean;
+  models: ModelConfig[];
 }
 
-export type ProviderPreset = Pick<ProviderProfile, 'id' | 'name' | 'baseUrl' | 'model' | 'caps'>;
+/** 客户端发给服务端的完整能力位：服务商级 jsonSchema + 模型级 thinking / reasoningEffort 合并 */
+export interface ProviderCaps {
+  jsonSchema?: boolean;
+  thinking?: boolean;
+  reasoningEffort?: string;
+}
+
+export type ProviderPreset = Pick<ProviderProfile, 'id' | 'name' | 'baseUrl' | 'models'>;
 
 /** 前端「从预设创建」时的便利选项；密钥仍由用户自己填 */
 export const PRESETS: readonly ProviderPreset[] = [
-  { id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-chat', caps: { jsonSchema: false, thinking: true } },
-  { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', caps: {} },
-  { id: 'openrouter', name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', caps: {} },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com',
+    models: [{ id: 'deepseek-chat', name: 'deepseek-chat', model: 'deepseek-chat', caps: { thinking: true } }],
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    baseUrl: 'https://api.openai.com/v1',
+    models: [{ id: 'gpt-4o-mini', name: 'gpt-4o-mini', model: 'gpt-4o-mini' }],
+  },
+  {
+    id: 'openrouter',
+    name: 'OpenRouter',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    models: [{ id: 'openai-gpt-4o-mini', name: 'openai/gpt-4o-mini', model: 'openai/gpt-4o-mini' }],
+  },
 ];
+
+/** 每次请求要发给服务端的最小端点信息（apiKey 走 Authorization: Bearer，不在此列） */
+export interface ModelEndpoint {
+  baseUrl: string;
+  model: string;
+}
 
 /** 归一化上游端点：始终以 /chat/completions 结尾（与 OpenAI 兼容接口一致） */
 export function normalizeEndpointUrl(baseUrl: string): string {
@@ -55,12 +86,47 @@ export function normalizeEndpointUrl(baseUrl: string): string {
 /** 程序化调用（如测试、无显式配置时）的兜底端点；真实客户端总会传入自己的端点 */
 export const DEFAULT_ENDPOINT: ModelEndpoint = { baseUrl: '', model: '' };
 
-/** 为自定义服务生成一个稳定的本地 id（仅客户端使用） */
+/** 为自定义服务商生成一个稳定的本地 id（仅客户端使用） */
 export function createCustomProfileId(prefix = 'custom'): string {
   return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 }
 
-/** 把一个未知来源的 profile 数组清洗成合法结构，过滤缺字段的条目 */
+/** 为自定义模型生成一个稳定的本地 id（仅客户端使用） */
+export function createCustomModelId(prefix = 'model'): string {
+  return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/** 合并服务商与模型的能力位，得到请求要发送的完整 caps */
+export function effectiveCaps(service: ProviderProfile, model: ModelConfig | null | undefined): ProviderCaps {
+  const caps: ProviderCaps = { jsonSchema: service.jsonSchema !== false };
+  if (model?.caps?.thinking === true) caps.thinking = true;
+  if (model?.caps?.reasoningEffort) caps.reasoningEffort = model.caps.reasoningEffort;
+  return caps;
+}
+
+/** 清洗一个未知的模型项；缺模型名的条目返回 null */
+function sanitizeModel(raw: unknown): ModelConfig | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const item = raw as Record<string, unknown>;
+  const model = typeof item.model === 'string' ? item.model.trim() : '';
+  if (!model) return null;
+  const caps: ModelCaps = {};
+  if (item.caps && typeof item.caps === 'object') {
+    const rawCaps = item.caps as Record<string, unknown>;
+    if (typeof rawCaps.thinking === 'boolean') caps.thinking = rawCaps.thinking;
+    if (typeof rawCaps.reasoningEffort === 'string' && rawCaps.reasoningEffort.trim()) {
+      caps.reasoningEffort = rawCaps.reasoningEffort.trim();
+    }
+  }
+  return {
+    id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : createCustomModelId(),
+    name: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : model,
+    model,
+    caps,
+  };
+}
+
+/** 把一个未知来源的 service 数组清洗成合法结构，过滤缺地址 / 缺模型的条目 */
 export function sanitizeProfiles(raw: unknown): ProviderProfile[] {
   if (!Array.isArray(raw)) return [];
   const profiles: ProviderProfile[] = [];
@@ -69,22 +135,18 @@ export function sanitizeProfiles(raw: unknown): ProviderProfile[] {
     const item = entry as Record<string, unknown>;
     const id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : '';
     const baseUrl = typeof item.baseUrl === 'string' ? item.baseUrl.trim() : '';
-    const model = typeof item.model === 'string' ? item.model.trim() : '';
-    if (!baseUrl || !model) continue;
-    const rawCaps = item.caps && typeof item.caps === 'object' ? (item.caps as Record<string, unknown>) : {};
-    const caps: ProviderCaps = {};
-    if (typeof rawCaps.jsonSchema === 'boolean') caps.jsonSchema = rawCaps.jsonSchema;
-    if (typeof rawCaps.thinking === 'boolean') caps.thinking = rawCaps.thinking;
-    if (typeof rawCaps.reasoningEffort === 'string' && rawCaps.reasoningEffort.trim()) {
-      caps.reasoningEffort = rawCaps.reasoningEffort.trim();
-    }
+    if (!baseUrl) continue;
+    const models = Array.isArray(item.models)
+      ? item.models.map(sanitizeModel).filter((m): m is ModelConfig => m !== null)
+      : [];
+    if (models.length === 0) continue;
     profiles.push({
       id,
       name: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : id,
       baseUrl,
       apiKey: typeof item.apiKey === 'string' ? item.apiKey : '',
-      model,
-      caps,
+      ...(typeof item.jsonSchema === 'boolean' ? { jsonSchema: item.jsonSchema } : {}),
+      models,
     });
   }
   return profiles;

@@ -9,6 +9,7 @@ import { runLocalOutputTests } from './localOutput.test';
 import { runRequestMetricsTests } from './requestMetrics.test';
 import {
   PRESETS,
+  createCustomModelId,
   createCustomProfileId,
   getApiEndpoint,
   getTtsModelName,
@@ -137,23 +138,35 @@ assert.deepStrictEqual(
   PRESETS.map((preset) => preset.id),
   ['deepseek', 'openai', 'openrouter']
 );
-assert.ok(PRESETS.some((preset) => preset.id === 'deepseek' && preset.caps?.thinking === true));
+assert.ok(PRESETS.some((preset) => preset.id === 'deepseek' && preset.models[0]?.caps?.thinking === true));
 assert.strictEqual(normalizeEndpointUrl('https://api.deepseek.com'), 'https://api.deepseek.com/chat/completions');
 assert.strictEqual(normalizeEndpointUrl('https://api.deepseek.com/v1/'), 'https://api.deepseek.com/v1/chat/completions');
 assert.strictEqual(normalizeEndpointUrl('https://api.deepseek.com/chat/completions'), 'https://api.deepseek.com/chat/completions');
 assert.ok(createCustomProfileId().startsWith('custom-'));
-assert.deepStrictEqual(
-  sanitizeProfiles([{ id: 'a', baseUrl: 'https://x.example', model: 'm' }, { id: 'skip' }]),
-  [{ id: 'a', name: 'a', baseUrl: 'https://x.example', apiKey: '', model: 'm', caps: {} }]
-);
+assert.ok(createCustomModelId().startsWith('model-'));
+
+// sanitizeProfiles 只接受 service + models 结构：缺 baseUrl / 缺有效模型的服务被丢弃，
+// jsonSchema 留在服务商，thinking / reasoningEffort 归模型，reasoningEffort trim 后为空则删
+const sanitizedSingle = sanitizeProfiles([
+  { id: 'a', baseUrl: 'https://x.example', models: [{ model: 'm-1' }] },
+  { id: 'skip' },
+  { id: 'no-model', baseUrl: 'https://x.example', models: [{ name: 'x' }] },
+]);
+assert.deepStrictEqual(sanitizedSingle, [
+  { id: 'a', name: 'a', baseUrl: 'https://x.example', apiKey: '', models: [sanitizedSingle[0].models[0]] },
+]);
+assert.ok(sanitizedSingle[0].models[0].id.startsWith('model-'));
+assert.strictEqual(sanitizedSingle[0].models[0].name, 'm-1');
+assert.strictEqual(sanitizedSingle[0].models[0].model, 'm-1');
+assert.deepStrictEqual(sanitizedSingle[0].models[0].caps, {});
 assert.deepStrictEqual(
   sanitizeProfiles([
-    { id: 'b', baseUrl: 'https://x.example', model: 'm', caps: { jsonSchema: false, thinking: true, reasoningEffort: ' xhigh ' } },
-    { id: 'c', baseUrl: 'https://x.example', model: 'm', caps: { thinking: true, reasoningEffort: '   ' } },
+    { id: 'b', baseUrl: 'https://x.example', jsonSchema: false, models: [{ id: 'b1', name: 'B', model: 'm', caps: { thinking: true, reasoningEffort: ' xhigh ' } }] },
+    { id: 'c', baseUrl: 'https://x.example', models: [{ id: 'c1', model: 'm', caps: { thinking: true, reasoningEffort: '   ' } }] },
   ]),
   [
-    { id: 'b', name: 'b', baseUrl: 'https://x.example', apiKey: '', model: 'm', caps: { jsonSchema: false, thinking: true, reasoningEffort: 'xhigh' } },
-    { id: 'c', name: 'c', baseUrl: 'https://x.example', apiKey: '', model: 'm', caps: { thinking: true } },
+    { id: 'b', name: 'b', baseUrl: 'https://x.example', apiKey: '', jsonSchema: false, models: [{ id: 'b1', name: 'B', model: 'm', caps: { thinking: true, reasoningEffort: 'xhigh' } }] },
+    { id: 'c', name: 'c', baseUrl: 'https://x.example', apiKey: '', models: [{ id: 'c1', name: 'm', model: 'm', caps: { thinking: true } }] },
   ]
 );
 
@@ -745,23 +758,27 @@ const migratedStorage = new MemoryStorage({
   deepseekThinkingEnabled: 'true',
   geminiApiKey: 'gemini-key',
 });
+// 最旧结构（aiProvider/aiModel/*ApiKey）迁移成 service + models
 const migratedSettings = loadAISettingsFromStorage(migratedStorage);
-assert.deepStrictEqual(migratedSettings.profiles, [{
-  id: 'deepseek',
-  name: 'DeepSeek',
-  baseUrl: 'https://api.deepseek.com',
-  apiKey: 'deepseek-key',
-  model: 'deepseek-chat',
-  caps: { jsonSchema: false, thinking: true },
-}]);
-assert.strictEqual(migratedSettings.activeId, 'deepseek');
+assert.strictEqual(migratedSettings.services.length, 1);
+assert.strictEqual(migratedSettings.services[0].id, 'deepseek');
+assert.strictEqual(migratedSettings.services[0].name, 'DeepSeek');
+assert.strictEqual(migratedSettings.services[0].baseUrl, 'https://api.deepseek.com');
+assert.strictEqual(migratedSettings.services[0].apiKey, 'deepseek-key');
+assert.strictEqual(migratedSettings.services[0].jsonSchema, false);
+assert.strictEqual(migratedSettings.services[0].models.length, 1);
+assert.strictEqual(migratedSettings.services[0].models[0].model, 'deepseek-chat');
+assert.deepStrictEqual(migratedSettings.services[0].models[0].caps, { thinking: true });
+assert.strictEqual(migratedSettings.activeServiceId, 'deepseek');
+assert.strictEqual(migratedSettings.activeModelId, migratedSettings.services[0].models[0].id);
 assert.strictEqual(migratedSettings.geminiApiKey, 'gemini-key');
 assert.strictEqual(migratedSettings.thinkingEnabled, true);
 
 const emptyStorage = new MemoryStorage({ aiProvider: 'unknown' });
 const emptySettings = loadAISettingsFromStorage(emptyStorage);
-assert.deepStrictEqual(emptySettings.profiles, []);
-assert.strictEqual(emptySettings.activeId, '');
+assert.deepStrictEqual(emptySettings.services, []);
+assert.strictEqual(emptySettings.activeServiceId, '');
+assert.strictEqual(emptySettings.activeModelId, '');
 assert.strictEqual(emptySettings.geminiApiKey, '');
 assert.strictEqual(emptySettings.thinkingEnabled, false);
 
@@ -771,21 +788,56 @@ const legacyGeminiStorage = new MemoryStorage({
   geminiApiKey: 'gemini-key',
 });
 const legacyGeminiSettings = loadAISettingsFromStorage(legacyGeminiStorage);
-assert.strictEqual(legacyGeminiSettings.profiles.length, 1);
-assert.strictEqual(legacyGeminiSettings.profiles[0].id, 'gemini');
-assert.strictEqual(legacyGeminiSettings.profiles[0].baseUrl, 'https://generativelanguage.googleapis.com/v1beta/openai');
+assert.strictEqual(legacyGeminiSettings.services.length, 1);
+assert.strictEqual(legacyGeminiSettings.services[0].id, 'gemini');
+assert.strictEqual(legacyGeminiSettings.services[0].baseUrl, 'https://generativelanguage.googleapis.com/v1beta/openai');
+assert.strictEqual(legacyGeminiSettings.services[0].models[0].model, 'gemini-flash-latest');
 
-const newFormatStorage = new MemoryStorage({
+// 上一版平铺结构（profiles，一个 profile = 一个模型）迁移成 service + models
+const flatFormatStorage = new MemoryStorage({
   providerSettings: JSON.stringify({
-    profiles: [{ id: 'my', name: 'My', baseUrl: 'https://my.example', apiKey: 'k', model: 'm', caps: { thinking: true } }],
+    profiles: [{ id: 'my', name: 'My', baseUrl: 'https://my.example', apiKey: 'k', model: 'm', caps: { jsonSchema: false, thinking: true, reasoningEffort: 'xhigh' } }],
     activeId: 'my',
   }),
   thinkingEnabled: 'true',
 });
+const flatFormatSettings = loadAISettingsFromStorage(flatFormatStorage);
+assert.strictEqual(flatFormatSettings.services.length, 1);
+assert.strictEqual(flatFormatSettings.services[0].id, 'my');
+assert.strictEqual(flatFormatSettings.services[0].jsonSchema, false);
+assert.strictEqual(flatFormatSettings.services[0].models.length, 1);
+assert.strictEqual(flatFormatSettings.services[0].models[0].model, 'm');
+assert.deepStrictEqual(flatFormatSettings.services[0].models[0].caps, { thinking: true, reasoningEffort: 'xhigh' });
+assert.strictEqual(flatFormatSettings.activeServiceId, 'my');
+assert.strictEqual(flatFormatSettings.activeModelId, flatFormatSettings.services[0].models[0].id);
+assert.strictEqual(flatFormatSettings.thinkingEnabled, true);
+
+// 新结构（services + activeServiceId/activeModelId）原样读回
+const newFormatStorage = new MemoryStorage({
+  providerSettings: JSON.stringify({
+    services: [{ id: 'my', name: 'My', baseUrl: 'https://my.example', apiKey: 'k', jsonSchema: true, models: [{ id: 'm1', name: 'M', model: 'm', caps: { thinking: true } }, { id: 'm2', name: 'M2', model: 'm2' }] }],
+    activeServiceId: 'my',
+    activeModelId: 'm2',
+  }),
+  thinkingEnabled: 'true',
+});
 const newFormatSettings = loadAISettingsFromStorage(newFormatStorage);
-assert.strictEqual(newFormatSettings.profiles.length, 1);
-assert.strictEqual(newFormatSettings.activeId, 'my');
+assert.strictEqual(newFormatSettings.services.length, 1);
+assert.strictEqual(newFormatSettings.services[0].models.length, 2);
+assert.strictEqual(newFormatSettings.activeServiceId, 'my');
+assert.strictEqual(newFormatSettings.activeModelId, 'm2');
 assert.strictEqual(newFormatSettings.thinkingEnabled, true);
+
+// activeModelId 指向不存在的模型时回退到该服务第一个模型
+const staleModelStorage = new MemoryStorage({
+  providerSettings: JSON.stringify({
+    services: [{ id: 'my', name: 'My', baseUrl: 'https://my.example', apiKey: 'k', models: [{ id: 'm1', name: 'M', model: 'm' }] }],
+    activeServiceId: 'my',
+    activeModelId: 'missing',
+  }),
+});
+const staleModelSettings = loadAISettingsFromStorage(staleModelStorage);
+assert.strictEqual(staleModelSettings.activeModelId, 'm1');
 
 async function runOpenAIProxyErrorBodyTests() {
   const originalFetch = globalThis.fetch;

@@ -2,9 +2,11 @@ import { createTranslator, getClientLocale } from '../i18n';
 // API与分析相关的服务函数
 import {
   sanitizeProfiles,
+  createCustomModelId,
+  type ModelCaps,
   type ModelEndpoint,
-  type ProviderProfile,
   type ProviderCaps,
+  type ProviderProfile,
 } from '../lib/aiModels';
 import { splitJapaneseText, type JapaneseTextChunk } from '../utils/japaneseChunking';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
@@ -13,8 +15,8 @@ import { ApiRequestError, InvalidResponseError } from '../utils/requestErrors';
 import { protectAnalysisUrls } from '../utils/analysisUrls';
 import { buildAnalyzePrompt } from '../lib/analyzePrompt';
 
-export { PRESETS, sanitizeProfiles, normalizeEndpointUrl, createCustomProfileId } from '../lib/aiModels';
-export type { ModelEndpoint, ProviderProfile, ProviderCaps, ProviderPreset } from '../lib/aiModels';
+export { PRESETS, sanitizeProfiles, normalizeEndpointUrl, createCustomProfileId, createCustomModelId, effectiveCaps } from '../lib/aiModels';
+export type { ModelConfig, ModelCaps, ModelEndpoint, ProviderProfile, ProviderCaps, ProviderPreset } from '../lib/aiModels';
 
 export interface TokenData {
   word: string;
@@ -63,8 +65,10 @@ export interface StorageLike {
 }
 
 export interface StoredAISettings {
-  profiles: ProviderProfile[];
-  activeId: string;
+  /** 服务商列表，每个服务商可挂多个模型 */
+  services: ProviderProfile[];
+  activeServiceId: string;
+  activeModelId: string;
   /** Gemini TTS 专用密钥（与主模型配置分离） */
   geminiApiKey: string;
   thinkingEnabled: boolean;
@@ -117,8 +121,41 @@ export function getRequestProviderPayload(endpoint: EndpointPayload) {
   };
 }
 
-/** 把旧的「aiProvider/aiModel/geminiApiKey/deepseekApiKey」迁移成 profile 列表 */
-function migrateLegacyProfile(storage: StorageLike): { profile: ProviderProfile | null; activeId: string; geminiApiKey: string } {
+/**
+ * 把上一版「一个 profile = 一个模型」的平铺结构迁移成 service + models 结构。
+ * 每条 profile 变成一个单模型 service：jsonSchema 上移，thinking / reasoningEffort 挂到模型上。
+ */
+function migrateFlatProfiles(raw: unknown): ProviderProfile[] {
+  if (!Array.isArray(raw)) return [];
+  const services: ProviderProfile[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const item = entry as Record<string, unknown>;
+    const baseUrl = typeof item.baseUrl === 'string' ? item.baseUrl.trim() : '';
+    const model = typeof item.model === 'string' ? item.model.trim() : '';
+    if (!baseUrl || !model) continue;
+    const rawCaps = item.caps && typeof item.caps === 'object' ? (item.caps as Record<string, unknown>) : {};
+    const caps: ModelCaps = {};
+    if (typeof rawCaps.thinking === 'boolean') caps.thinking = rawCaps.thinking;
+    if (typeof rawCaps.reasoningEffort === 'string' && rawCaps.reasoningEffort.trim()) {
+      caps.reasoningEffort = rawCaps.reasoningEffort.trim();
+    }
+    const id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : '';
+    const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : id || baseUrl;
+    services.push({
+      id,
+      name,
+      baseUrl,
+      apiKey: typeof item.apiKey === 'string' ? item.apiKey : '',
+      ...(typeof rawCaps.jsonSchema === 'boolean' ? { jsonSchema: rawCaps.jsonSchema } : {}),
+      models: [{ id: createCustomModelId(), name: model, model, caps }],
+    });
+  }
+  return services;
+}
+
+/** 把旧的「aiProvider/aiModel/geminiApiKey/deepseekApiKey」迁移成 service + models 结构 */
+function migrateLegacyProfile(storage: StorageLike): { services: ProviderProfile[]; activeServiceId: string; activeModelId: string; geminiApiKey: string } {
   const legacyApiKey = storage.getItem('userApiKey') || '';
   let geminiApiKey = storage.getItem('geminiApiKey');
   if (geminiApiKey === null && legacyApiKey) {
@@ -130,62 +167,98 @@ function migrateLegacyProfile(storage: StorageLike): { profile: ProviderProfile 
   const model = storage.getItem('aiModel');
   const deepseekKey = storage.getItem('deepseekApiKey') || '';
 
-  let profile: ProviderProfile | null = null;
+  let service: ProviderProfile | null = null;
   if (provider === 'deepseek' && deepseekKey) {
-    profile = { id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com', apiKey: deepseekKey, model: model || 'deepseek-chat', caps: { jsonSchema: false, thinking: true } };
+    const modelName = model || 'deepseek-chat';
+    service = {
+      id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com', apiKey: deepseekKey, jsonSchema: false,
+      models: [{ id: createCustomModelId(), name: modelName, model: modelName, caps: { thinking: true } }],
+    };
   } else if (provider === 'gemini' && geminiApiKey) {
-    profile = { id: 'gemini', name: 'Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', apiKey: geminiApiKey, model: model || 'gemini-flash-latest', caps: {} };
+    const modelName = model || 'gemini-flash-latest';
+    service = {
+      id: 'gemini', name: 'Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', apiKey: geminiApiKey,
+      models: [{ id: createCustomModelId(), name: modelName, model: modelName }],
+    };
   }
 
-  return { profile, activeId: profile?.id || '', geminiApiKey: geminiApiKey || '' };
+  const services = service ? [service] : [];
+  return {
+    services,
+    activeServiceId: service?.id || '',
+    activeModelId: service?.models[0].id || '',
+    geminiApiKey: geminiApiKey || '',
+  };
+}
+
+function resolveActiveIds(services: ProviderProfile[], serviceId: unknown, modelId: unknown): { activeServiceId: string; activeModelId: string } {
+  if (services.length === 0) return { activeServiceId: '', activeModelId: '' };
+  const service = (typeof serviceId === 'string' && services.find((s) => s.id === serviceId)) || services[0];
+  const model = (typeof modelId === 'string' && service.models.find((m) => m.id === modelId)) || service.models[0];
+  return { activeServiceId: service.id, activeModelId: model.id };
 }
 
 export function loadAISettingsFromStorage(storage: StorageLike): StoredAISettings {
-  // 新结构：providerSettings
+  const geminiApiKey = storage.getItem('geminiApiKey') || '';
+  const thinkingEnabled = storage.getItem('thinkingEnabled') === 'true';
+
   const rawSettings = storage.getItem('providerSettings');
   if (rawSettings) {
     try {
-      const parsed = JSON.parse(rawSettings) as { profiles?: unknown; activeId?: unknown };
-      const profiles = sanitizeProfiles(parsed.profiles);
-      if (profiles.length > 0) {
-        const activeId = typeof parsed.activeId === 'string' && profiles.some(p => p.id === parsed.activeId)
-          ? parsed.activeId
-          : profiles[0].id;
+      const parsed = JSON.parse(rawSettings) as { services?: unknown; profiles?: unknown; activeId?: unknown; activeServiceId?: unknown; activeModelId?: unknown };
+      // 新结构：services（含 models）
+      if (parsed.services !== undefined) {
+        const services = sanitizeProfiles(parsed.services);
+        if (services.length > 0) {
+          const { activeServiceId, activeModelId } = resolveActiveIds(services, parsed.activeServiceId, parsed.activeModelId);
+          return { services, activeServiceId, activeModelId, geminiApiKey, thinkingEnabled };
+        }
+      }
+      // 上一版平铺结构：profiles（一个 profile = 一个模型）
+      const services = migrateFlatProfiles(parsed.profiles);
+      if (services.length > 0) {
+        // 旧 activeId 指向 service id
+        const byId = typeof parsed.activeId === 'string' && services.find((s) => s.id === parsed.activeId);
+        const target = byId || services[0];
         return {
-          profiles,
-          activeId,
-          geminiApiKey: storage.getItem('geminiApiKey') || '',
-          thinkingEnabled: storage.getItem('thinkingEnabled') === 'true',
+          services,
+          activeServiceId: target.id,
+          activeModelId: target.models[0].id,
+          geminiApiKey,
+          thinkingEnabled,
         };
       }
     } catch {
-      // 解析失败则回退到旧结构迁移
+      // 解析失败则回退到最旧结构迁移
     }
   }
 
-  // 旧结构迁移
-  const { profile, geminiApiKey } = migrateLegacyProfile(storage);
-  if (profile) {
+  // 最旧结构迁移
+  const legacy = migrateLegacyProfile(storage);
+  if (legacy.services.length > 0) {
     return {
-      profiles: [profile],
-      activeId: profile.id,
-      geminiApiKey,
-      thinkingEnabled: storage.getItem('thinkingEnabled') === 'true' || storage.getItem('deepseekThinkingEnabled') === 'true',
+      ...legacy,
+      thinkingEnabled: thinkingEnabled || storage.getItem('deepseekThinkingEnabled') === 'true',
     };
   }
 
   return {
-    profiles: [],
-    activeId: '',
+    services: [],
+    activeServiceId: '',
+    activeModelId: '',
     geminiApiKey,
-    thinkingEnabled: false,
+    thinkingEnabled,
   };
 }
 
-/** 把 profile 结构写回存储，并清理旧键 */
+/** 把 service + models 结构写回存储，并清理旧键 */
 export function saveAISettingsToStorage(storage: StorageLike, settings: StoredAISettings): void {
   // 先写新键，再清理旧键（geminiApiKey 既作新键也作旧键，最后统一写回）
-  storage.setItem('providerSettings', JSON.stringify({ profiles: settings.profiles, activeId: settings.activeId }));
+  storage.setItem('providerSettings', JSON.stringify({
+    services: settings.services,
+    activeServiceId: settings.activeServiceId,
+    activeModelId: settings.activeModelId,
+  }));
   storage.setItem('thinkingEnabled', settings.thinkingEnabled ? 'true' : 'false');
   for (const key of ['aiProvider', 'aiModel', 'deepseekApiKey', 'deepseekThinkingEnabled', 'geminiApiUrl', 'deepseekApiUrl', 'userApiUrl', 'userApiKey']) {
     try { storage.removeItem(key); } catch { /* 可选清理 */ }

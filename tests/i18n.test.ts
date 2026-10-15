@@ -19,7 +19,7 @@ async function main() {
   assert.equal(createTranslator('ko')('中文译文'), '한국어 번역');
   assert.equal(localizeError('查询释义失败：未知错误', 'ko'), '뜻 조회 실패: 알 수 없는 오류');
   assert.equal(createTranslator('zh-TW')('保存设置'), '儲存設定');
-  assert.equal(createTranslator('en')('当前模型服务商：{0}', 'Gemini'), 'Current AI provider: Gemini');
+  assert.equal(createTranslator('en')('{0} 个模型', 2), '2 model(s)');
   assert.equal(localizeError('流式翻译失败：未提供API密钥，请在设置中配置API密钥', 'en'), 'Streaming translation failed: No API key provided. Enter one in Settings.');
   assert.equal(localizeError('第 2/3 段没有返回完整解析结果，请重试。', 'en'), 'Chunk 2/3 returned an incomplete analysis. Please try again.');
   assert.equal(localizeError('翻译结果连接已结束，但没有收到完整结束信号，请重新生成。', 'en'), 'The translation disconnected before completion. Please try again.');

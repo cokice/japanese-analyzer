@@ -30,7 +30,7 @@ interface InputSectionProps {
   onAnalyze: (text: string, usage?: AnalyzeUsageMetadata) => void;
   onCancelAnalyze: () => void;
   userApiKey?: string;
-  activeProfile: ProviderProfile | null;
+  activeService: ProviderProfile | null;
   endpoint: EndpointPayload;
   geminiApiKey?: string;
   useStream?: boolean;
@@ -92,7 +92,7 @@ export default function InputSection({
   onAnalyze,
   onCancelAnalyze,
   userApiKey,
-  activeProfile,
+  activeService,
   endpoint,
   geminiApiKey,
   useStream = true, // 默认启用流式输出
@@ -290,9 +290,9 @@ export default function InputSection({
   const markImageRecognitionUsed = () => {
     usageMetadataRef.current = {
       ...usageMetadataRef.current,
-      imageRecognition: getImageRecognitionUsage(activeProfile?.id ?? '', endpoint.model),
+      imageRecognition: getImageRecognitionUsage(activeService?.id ?? '', endpoint.model),
     };
-    trackImageRecognitionUsage(activeProfile?.id ?? '', endpoint.model);
+    trackImageRecognitionUsage(activeService?.id ?? '', endpoint.model);
   };
 
   const markTtsUsed = (provider: TTSProvider) => {

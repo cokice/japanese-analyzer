@@ -2,22 +2,30 @@
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useMemo, useState } from 'react';
-import { PRESETS, createCustomProfileId, type ProviderCaps, type ProviderProfile } from '../lib/aiModels';
+import {
+  PRESETS,
+  createCustomModelId,
+  createCustomProfileId,
+  type ModelCaps,
+  type ProviderProfile,
+} from '../lib/aiModels';
 import { Icon } from './Icons';
 import { ProviderLogo } from './ProviderLogo';
 import { Switch } from '@/components/ui/switch';
 
 interface SettingsPayload {
-  profiles: ProviderProfile[];
-  activeId: string;
+  services: ProviderProfile[];
+  activeServiceId: string;
+  activeModelId: string;
   geminiApiKey: string;
   thinkingEnabled: boolean;
   useStream: boolean;
 }
 
 interface SettingsModalProps {
-  profiles: ProviderProfile[];
-  activeId: string;
+  services: ProviderProfile[];
+  activeServiceId: string;
+  activeModelId: string;
   geminiApiKey: string;
   thinkingEnabled: boolean;
   useStream: boolean;
@@ -26,25 +34,36 @@ interface SettingsModalProps {
   onModalClose: () => void;
 }
 
-function capJsonSchema(profile: ProviderProfile): boolean {
-  return profile.caps?.jsonSchema !== false;
+type TestState = 'idle' | 'loading' | 'ok' | 'error';
+
+function emptyService(): ProviderProfile {
+  return {
+    id: createCustomProfileId(),
+    name: '',
+    baseUrl: '',
+    apiKey: '',
+    jsonSchema: true,
+    models: [{ id: createCustomModelId(), name: '', model: '' }],
+  };
 }
 
-function capThinking(profile: ProviderProfile): boolean {
-  return profile.caps?.thinking === true;
-}
-
-function capReasoningEffort(profile: ProviderProfile): string {
-  return typeof profile.caps?.reasoningEffort === 'string' ? profile.caps.reasoningEffort : '';
-}
-
-function emptyProfile(): ProviderProfile {
-  return { id: createCustomProfileId(), name: '', baseUrl: '', apiKey: '', model: '', caps: { jsonSchema: true, thinking: false } };
+function fromPreset(presetId: string): ProviderProfile | null {
+  const preset = PRESETS.find((p) => p.id === presetId);
+  if (!preset) return null;
+  return {
+    id: createCustomProfileId(),
+    name: preset.name,
+    baseUrl: preset.baseUrl,
+    apiKey: '',
+    jsonSchema: true,
+    models: preset.models.map((m) => ({ ...m, id: createCustomModelId(), caps: m.caps ? { ...m.caps } : undefined })),
+  };
 }
 
 export default function SettingsModal({
-  profiles: initialProfiles,
-  activeId: initialActiveId,
+  services: initialServices,
+  activeServiceId: initialActiveServiceId,
+  activeModelId: initialActiveModelId,
   geminiApiKey,
   thinkingEnabled: initialThinkingEnabled,
   useStream,
@@ -52,180 +71,165 @@ export default function SettingsModal({
   isModalOpen,
   onModalClose
 }: SettingsModalProps) {
-  const { t } = useLanguage();
-  const [profiles, setProfiles] = useState<ProviderProfile[]>(initialProfiles);
-  const [activeId, setActiveId] = useState(initialActiveId);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draftName, setDraftName] = useState('');
-  const [draftBaseUrl, setDraftBaseUrl] = useState('');
-  const [draftApiKey, setDraftApiKey] = useState('');
-  const [draftModel, setDraftModel] = useState('');
-  const [draftJsonSchema, setDraftJsonSchema] = useState(true);
-  const [draftThinking, setDraftThinking] = useState(false);
-  const [draftReasoningEffort, setDraftReasoningEffort] = useState('');
+  const { t, errorText } = useLanguage();
+  const [services, setServices] = useState<ProviderProfile[]>(initialServices);
+  const [activeServiceId, setActiveServiceId] = useState(initialActiveServiceId);
+  const [activeModelId, setActiveModelId] = useState(initialActiveModelId);
+  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
+  const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
   const [geminiKey, setGeminiKey] = useState(geminiApiKey);
   const [thinkingEnabled, setThinkingEnabled] = useState(initialThinkingEnabled);
   const [streamEnabled, setStreamEnabled] = useState(useStream);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [testResults, setTestResults] = useState<Record<string, { state: TestState; message: string }>>({});
 
-  const activeProfile = useMemo(
-    () => profiles.find((p) => p.id === activeId) ?? profiles[0] ?? null,
-    [profiles, activeId]
+  const activeService = useMemo(
+    () => services.find((s) => s.id === activeServiceId) ?? services[0] ?? null,
+    [services, activeServiceId]
+  );
+  const activeModel = useMemo(
+    () => activeService?.models.find((m) => m.id === activeModelId) ?? activeService?.models[0] ?? null,
+    [activeService, activeModelId]
   );
 
-  // 打开弹窗时重置本地编辑态
+  // 打开弹窗时重置本地编辑态：默认展开当前服务商
   useEffect(() => {
     if (!isModalOpen) return;
-    setProfiles(initialProfiles);
-    setActiveId(initialActiveId);
-    const first = initialProfiles.find((p) => p.id === initialActiveId) ?? initialProfiles[0] ?? null;
-    setEditingId(first?.id ?? null);
+    setServices(initialServices);
+    setActiveServiceId(initialActiveServiceId);
+    setActiveModelId(initialActiveModelId);
+    const first = initialServices.find((s) => s.id === initialActiveServiceId) ?? initialServices[0] ?? null;
+    setExpandedServiceId(first?.id ?? null);
+    setExpandedModelId(null);
     setGeminiKey(geminiApiKey);
     setThinkingEnabled(initialThinkingEnabled);
     setStreamEnabled(useStream);
     setStatus('');
     setError('');
-    if (first) {
-      setDraftName(first.name);
-      setDraftBaseUrl(first.baseUrl);
-      setDraftApiKey(first.apiKey);
-      setDraftModel(first.model);
-      setDraftJsonSchema(capJsonSchema(first));
-      setDraftThinking(capThinking(first));
-      setDraftReasoningEffort(capReasoningEffort(first));
-    }
+    setTestResults({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen]);
-
-  // 切换编辑对象时同步表单
-  useEffect(() => {
-    if (!isModalOpen || !editingId) return;
-    const target = profiles.find((p) => p.id === editingId);
-    if (!target) return;
-    setDraftName(target.name);
-    setDraftBaseUrl(target.baseUrl);
-    setDraftApiKey(target.apiKey);
-    setDraftModel(target.model);
-    setDraftJsonSchema(capJsonSchema(target));
-    setDraftThinking(capThinking(target));
-    setDraftReasoningEffort(capReasoningEffort(target));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingId]);
 
   const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onModalClose();
   };
 
-  const commitDraft = (id: string, next: ProviderProfile): void => {
-    setProfiles((list) => list.map((p) => (p.id === id ? next : p)));
+  const updateService = (id: string, patch: Partial<ProviderProfile>) => {
+    setServices((list) => list.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   };
 
-  const handleEditChange = (patch: Partial<ProviderProfile>) => {
-    if (!editingId) return;
-    const current = profiles.find((p) => p.id === editingId);
-    if (!current) return;
-    commitDraft(editingId, { ...current, ...patch });
+  const updateModel = (serviceId: string, modelId: string, patch: Partial<ProviderProfile['models'][number]>) => {
+    setServices((list) => list.map((s) => s.id === serviceId
+      ? { ...s, models: s.models.map((m) => (m.id === modelId ? { ...m, ...patch } : m)) }
+      : s));
   };
 
-  // 汇总当前表单里的能力位，避免单个开关覆盖其他开关的改动；
-  // 同一事件里 setState 尚未生效，新值通过 overrides 传入
-  const draftCaps = (overrides: { jsonSchema?: boolean; thinking?: boolean; reasoningEffort?: string } = {}): ProviderCaps => ({
-    jsonSchema: overrides.jsonSchema ?? draftJsonSchema,
-    thinking: overrides.thinking ?? draftThinking,
-    ...((overrides.reasoningEffort ?? draftReasoningEffort).trim()
-      ? { reasoningEffort: (overrides.reasoningEffort ?? draftReasoningEffort).trim() }
-      : {}),
-  });
-
-  const addFromPreset = (presetId: string) => {
-    const preset = PRESETS.find((p) => p.id === presetId);
-    if (!preset) return;
-    const profile: ProviderProfile = {
-      id: createCustomProfileId(),
-      name: preset.name,
-      baseUrl: preset.baseUrl,
-      apiKey: '',
-      model: preset.model,
-      caps: preset.caps ? { ...preset.caps } : { jsonSchema: true, thinking: false },
-    };
-    setProfiles((list) => [...list, profile]);
-    setEditingId(profile.id);
-    setDraftName(profile.name);
-    setDraftBaseUrl(profile.baseUrl);
-    setDraftApiKey(profile.apiKey);
-    setDraftModel(profile.model);
-    setDraftJsonSchema(capJsonSchema(profile));
-    setDraftThinking(capThinking(profile));
-    setDraftReasoningEffort(capReasoningEffort(profile));
-    setError('');
+  const updateModelCaps = (serviceId: string, modelId: string, caps: ModelCaps) => {
+    updateModel(serviceId, modelId, { caps });
   };
 
-  const addBlank = () => {
-    const profile = emptyProfile();
-    setProfiles((list) => [...list, profile]);
-    setEditingId(profile.id);
-    setDraftName('');
-    setDraftBaseUrl('');
-    setDraftApiKey('');
-    setDraftModel('');
-    setDraftJsonSchema(true);
-    setDraftThinking(false);
-    setDraftReasoningEffort('');
-    setError('');
-  };
-
-  const removeEditing = () => {
-    if (!editingId) return;
-    const remaining = profiles.filter((p) => p.id !== editingId);
-    setProfiles(remaining);
-    if (activeId === editingId) {
-      setActiveId(remaining[0]?.id ?? '');
+  const removeService = (id: string) => {
+    const remaining = services.filter((s) => s.id !== id);
+    setServices(remaining);
+    if (activeServiceId === id) {
+      const next = remaining[0] ?? null;
+      setActiveServiceId(next?.id ?? '');
+      setActiveModelId(next?.models[0]?.id ?? '');
     }
-    setEditingId(remaining[0]?.id ?? null);
-    if (remaining[0]) {
-      setDraftName(remaining[0].name);
-      setDraftBaseUrl(remaining[0].baseUrl);
-      setDraftApiKey(remaining[0].apiKey);
-      setDraftModel(remaining[0].model);
-      setDraftJsonSchema(capJsonSchema(remaining[0]));
-      setDraftThinking(capThinking(remaining[0]));
-      setDraftReasoningEffort(capReasoningEffort(remaining[0]));
-    } else {
-      setDraftName('');
-      setDraftBaseUrl('');
-      setDraftApiKey('');
-      setDraftModel('');
-      setDraftReasoningEffort('');
+    if (expandedServiceId === id) {
+      setExpandedServiceId(remaining[0]?.id ?? null);
+      setExpandedModelId(null);
     }
     setError('');
+  };
+
+  const addService = (service: ProviderProfile) => {
+    setServices((list) => [...list, service]);
+    setExpandedServiceId(service.id);
+    setExpandedModelId(null);
+    setError('');
+  };
+
+  const removeModel = (serviceId: string, modelId: string) => {
+    const target = services.find((s) => s.id === serviceId);
+    if (!target) return;
+    const remaining = target.models.filter((m) => m.id !== modelId);
+    updateService(serviceId, { models: remaining });
+    if (activeServiceId === serviceId && activeModelId === modelId) {
+      setActiveModelId(remaining[0]?.id ?? '');
+    }
+    if (expandedModelId === modelId) setExpandedModelId(null);
+    setError('');
+  };
+
+  const addModel = (serviceId: string) => {
+    const target = services.find((s) => s.id === serviceId);
+    if (!target) return;
+    const model = { id: createCustomModelId(), name: '', model: '' };
+    updateService(serviceId, { models: [...target.models, model] });
+    setExpandedModelId(model.id);
+    setError('');
+  };
+
+  const setModelActive = (serviceId: string, modelId: string) => {
+    setActiveServiceId(serviceId);
+    setActiveModelId(modelId);
+    setError('');
+  };
+
+  const handleTestConnection = async (service: ProviderProfile) => {
+    if (!service.baseUrl.trim() || !service.models.some((m) => m.model.trim())) {
+      setTestResults((map) => ({ ...map, [service.id]: { state: 'error', message: t('请先填写基础地址和至少一个模型') } }));
+      return;
+    }
+    setTestResults((map) => ({ ...map, [service.id]: { state: 'loading', message: '' } }));
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${service.apiKey.trim()}`,
+        },
+        body: JSON.stringify({
+          prompt: 'ping',
+          stream: false,
+          baseUrl: service.baseUrl,
+          model: service.models.find((m) => m.model.trim())?.model,
+          caps: { jsonSchema: service.jsonSchema !== false },
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        setTestResults((map) => ({ ...map, [service.id]: { state: 'ok', message: t('连接成功') } }));
+      } else {
+        const raw = typeof data?.error?.message === 'string' ? data.error.message : `HTTP ${response.status}`;
+        setTestResults((map) => ({ ...map, [service.id]: { state: 'error', message: errorText(raw) } }));
+      }
+    } catch {
+      setTestResults((map) => ({ ...map, [service.id]: { state: 'error', message: t('无法连接到服务器，请检查网络') } }));
+    }
   };
 
   const handleSaveSettings = () => {
-    if (editingId) {
-      const current = profiles.find((p) => p.id === editingId);
-      if (current) {
-        commitDraft(editingId, {
-          ...current,
-          name: draftName.trim(),
-          baseUrl: draftBaseUrl.trim(),
-          apiKey: draftApiKey.trim(),
-          model: draftModel.trim(),
-          caps: draftCaps(),
-        });
-      }
-    }
-
-    // 去掉没有 baseUrl / model 的无效配置
-    const valid = profiles.filter((p) => p.baseUrl.trim() && p.model.trim());
-    let nextActive = activeId;
-    if (!valid.some((p) => p.id === nextActive)) {
-      nextActive = valid[0]?.id ?? '';
+    // 去掉没有 baseUrl / 没有有效模型的无效配置
+    const valid = services
+      .map((s) => ({ ...s, models: s.models.filter((m) => m.model.trim()) }))
+      .filter((s) => s.baseUrl.trim() && s.models.length > 0);
+    let nextServiceId = activeServiceId;
+    let nextModelId = activeModelId;
+    if (!valid.some((s) => s.id === nextServiceId)) {
+      const first = valid[0];
+      nextServiceId = first?.id ?? '';
+      nextModelId = first?.models[0]?.id ?? '';
+    } else if (!valid.find((s) => s.id === nextServiceId)?.models.some((m) => m.id === nextModelId)) {
+      nextModelId = valid.find((s) => s.id === nextServiceId)?.models[0]?.id ?? '';
     }
 
     onSaveSettings({
-      profiles: valid,
-      activeId: nextActive,
+      services: valid,
+      activeServiceId: nextServiceId,
+      activeModelId: nextModelId,
       geminiApiKey: geminiKey.trim(),
       thinkingEnabled,
       useStream: streamEnabled,
@@ -235,7 +239,7 @@ export default function SettingsModal({
     setTimeout(() => onModalClose(), 900);
   };
 
-  const isThinkingAvailable = !!activeProfile?.caps?.thinking;
+  const isThinkingAvailable = !!activeModel?.caps?.thinking;
 
   return (
     <div
@@ -267,48 +271,20 @@ export default function SettingsModal({
         <div className="settings-group" role="group" aria-label={t('模型配置')}>
           <p className="settings-group-label">{t('模型服务')}</p>
 
-          {profiles.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-2">
-              {profiles.map((profile) => {
-                const isActive = profile.id === activeProfile?.id;
-                const isEditing = profile.id === editingId;
-                return (
-                  <button
-                    key={profile.id}
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-medium transition-colors"
-                    style={{
-                      borderColor: isEditing ? 'var(--primary)' : 'var(--line)',
-                      background: isEditing ? 'var(--bg-2)' : 'transparent',
-                      color: isEditing ? 'var(--ink)' : 'var(--ink-3)',
-                    }}
-                    onClick={() => setEditingId(profile.id)}
-                  >
-                    <ProviderLogo profile={profile} className="h-4 w-4" />
-                    <span>{profile.name || profile.id}</span>
-                    {isActive && (
-                      <span
-                        className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-                        style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
-                      >
-                        {t('当前')}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <button type="button" className="nd-ghost-btn" onClick={addBlank}>
-              {Icon.plus}<span>{t('新增服务')}</span>
+            <button type="button" className="nd-ghost-btn" onClick={() => addService(emptyService())}>
+              {Icon.plus}<span>{t('新增服务商')}</span>
             </button>
             <select
               className="nd-input"
               style={{ width: 'auto', minHeight: 38 }}
               value=""
-              onChange={(e) => { if (e.target.value) addFromPreset(e.target.value); e.target.value = ''; }}
+              onChange={(e) => {
+                if (!e.target.value) return;
+                const service = fromPreset(e.target.value);
+                if (service) addService(service);
+                e.target.value = '';
+              }}
             >
               <option value="" disabled>{t('从预设创建…')}</option>
               {PRESETS.map((preset) => (
@@ -317,111 +293,265 @@ export default function SettingsModal({
             </select>
           </div>
 
-          {editingId ? (
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="profileNameInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-                  {t('服务名称')}
-                </label>
-                <input
-                  id="profileNameInput"
-                  className="nd-input"
-                  value={draftName}
-                  onChange={(e) => { setDraftName(e.target.value); handleEditChange({ name: e.target.value }); }}
-                />
-              </div>
-              <div>
-                <label htmlFor="profileBaseUrlInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-                  {t('基础地址（Base URL）')}
-                </label>
-                <input
-                  id="profileBaseUrlInput"
-                  className="nd-input"
-                  placeholder="https://api.deepseek.com"
-                  value={draftBaseUrl}
-                  onChange={(e) => { setDraftBaseUrl(e.target.value); handleEditChange({ baseUrl: e.target.value }); }}
-                />
-              </div>
-              <div>
-                <label htmlFor="profileApiKeyInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-                  {t('API 密钥')}
-                </label>
-                <input
-                  id="profileApiKeyInput"
-                  type="password"
-                  className="nd-input"
-                  value={draftApiKey}
-                  onChange={(e) => { setDraftApiKey(e.target.value); handleEditChange({ apiKey: e.target.value }); }}
-                />
-              </div>
-              <div>
-                <label htmlFor="profileModelInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-                  {t('模型名称')}
-                </label>
-                <input
-                  id="profileModelInput"
-                  className="nd-input"
-                  placeholder="deepseek-chat"
-                  value={draftModel}
-                  onChange={(e) => { setDraftModel(e.target.value); handleEditChange({ model: e.target.value }); }}
-                />
-              </div>
-              <div className="settings-option-row">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>{t('使用严格结构化输出（json_schema）')}</label>
-                    <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>{t('部分网关只接受 json_object，可关闭此项。')}</p>
-                  </div>
-                  <Switch
-                    aria-label={t('使用严格结构化输出（json_schema）')}
-                    checked={draftJsonSchema}
-                    onCheckedChange={(v) => { setDraftJsonSchema(v); handleEditChange({ caps: draftCaps({ jsonSchema: v }) }); }}
-                  />
-                </div>
-              </div>
-              <div className="settings-option-row">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>{t('支持思考 / 推理参数')}</label>
-                    <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>{t('开启后该服务可启用「深度思考」。')}</p>
-                  </div>
-                  <Switch
-                    aria-label={t('支持思考 / 推理参数')}
-                    checked={draftThinking}
-                    onCheckedChange={(v) => { setDraftThinking(v); handleEditChange({ caps: draftCaps({ thinking: v }) }); }}
-                  />
-                </div>
-              </div>
-              {draftThinking && (
-                <div>
-                  <label htmlFor="profileReasoningEffortInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-                    {t('思考强度（reasoning_effort，可选）')}
-                  </label>
-                  <input
-                    id="profileReasoningEffortInput"
-                    className="nd-input"
-                    placeholder={t('如 xhigh / medium / low；留空用服务商默认')}
-                    value={draftReasoningEffort}
-                    onChange={(e) => { setDraftReasoningEffort(e.target.value); handleEditChange({ caps: draftCaps({ reasoningEffort: e.target.value }) }); }}
-                  />
-                  <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>{t('不同服务商接受的值不同，请按该服务商文档填写。')}</p>
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {activeProfile?.id !== editingId && (
-                  <button type="button" className="nd-ghost-btn" onClick={() => setActiveId(editingId)}>
-                    {t('设为当前')}
-                  </button>
-                )}
-                <button type="button" className="nd-ghost-btn" onClick={removeEditing} style={{ color: 'var(--pos-p)' }}>
-                  {t('删除此服务')}
-                </button>
-              </div>
+          {services.length === 0 ? (
+            <div className="rounded-[10px] p-4 text-sm" style={{ background: 'var(--bg)', border: '1px dashed var(--line)', color: 'var(--ink-3)' }}>
+              {t('还没有模型服务，点「新增服务商」或从预设创建。')}
             </div>
           ) : (
-            <div className="rounded-[10px] p-4 text-sm" style={{ background: 'var(--bg)', border: '1px dashed var(--line)', color: 'var(--ink-3)' }}>
-              {t('还没有模型服务，点「新增服务」或从预设创建。')}
+            <div className="space-y-3">
+              {services.map((service) => {
+                const isExpanded = expandedServiceId === service.id;
+                const isCurrent = service.id === activeService?.id;
+                const serviceModelCount = service.models.length;
+                return (
+                  <div
+                    key={service.id}
+                    className="service-card"
+                    style={{
+                      border: `1px solid ${isExpanded ? 'var(--primary)' : 'var(--line)'}`,
+                      background: isExpanded ? 'var(--bg-2)' : 'var(--bg)',
+                    }}
+                  >
+                    <div className="flex w-full items-center gap-2 rounded-[10px]" onClick={() => setExpandedServiceId(isExpanded ? null : service.id)}>
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left"
+                        aria-expanded={isExpanded}
+                      >
+                        <ProviderLogo profile={service} className="h-4 w-4" />
+                        <span className="truncate text-sm font-semibold" style={{ color: 'var(--ink)' }}>
+                          {service.name || service.id}
+                        </span>
+                        {service.baseUrl && (
+                          <span className="hidden truncate text-xs sm:inline" style={{ color: 'var(--ink-3)' }}>{service.baseUrl}</span>
+                        )}
+                        {isCurrent && (
+                          <span
+                            className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+                          >
+                            {t('当前')}
+                          </span>
+                        )}
+                      </button>
+                      <span className="shrink-0 text-xs" style={{ color: 'var(--ink-3)' }}>{t('{0} 个模型', serviceModelCount)}</span>
+                      <button
+                        type="button"
+                        className="nd-ghost-btn shrink-0"
+                        style={{ color: 'var(--pos-p)' }}
+                        onClick={(e) => { e.stopPropagation(); removeService(service.id); }}
+                      >
+                        {t('删除此服务')}
+                      </button>
+                      <span
+                        className="shrink-0 text-xs"
+                        style={{ color: 'var(--ink-3)', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}
+                        aria-hidden="true"
+                      >
+                        ▼
+                      </span>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="space-y-3 pt-3">
+                        <div>
+                          <label htmlFor="profileNameInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+                            {t('服务名称')}
+                          </label>
+                          <input
+                            id="profileNameInput"
+                            className="nd-input"
+                            value={service.name}
+                            onChange={(e) => updateService(service.id, { name: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="profileBaseUrlInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+                            {t('基础地址（Base URL）')}
+                          </label>
+                          <input
+                            id="profileBaseUrlInput"
+                            className="nd-input"
+                            placeholder="https://api.deepseek.com"
+                            value={service.baseUrl}
+                            onChange={(e) => updateService(service.id, { baseUrl: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="profileApiKeyInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+                            {t('API 密钥')}
+                          </label>
+                          <input
+                            id="profileApiKeyInput"
+                            type="password"
+                            className="nd-input"
+                            value={service.apiKey}
+                            onChange={(e) => updateService(service.id, { apiKey: e.target.value })}
+                          />
+                        </div>
+                        <div className="settings-option-row">
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <label className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>{t('使用严格结构化输出（json_schema）')}</label>
+                              <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>{t('部分网关只接受 json_object，可关闭此项。')}</p>
+                            </div>
+                            <Switch
+                              aria-label={t('使用严格结构化输出（json_schema）')}
+                              checked={service.jsonSchema !== false}
+                              onCheckedChange={(v) => updateService(service.id, { jsonSchema: v })}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            className="nd-ghost-btn"
+                            disabled={testResults[service.id]?.state === 'loading'}
+                            onClick={(e) => { e.stopPropagation(); handleTestConnection(service); }}
+                          >
+                            {testResults[service.id]?.state === 'loading' ? t('测试中…') : t('测试连接')}
+                          </button>
+                          {testResults[service.id]?.state === 'ok' && (
+                            <span className="text-xs" style={{ color: 'var(--primary)' }}>{testResults[service.id].message}</span>
+                          )}
+                          {testResults[service.id]?.state === 'error' && (
+                            <span className="text-xs" style={{ color: 'var(--pos-p)' }}>{testResults[service.id].message}</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="mb-2 flex items-center justify-between">
+                            <label className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>{t('模型')}</label>
+                            <button type="button" className="nd-ghost-btn" onClick={() => addModel(service.id)}>
+                              {Icon.plus}<span>{t('新增模型')}</span>
+                            </button>
+                          </div>
+                          {service.models.length === 0 ? (
+                            <div className="rounded-[10px] p-3 text-sm" style={{ background: 'var(--bg)', border: '1px dashed var(--line)', color: 'var(--ink-3)' }}>
+                              {t('还没有模型，点「新增模型」添加。')}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {service.models.map((model) => {
+                                const modelIsExpanded = expandedModelId === model.id;
+                                const modelIsCurrent = service.id === activeService?.id && model.id === activeModel?.id;
+                                return (
+                                  <div
+                                    key={model.id}
+                                    className="model-row"
+                                    style={{
+                                      border: `1px solid ${modelIsExpanded ? 'var(--primary)' : 'var(--line)'}`,
+                                      background: 'var(--bg)',
+                                    }}
+                                  >
+                                    <div className="flex w-full items-center gap-2" onClick={() => setExpandedModelId(modelIsExpanded ? null : model.id)}>
+                                      <button
+                                        type="button"
+                                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left"
+                                        aria-expanded={modelIsExpanded}
+                                      >
+                                        <span className="truncate text-sm font-medium" style={{ color: 'var(--ink)' }}>
+                                          {model.name || model.model || t('未命名模型')}
+                                        </span>
+                                        {modelIsCurrent && (
+                                          <span
+                                            className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                                            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+                                          >
+                                            {t('当前')}
+                                          </span>
+                                        )}
+                                      </button>
+                                      {!modelIsCurrent && (
+                                        <button
+                                          type="button"
+                                          className="nd-ghost-btn shrink-0"
+                                          onClick={(e) => { e.stopPropagation(); setModelActive(service.id, model.id); }}
+                                        >
+                                          {t('设为当前')}
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        className="nd-ghost-btn shrink-0"
+                                        style={{ color: 'var(--pos-p)' }}
+                                        onClick={(e) => { e.stopPropagation(); removeModel(service.id, model.id); }}
+                                      >
+                                        {t('删除此模型')}
+                                      </button>
+                                      <span
+                                        className="shrink-0 text-xs"
+                                        style={{ color: 'var(--ink-3)', transform: modelIsExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}
+                                        aria-hidden="true"
+                                      >
+                                        ▼
+                                      </span>
+                                    </div>
+
+                                    {modelIsExpanded && (
+                                      <div className="space-y-3 pt-3">
+                                        <div>
+                                          <label htmlFor={`model-name-${model.id}`} className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+                                            {t('模型名称')}
+                                          </label>
+                                          <input
+                                            id={`model-name-${model.id}`}
+                                            className="nd-input"
+                                            placeholder="deepseek-chat"
+                                            value={model.model}
+                                            onChange={(e) => updateModel(service.id, model.id, {
+                                              model: e.target.value,
+                                              name: e.target.value,
+                                            })}
+                                          />
+                                        </div>
+                                        <div className="settings-option-row">
+                                          <div className="flex items-center justify-between gap-4">
+                                            <div>
+                                              <label className="block text-sm font-semibold" style={{ color: 'var(--ink)' }}>{t('支持思考 / 推理参数')}</label>
+                                              <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>{t('开启后该模型可启用「深度思考」。')}</p>
+                                            </div>
+                                            <Switch
+                                              aria-label={t('支持思考 / 推理参数')}
+                                              checked={model.caps?.thinking === true}
+                                              onCheckedChange={(v) => updateModelCaps(service.id, model.id, {
+                                                ...model.caps,
+                                                thinking: v,
+                                              })}
+                                            />
+                                          </div>
+                                        </div>
+                                        {model.caps?.thinking === true && (
+                                          <div>
+                                            <label htmlFor={`model-effort-${model.id}`} className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+                                              {t('思考强度（reasoning_effort，可选）')}
+                                            </label>
+                                            <input
+                                              id={`model-effort-${model.id}`}
+                                              className="nd-input"
+                                              placeholder={t('如 xhigh / medium / low；留空用服务商默认')}
+                                              value={model.caps?.reasoningEffort ?? ''}
+                                              onChange={(e) => updateModelCaps(service.id, model.id, {
+                                                ...model.caps,
+                                                reasoningEffort: e.target.value,
+                                              })}
+                                            />
+                                            <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>{t('不同服务商接受的值不同，请按该服务商文档填写。')}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
