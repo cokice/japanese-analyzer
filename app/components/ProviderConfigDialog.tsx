@@ -1,5 +1,7 @@
 'use client';
 
+import SettingsConfigLayer from './SettingsConfigLayer';
+
 import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { createCustomModelId, type ProviderProfile } from '../lib/aiModels';
@@ -87,7 +89,7 @@ export default function ProviderConfigDialog({ service, mode, onSave, onClose }:
   };
 
   return (
-    <div
+    <SettingsConfigLayer><div
       className="settings-config-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -208,6 +210,6 @@ export default function ProviderConfigDialog({ service, mode, onSave, onClose }:
           </button>
         </div>
       </div>
-    </div>
+    </div></SettingsConfigLayer>
   );
 }

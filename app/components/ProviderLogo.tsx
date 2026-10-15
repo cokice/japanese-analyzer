@@ -4,7 +4,7 @@ import type { ProviderProfile } from '../services/api';
 import { PROVIDER_ICONS } from '../lib/providerIcons';
 
 interface ProviderLogoProps {
-  profile: ProviderProfile | null;
+  profile: Pick<ProviderProfile, 'id' | 'name'> | null;
   className?: string;
 }
 

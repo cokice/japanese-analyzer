@@ -103,7 +103,7 @@ const GEMINI_TTS_MODEL_NAME = 'gemini-3.1-flash-tts-preview';
 const EDGE_TTS_MODEL_NAME = 'edge-tts';
 
 export function getTtsModelName(provider: TTSProvider = 'edge'): string {
-  return provider === 'gemini' ? GEMINI_TTS_MODEL_NAME : provider === 'openai' ? 'gpt-4o-mini-tts' : provider === 'minimax' ? 'speech-2.8-hd' : EDGE_TTS_MODEL_NAME;
+  return provider === 'gemini' ? GEMINI_TTS_MODEL_NAME : provider === 'openai' ? 'gpt-4o-mini-tts' : provider === 'minimax' ? 'speech-2.8-hd' : provider === 'volcengine' ? 'doubao-seed-tts-2.0' : EDGE_TTS_MODEL_NAME;
 }
 
 /** 客户端随请求发送的端点信息：baseUrl + model + 能力位 */

@@ -1,5 +1,7 @@
 'use client';
 
+import SettingsConfigLayer from './SettingsConfigLayer';
+
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { ModelCaps, ModelConfig } from '../lib/aiModels';
@@ -51,7 +53,7 @@ export default function ModelConfigDialog({ serviceId, serviceName, model, onSav
   };
 
   return (
-    <div
+    <SettingsConfigLayer><div
       className="settings-config-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -129,6 +131,6 @@ export default function ModelConfigDialog({ serviceId, serviceName, model, onSav
           </button>
         </div>
       </div>
-    </div>
+    </div></SettingsConfigLayer>
   );
 }

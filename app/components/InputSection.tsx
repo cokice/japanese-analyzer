@@ -19,6 +19,7 @@ import {
 import { Icon } from './Icons';
 import ModelSwitcher from './ModelSwitcher';
 import AnchoredPopover from './AnchoredPopover';
+import { ProviderLogo } from './ProviderLogo';
 import type { SpeechService } from '../lib/speechServices';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { TextShimmer } from '@/components/ui/text-shimmer';
@@ -45,6 +46,7 @@ interface InputSectionProps {
   useStream?: boolean;
   onSpeechServiceChange: (id: string, voice?: string) => void;
   isAnalyzing?: boolean;
+  analysisError?: string;
   /** 阅读态：输入卡片收成一行文字按钮，把版面让给解析结果 */
   compact?: boolean;
   onExpand?: () => void;
@@ -111,6 +113,7 @@ export default function InputSection({
   useStream = true, // 默认启用流式输出
   onSpeechServiceChange,
   isAnalyzing = false,
+  analysisError = '',
   compact = false,
   onExpand,
   onCollapse,
@@ -121,7 +124,7 @@ export default function InputSection({
   const { t, locale, errorText } = useLanguage();
   const ttsProvider = speechService.provider;
   const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const isLoading = isAnalyzing;
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
   const [ttsError, setTtsError] = useState('');
@@ -192,10 +195,8 @@ export default function InputSection({
     input.setSelectionRange(input.value.length, input.value.length);
   }, [compact]);
 
-  // 监听外部分析状态，同步内部loading状态
+  // Only show progress while the parent actually has a running request.
   useEffect(() => {
-    setIsLoading(isAnalyzing);
-
     if (isAnalyzing) {
       wasAnalyzingRef.current = true;
       if (submitStartedRef.current) {
@@ -210,14 +211,14 @@ export default function InputSection({
 
     if (wasAnalyzingRef.current && submitStartedRef.current) {
       wasAnalyzingRef.current = false;
-      setSubmitState('success');
+      setSubmitState(analysisError ? 'idle' : 'success');
       submitResetTimerRef.current = setTimeout(() => {
         setSubmitState('idle');
         submitStartedRef.current = false;
         submitResetTimerRef.current = null;
       }, 1500);
     }
-  }, [isAnalyzing]);
+  }, [isAnalyzing, analysisError]);
 
   useEffect(() => {
     return () => {
@@ -310,8 +311,12 @@ export default function InputSection({
       return;
     }
 
+    if (submitResetTimerRef.current) {
+      clearTimeout(submitResetTimerRef.current);
+      submitResetTimerRef.current = null;
+    }
     submitStartedRef.current = true;
-    setSubmitState('loading');
+    setSubmitState('idle');
     onAnalyze(text, usage);
   };
 
@@ -895,7 +900,7 @@ export default function InputSection({
                         id="inputVoiceSettings"
                         className="input-voice-menu rounded-2xl p-4"
                       >
-                        <div className="mb-3 text-sm font-medium" style={{ color: 'var(--ink)' }}>{t("语音设置")}</div>
+                        <div className="mb-3 flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--ink)' }}><ProviderLogo profile={{ id: speechService.provider, name: speechService.name }} />{t("语音设置")}</div>
 
                         {/* TTS提供商选择 */}
                         <div className="mb-3">
@@ -1013,7 +1018,7 @@ export default function InputSection({
                   id="analyzeButton"
                   onClick={isLoading ? handleCancelAnalyze : handleAnalyze}
                   disabled={!isLoading && !inputText.trim()}
-                  state={submitState}
+                  state={isAnalyzing ? 'loading' : submitState === 'success' && !analysisError ? 'success' : 'idle'}
                   className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
                 />
               </div>

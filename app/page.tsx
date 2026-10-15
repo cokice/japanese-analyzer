@@ -687,6 +687,7 @@ export default function Home() {
                useStream={useStream}
               onSpeechServiceChange={handleSpeechServiceChange}
               isAnalyzing={isAnalyzing}
+              analysisError={analysisError}
               compactExtras={shouldShowAnalyzer() && (
                 <DisplayOptions
                   variant="chips"

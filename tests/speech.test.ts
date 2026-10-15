@@ -24,6 +24,31 @@ async function run() {
     assert.equal(normalizeSpeechEndpoint('openai', 'https://speech.example/v1/audio/speech', 'custom'), 'https://speech.example/v1/audio/speech');
     assert.equal(normalizeSpeechEndpoint('gemini', 'https://speech.example/v1beta', 'new-model'), 'https://speech.example/v1beta/models/new-model:generateContent');
 
+    const volc = createSpeechService('volcengine');
+    assert.equal(sanitizeSpeechSettings({ services: [volc], activeId: volc.id })?.activeId, volc.id);
+    assert.equal(normalizeSpeechEndpoint('volcengine', volc.baseUrl, volc.model), volc.baseUrl);
+    globalThis.fetch = async (url, init) => {
+      assert.equal(String(url), volc.baseUrl);
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get('X-Api-Key'), 'test-key');
+      assert.equal(headers.get('X-Api-Resource-Id'), 'seed-tts-2.0');
+      assert.equal(headers.get('Authorization'), null);
+      assert.deepEqual(JSON.parse(String(init?.body)), { req_params: { text: '日本語', speaker: volc.voice, audio_params: { format: 'mp3', sample_rate: 24000, speech_rate: 20 }, additions: JSON.stringify({ explicit_language: 'ja' }) } });
+      const bytes = new TextEncoder().encode('{"code":0,"data":"SUQ="}\n{"code":0,"data":"Mw=="}\n{"code":20000000}');
+      return new Response(new ReadableStream({ start(controller) { for (const byte of bytes) controller.enqueue(new Uint8Array([byte])); controller.close(); } }));
+    };
+    const volcBody = { text: '日本語', provider: 'volcengine', model: volc.model, voice: volc.voice, speed: 1.2 };
+    const volcano = await POST(request(volcBody));
+    assert.equal(volcano.status, 200); assert.equal((await volcano.json()).audio, 'SUQz');
+    for (const response of ['{"code":0,"data":"SUQz"}\n{"code":45000000,"message":"unauthorized voice"}', '{"code":0,"data":"SUQz"}', '{"code":0,"data":"bad!"}\n{"code":20000000}', '{"code":20000000}', 'not json']) {
+      globalThis.fetch = async () => new Response(response);
+      assert.equal((await POST(request(volcBody))).status, 502, 'Upstream errors or incomplete audio must not be treated as success');
+    }
+    globalThis.fetch = async () => { throw new Error('Incorrect Ark chat endpoint must never be called'); };
+    const wrongArk = await POST(request({ text: '日本語', provider: 'openai', baseUrl: 'https://ark.cn-beijing.volces.com/api/plan/v3', model: volc.model }));
+    assert.equal(wrongArk.status, 400);
+    assert.match((await wrongArk.json()).error.message, /Agent Plan/);
+
     let calls = 0;
     globalThis.fetch = async (url, init) => {
       calls++;

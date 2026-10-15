@@ -1624,6 +1624,7 @@ input, textarea {
   width: min(440px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   color: var(--ink);
   animation: fadeInModal 0.2s;
 }

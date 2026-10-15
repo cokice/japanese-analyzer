@@ -1,6 +1,6 @@
 import { createCustomProfileId } from './aiModels';
 
-export type SpeechProtocol = 'edge' | 'gemini' | 'openai' | 'minimax';
+export type SpeechProtocol = 'edge' | 'gemini' | 'openai' | 'minimax' | 'volcengine';
 export interface SpeechService {
   id: string;
   name: string;
@@ -18,12 +18,14 @@ export const SPEECH_PRESETS: readonly SpeechService[] = [
   { id: 'gemini', name: 'Gemini TTS', provider: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', apiKey: '', model: 'gemini-3.1-flash-tts-preview', voice: 'Kore', speed: 1 },
   { id: 'openai', name: 'OpenAI TTS', provider: 'openai', baseUrl: 'https://api.openai.com/v1', apiKey: '', model: 'gpt-4o-mini-tts', voice: 'alloy', speed: 1 },
   { id: 'minimax', name: 'MiniMax TTS', provider: 'minimax', baseUrl: 'https://api.minimax.cn/v1', apiKey: '', model: 'speech-2.8-hd', voice: 'Japanese_KindLady', speed: 1 },
+  { id: 'volcengine', name: '火山引擎 Agent Plan', provider: 'volcengine', baseUrl: 'https://openspeech.bytedance.com/api/v3/plan/tts/unidirectional', apiKey: '', model: 'doubao-seed-tts-2.0', voice: 'zh_female_vv_uranus_bigtts', speed: 1 },
 ];
 export const SPEECH_VOICES: Record<SpeechProtocol, readonly string[]> = {
   edge: ['ja-JP-NanamiNeural', 'ja-JP-KeitaNeural'],
   gemini: ['Kore', 'Puck', 'Zephyr', 'Aoede', 'Leda', 'Charon'],
   openai: ['alloy', 'coral', 'nova', 'shimmer', 'marin', 'cedar'],
   minimax: ['Japanese_KindLady', 'Japanese_CalmLady', 'Japanese_GentleButler', 'Japanese_OptimisticYouth'],
+  volcengine: ['zh_female_vv_uranus_bigtts', 'zh_female_gaolengyujie_uranus_bigtts'],
 };
 export function createSpeechService(provider: SpeechProtocol = 'openai'): SpeechService {
   return { ...SPEECH_PRESETS.find((preset) => preset.provider === provider)!, id: createCustomProfileId('speech') };
@@ -34,7 +36,7 @@ export function sanitizeSpeechSettings(raw: unknown): SpeechSettings | null {
   const services: SpeechService[] = [{ ...SPEECH_PRESETS[0] }];
   const ids = new Set(['edge']);
   for (const item of settings.services) {
-    if (!item || typeof item !== 'object' || !['gemini', 'openai', 'minimax'].includes(item.provider)) continue;
+    if (!item || typeof item !== 'object' || !['gemini', 'openai', 'minimax', 'volcengine'].includes(item.provider)) continue;
     if (typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id)) continue;
     if (![item.baseUrl, item.model, item.voice].every((value) => typeof value === 'string' && value.trim())) continue;
     ids.add(item.id);
@@ -57,6 +59,7 @@ export function loadSpeechSettings(storage: { getItem: (key: string) => string |
 }
 export function normalizeSpeechEndpoint(provider: SpeechProtocol, baseUrl: string, model: string): string {
   const base = baseUrl.trim().replace(/\/+$/, '');
+  if (provider === 'volcengine') return base.endsWith('/tts/unidirectional') ? base : `${base}/tts/unidirectional`;
   if (provider === 'gemini') return /\/models\/[^/]+:generateContent$/.test(base) ? base : `${base}/models/${encodeURIComponent(model)}:generateContent`;
   const suffix = provider === 'minimax' ? '/t2a_v2' : '/audio/speech';
   return base.endsWith(suffix) ? base : `${base}${suffix}`;

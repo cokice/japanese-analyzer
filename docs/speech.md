@@ -11,6 +11,11 @@
 | Gemini | `gemini-3.1-flash-tts-preview` | `https://generativelanguage.googleapis.com/v1beta` 或完整 `models/<model>:generateContent` 地址 |
 | OpenAI 兼容 | `gpt-4o-mini-tts` | `https://api.openai.com/v1` 或完整 `/audio/speech` 地址 |
 | MiniMax | `speech-2.8-hd` | `https://api.minimax.cn/v1` 或完整 `/t2a_v2` 地址；国际区可改为 `https://api.minimax.io/v1` |
+| 火山引擎 Agent Plan | `doubao-seed-tts-2.0` | `https://openspeech.bytedance.com/api/v3/plan/tts/unidirectional`，使用套餐专属 API Key |
+
+火山 Agent Plan 语音需要选择专用接口类型：`/api/plan/v3` 是对话地址，不能拼接 `/audio/speech`。如果已有 ARK 配置填了对话地址，编辑时点击「改用 Agent Plan 语音配置」可显式更正协议、地址、模型和音色，并保留该配置的密钥。其他接口类型切换会清空密钥。默认音色使用官方示例的 `zh_female_vv_uranus_bigtts`，可换成套餐支持的音色；`alloy` 是 OpenAI 音色，不适用于火山。服务端使用 `X-Api-Key` 与 `X-Api-Resource-Id: seed-tts-2.0`，通过 `additions.explicit_language: ja` 指定日语，拼接 HTTP Chunked 返回的 base64 音频；上游错误或缺少结束标记时不返回不完整音频。
+
+协议依据：[Agent Plan 接入语音模型](https://docs.volcengine.com/docs/ark/agent-plan-personal-voice-model?lang=zh)、[HTTP 单向流式语音](https://docs.volcengine.com/docs/DoubaoVoice/unidirectional-streaming-text-to-speech-http?lang=zh)。
 
 模型和音色可以自由填写；服务商仍需支持所选接口协议。MiniMax 默认使用日语音色 `Japanese_KindLady`。试听会真实合成一段短日语，可能收费；保存不要求先试听。OpenAI 语音接口每次最多 4096 字符，超出时应分段朗读。Gemini 使用提示风格，其他自定义服务支持 0.5–2 倍语速。
 

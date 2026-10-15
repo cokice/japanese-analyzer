@@ -4,6 +4,7 @@ import { createUpstreamSignal, isUpstreamTimeoutError } from '../_utils/requestT
 import { requireApiSession } from '../_utils/sessionAuth';
 import { BaseUrlError, validateBaseUrl } from '../_utils/validateBaseUrl';
 import { normalizeSpeechEndpoint, SPEECH_PRESETS, type SpeechProtocol } from '../../lib/speechServices';
+import { readVolcengineAudio } from '../_utils/volcengineSpeech';
 
 const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
 const EDGE_VOICES = { male: 'ja-JP-KeitaNeural', female: 'ja-JP-NanamiNeural' };
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
     const { text, provider = 'edge', gender = 'female', rate = 0, pitch = 0 } = body;
     if (typeof text !== 'string' || !text.trim()) return failure('缺少必要的文本内容');
     if (text.length > 50_000) return failure('朗读文本过长，请分段朗读');
-    if (typeof provider !== 'string' || !['edge', 'gemini', 'openai', 'minimax'].includes(provider)) return failure('不支持的TTS提供商');
+    if (typeof provider !== 'string' || !['edge', 'gemini', 'openai', 'minimax', 'volcengine'].includes(provider)) return failure('不支持的TTS提供商');
     if (typeof rate !== 'number' || !Number.isFinite(rate) || typeof pitch !== 'number' || !Number.isFinite(pitch)) return failure('语音参数无效');
     const preset = SPEECH_PRESETS.find((item) => item.provider === provider)!;
     if ((body.model !== undefined && typeof body.model !== 'string') || (body.voice !== undefined && typeof body.voice !== 'string')) return failure('语音参数无效');
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
       const baseUrl = validateBaseUrl(body.baseUrl ?? preset.baseUrl);
       const parsedUrl = new URL(baseUrl);
       if (parsedUrl.username || parsedUrl.password || parsedUrl.search || parsedUrl.hash) return failure('语音服务地址不能包含凭据、查询参数或片段');
+      if (provider === 'openai' && parsedUrl.hostname === 'ark.cn-beijing.volces.com') return failure('Agent Plan 语音不支持 OpenAI /audio/speech，请在接口类型选择火山引擎 Agent Plan，并使用其语音专用地址和音色');
       url = normalizeSpeechEndpoint(provider as SpeechProtocol, baseUrl, model);
       const apiKey = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '').trim()
         || (provider === 'gemini' && baseUrl === preset.baseUrl ? process.env.GEMINI_API_KEY : '') || '';
@@ -44,6 +46,12 @@ export async function POST(req: NextRequest) {
       if (provider === 'gemini') {
         headers['x-goog-api-key'] = apiKey;
         payload = { contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
+      } else if (provider === 'volcengine') {
+        if (!['doubao-seed-tts-2.0', 'seed-tts-2.0'].includes(model)) return failure('Agent Plan 语音模型请使用 doubao-seed-tts-2.0');
+        headers['X-Api-Key'] = apiKey;
+        headers['X-Api-Resource-Id'] = 'seed-tts-2.0';
+        headers['X-Api-Request-Id'] = crypto.randomUUID();
+        payload = { req_params: { text, speaker: voice, audio_params: { format: 'mp3', sample_rate: 24000, speech_rate: Math.round((speed - 1) * 100) }, additions: JSON.stringify({ explicit_language: 'ja' }) } };
       } else {
         headers.Authorization = `Bearer ${apiKey}`;
         if (provider === 'openai') {
@@ -57,7 +65,16 @@ export async function POST(req: NextRequest) {
     const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload), redirect: 'error', signal: AbortSignal.any([req.signal, createUpstreamSignal()!]) });
     if (!response.ok) {
       const data = await response.json().catch(() => null);
-      return failure(typeof data?.error === 'string' ? data.error : data?.error?.message || `TTS 请求失败（HTTP ${response.status}）`, response.status);
+      return failure(typeof data?.error === 'string' ? data.error : data?.error?.message || (typeof data?.message === 'string' ? data.message : '') || `TTS 请求失败（HTTP ${response.status}）`, response.status);
+    }
+    if (provider === 'volcengine') {
+      try {
+        const audio = await readVolcengineAudio(response);
+        return NextResponse.json({ audio: audio.toString('base64'), mimeType: 'audio/mpeg' });
+      } catch (error) {
+        if (req.signal.aborted || isUpstreamTimeoutError(error)) throw error;
+        return failure(error instanceof Error ? error.message : '语音接口未返回有效音频', 502);
+      }
     }
     if (provider === 'edge' || provider === 'openai') {
       const contentType = response.headers.get('content-type') || '';

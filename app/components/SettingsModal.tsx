@@ -257,6 +257,7 @@ export default function SettingsModal({
     if (service) addService(service, 'create');
   };
 
+  const selectableServices = services.filter((service) => service.models.length > 0);
   const defaultLabel = activeService && activeModel
     ? `${activeService.name || activeService.id} · ${activeModel.name || activeModel.model}`
     : t('未配置模型');
@@ -322,7 +323,7 @@ export default function SettingsModal({
                 aria-label={`${preset.name}${exists ? ` · ${t('已添加')}` : ''}`}
                 onClick={() => handlePresetClick(preset.id)}
               >
-                <ProviderLogo profile={{ id: preset.id, name: preset.name, baseUrl: preset.baseUrl, apiKey: '', models: [] }} className="h-5 w-5" />
+                <ProviderLogo profile={{ id: preset.id, name: preset.name }} className="h-5 w-5" />
                 <span>{preset.name}</span>
               </button>
             );
@@ -340,7 +341,8 @@ export default function SettingsModal({
               type="button"
               className="nd-soft-btn settings-row-trigger"
               aria-haspopup="menu"
-              aria-expanded={defaultMenuOpen}
+              aria-expanded={defaultMenuOpen && selectableServices.length > 0}
+              disabled={selectableServices.length === 0}
               onClick={() => setDefaultMenuOpen((v) => !v)}
             >
               <span className="min-w-0 truncate">{defaultLabel}</span>
@@ -348,9 +350,9 @@ export default function SettingsModal({
                 {Icon.chev}
               </span>
             </button>
-            {defaultMenuOpen && (
+            {defaultMenuOpen && selectableServices.length > 0 && (
               <div className="settings-row-menu" role="menu" aria-label={t('默认模型')}>
-                {services.map((service) => (
+                {selectableServices.map((service) => (
                   <div key={service.id} className="model-switch-group">
                     <div className="model-switch-group-label">
                       <ProviderLogo profile={service} className="h-3.5 w-3.5" />
