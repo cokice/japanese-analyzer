@@ -27,6 +27,8 @@ jobs:
           cache: npm
       - run: node scripts/desktop/sync-version.mjs
       - run: npm ci
+      - name: Verify Tauri Action CLI entry point
+        run: npm run tauri -- --version
       - run: npm test
       - run: npm run desktop:test
       - run: npm run lint
@@ -152,6 +154,8 @@ jobs:
         with:
           releaseId: ${{ needs.release.outputs.id }}
           tagName: ${{ needs.release.outputs.tag }}
+          releaseDraft: ${{ github.event_name == 'workflow_dispatch' }}
+          prerelease: ${{ startsWith(github.ref, 'refs/tags/') && contains(github.ref_name, '-') }}
           args: --target ${{ matrix.target }} --config src-tauri/tauri.signing.conf.json
           includeUpdaterJson: false
       - name: Upload signed update record

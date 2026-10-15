@@ -82,7 +82,10 @@ export async function packageServer() {
   const temp = await mkdtemp(join(cache, 'extract-'));
   try {
     if (process.platform === 'win32') {
-      await run('tar', ['-xf', archive, '-C', temp]);
+      // Git Bash can put GNU tar ahead of Windows' bsdtar. GNU tar interprets
+      // drive-letter paths (D:\...) as remote hosts and cannot extract ZIPs.
+      const windowsTar = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe');
+      await run(windowsTar, ['-xf', archive, '-C', temp]);
     } else {
       await run('tar', ['-xJf', archive, '-C', temp, `${name}/bin/node`, `${name}/LICENSE`]);
     }
