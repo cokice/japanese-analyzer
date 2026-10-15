@@ -10,6 +10,7 @@ async function poll() {
     element('version').textContent = `当前版本 / Current version: ${state.appVersion}`;
     element('status').textContent = state.message;
     element('retry').hidden = state.phase !== 'error';
+    element('reassign-port').hidden = state.phase !== 'error';
     element('log').hidden = !settings && state.phase !== 'error';
     element('log').textContent = `日志 / Server log: ${state.logPath}`;
     if (!settings && state.phase === 'running' && state.url) {
@@ -23,9 +24,23 @@ async function poll() {
 }
 element('retry').addEventListener('click', async () => {
   element('retry').disabled = true;
+  element('reassign-port').disabled = true;
   try { await invoke('restart_server'); }
   catch (error) { element('status').textContent = String(error); }
-  finally { element('retry').disabled = false; }
+  finally {
+    element('retry').disabled = false;
+    element('reassign-port').disabled = false;
+  }
+});
+element('reassign-port').addEventListener('click', async () => {
+  element('reassign-port').disabled = true;
+  element('retry').disabled = true;
+  try { await invoke('reassign_port'); }
+  catch (error) { element('status').textContent = String(error); }
+  finally {
+    element('reassign-port').disabled = false;
+    element('retry').disabled = false;
+  }
 });
 
 async function checkUpdate() {

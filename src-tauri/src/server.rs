@@ -25,6 +25,7 @@ pub struct Status {
 
 enum Signal {
     Restart,
+    ReassignPort,
     #[cfg(target_os = "macos")]
     Pause(mpsc::Sender<()>),
     Stop,
@@ -89,6 +90,10 @@ impl Server {
 
     pub fn restart(&self) -> Result<(), String> {
         self.tx.send(Signal::Restart).map_err(|e| e.to_string())
+    }
+
+    pub fn reassign_port(&self) -> Result<(), String> {
+        self.tx.send(Signal::ReassignPort).map_err(|e| e.to_string())
     }
 
     pub fn stop(&self) {
@@ -305,6 +310,13 @@ fn supervise(
                 show_launcher(&app, &home);
                 continue;
             }
+            Ok(Signal::ReassignPort) => {
+                let _ = fs::remove_file(&port_file);
+                retries = 0;
+                launch = true;
+                show_launcher(&app, &home);
+                continue;
+            }
             Err(mpsc::RecvTimeoutError::Timeout) => {}
         }
 
@@ -338,7 +350,7 @@ fn supervise(
             if let Some(window) = app.get_webview_window("main") {
                 // JSON encoding prevents script injection; origin is constructed solely from a u16 port.
                 let script = format!(
-                    "window.location.href={}",
+                    "window.location.replace({})",
                     serde_json::to_string(&url).unwrap()
                 );
                 if let Err(error) = window.eval(&script) {

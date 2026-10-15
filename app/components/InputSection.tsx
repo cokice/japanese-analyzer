@@ -498,14 +498,66 @@ export default function InputSection({
     event.target.value = '';
   };
 
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // 处理拖放图片事件
+  const handleDragOver = (event: React.DragEvent) => {
+    if (event.dataTransfer?.types?.includes('Files')) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragOver(false);
+    const files = event.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (file && file.type.startsWith('image/')) {
+      setUploadStatus(t("检测到拖放的图片，正在识别..."));
+      setUploadStatusClass('mt-2 text-sm');
+      await processImageFile(file);
+    }
+  };
+
   // 处理粘贴事件
   const handlePaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = event.clipboardData?.items;
+    let imageItem: DataTransferItem | null = null;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          imageItem = items[i];
+          break;
+        }
+      }
+    }
+
     const plainText = event.clipboardData.getData('text/plain');
     const html = event.clipboardData.getData('text/html');
     const pasted = plainText || html ? normalizePastedText(plainText, html) : '';
-    if (pasted || plainText) {
+
+    // 如果剪贴板包含图片，且没有有效的文字内容（例如空白字符或空文本），优先识别图片
+    if (imageItem && !pasted.trim()) {
       event.preventDefault();
-      if (!pasted) return;
+      const file = imageItem.getAsFile();
+      if (file) {
+        setUploadStatus(t("检测到粘贴的图片，正在识别..."));
+        setUploadStatusClass('mt-2 text-sm');
+        await processImageFile(file);
+      }
+      return;
+    }
+
+    if (pasted) {
+      event.preventDefault();
       const input = event.currentTarget;
       const start = input.selectionStart;
       const end = input.selectionEnd;
@@ -518,24 +570,16 @@ export default function InputSection({
       requestAnimationFrame(() => input.setSelectionRange(start + pasted.length, start + pasted.length));
       return;
     }
-    const items = event.clipboardData?.items;
-    if (!items) return;
 
-    // 检查粘贴的内容中是否有图片
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith('image/')) {
-        // 阻止默认粘贴行为
-        event.preventDefault();
-
-        const file = item.getAsFile();
-        if (file) {
-          setUploadStatus(t("检测到粘贴的图片，正在识别..."));
-          setUploadStatusClass('mt-2 text-sm');
-          await processImageFile(file);
-        }
-        break;
+    if (imageItem) {
+      event.preventDefault();
+      const file = imageItem.getAsFile();
+      if (file) {
+        setUploadStatus(t("检测到粘贴的图片，正在识别..."));
+        setUploadStatusClass('mt-2 text-sm');
+        await processImageFile(file);
       }
+      return;
     }
   };
 
@@ -717,7 +761,14 @@ export default function InputSection({
               {compactBar}
             </motion.div>
           ) : (
-            <motion.section key="full" className="nd-card input-card" {...cardMotion}>
+            <motion.section
+              key="full"
+              className={`nd-card input-card ${isDragOver ? 'ring-2 ring-[var(--primary)]' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              {...cardMotion}
+            >
               <div className="relative">
                 {showFirstVisitExample && (
                   <div className="first-visit-example-kicker">
@@ -741,6 +792,9 @@ export default function InputSection({
                     shimmerFrame.scrollLeft = event.currentTarget.scrollLeft;
                   }}
                   onPaste={handlePaste}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
                   onKeyDown={(e) => {
                     if (e.key === 'Escape' && onCollapse) {
                       e.preventDefault();

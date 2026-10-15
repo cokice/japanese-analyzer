@@ -4,10 +4,9 @@ mod server;
 
 use serde::Serialize;
 use std::sync::Mutex;
-use tauri::{
-    menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
-    Manager, WebviewUrl, WebviewWindow,
-};
+#[cfg(target_os = "macos")]
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::{Manager, WebviewUrl, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_updater::{Update, UpdaterExt};
 
@@ -47,6 +46,15 @@ fn restart_server(
 ) -> Result<(), String> {
     authorize(&window, &server)?;
     server.restart()
+}
+
+#[tauri::command]
+fn reassign_port(
+    window: WebviewWindow,
+    server: tauri::State<server::Server>,
+) -> Result<(), String> {
+    authorize(&window, &server)?;
+    server.reassign_port()
 }
 
 #[derive(Serialize)]
@@ -151,6 +159,30 @@ fn settings(app: &tauri::AppHandle) {
 
 fn main() {
     let app = tauri::Builder::default()
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("external-link-guard")
+                .on_navigation(|webview, url| {
+                    let scheme = url.scheme();
+                    if scheme == "http" || scheme == "https" {
+                        let is_local = matches!(url.host_str(), Some("127.0.0.1" | "localhost"));
+                        if !is_local {
+                            let _ = webview
+                                .app_handle()
+                                .opener()
+                                .open_url(url.as_str(), None::<&str>);
+                            return false;
+                        }
+                    } else if scheme == "mailto" || scheme == "tel" {
+                        let _ = webview
+                            .app_handle()
+                            .opener()
+                            .open_url(url.as_str(), None::<&str>);
+                        return false;
+                    }
+                    true
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.unminimize();
@@ -164,6 +196,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             server_status,
             restart_server,
+            reassign_port,
             check_update,
             install_update,
             open_releases
@@ -173,27 +206,30 @@ fn main() {
             ctrlc::set_handler(move || handle.exit(0))?;
             let window = app.get_webview_window("main").expect("main window");
             app.manage(server::Server::start(app.handle().clone(), window.url()?)?);
-            // Preserve the platform's standard editing shortcuts and application menu.
-            let menu = Menu::default(app.handle())?;
-            let desktop_settings = MenuItem::with_id(
-                app,
-                "desktop-settings",
-                "桌面设置 / Desktop settings…",
-                true,
-                Some("CmdOrCtrl+,"),
-            )?;
-            let desktop = Submenu::with_items(
-                app,
-                "桌面 / Desktop",
-                true,
-                &[
-                    &desktop_settings,
-                    &PredefinedMenuItem::separator(app)?,
-                    &PredefinedMenuItem::quit(app, None)?,
-                ],
-            )?;
-            menu.append(&desktop)?;
-            app.set_menu(menu)?;
+            // Preserve the platform's standard editing shortcuts and application menu on macOS.
+            #[cfg(target_os = "macos")]
+            {
+                let menu = Menu::default(app.handle())?;
+                let desktop_settings = MenuItem::with_id(
+                    app,
+                    "desktop-settings",
+                    "桌面设置 / Desktop settings…",
+                    true,
+                    Some("CmdOrCtrl+,"),
+                )?;
+                let desktop = Submenu::with_items(
+                    app,
+                    "桌面 / Desktop",
+                    true,
+                    &[
+                        &desktop_settings,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::quit(app, None)?,
+                    ],
+                )?;
+                menu.append(&desktop)?;
+                app.set_menu(menu)?;
+            }
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 // Offline use and first releases without an update manifest remain functional.

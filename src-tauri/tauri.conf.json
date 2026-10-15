@@ -14,7 +14,7 @@
         "title": "日本語文章解析器",
         "width": 1280,
         "height": 860,
-        "minWidth": 960,
+        "minWidth": 1024,
         "minHeight": 640,
         "visible": true,
         "dragDropEnabled": false
