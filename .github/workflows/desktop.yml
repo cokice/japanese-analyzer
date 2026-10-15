@@ -124,6 +124,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          cache-on-failure: true
       - run: node scripts/desktop/sync-version.mjs
       - run: npm ci
       # Next may trace optional native modules. A Linux standalone artifact cannot

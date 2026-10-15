@@ -53,6 +53,8 @@ Tauri 按目录递归打包 `resources/server/`，保留隐藏的 `.next`。运�
 
 Rust 以 `current_dir=resources/server` 启动 Node，设置 `HOSTNAME=127.0.0.1`、`PORT`、`NODE_ENV=production`、`NEXT_TELEMETRY_DISABLED=1`，移除继承的 `NODE_OPTIONS` 和 `NODE_PATH`。Windows 不弹出 Node 控制台。
 
+传给 Node 的 Windows 路径通过 `dunce::simplified` 标准化，入口使用相对路径 `server.js`。这样可避免 Tauri 返回的 `\\?\C:\…` 路径触发 Node 的 `EISDIR: lstat 'C:'` 错误；日志中的 `Starting bundled Node in …` 可确认实际工作目录。
+
 每 250ms 尝试 `/api/auth`（单次请求有 800ms 超时，绕过系统代理、不跟随重定向），检查 2xx 及预期 JSON 字段，最多 30 秒。成功后跳转本机应用；失败返回启动页，展示日志路径和「重试」。运行中 Node 意外退出自动重启一次，再失败进入错误页；手动重试会重置计数。关闭主窗口、菜单退出或正常 Tauri 退出事件都会 kill + wait 子进程，桌面设置窗口不会阻止退出。单实例插件将后续启动聚焦到已有主窗口。
 
 ## CSP 与原生权限
