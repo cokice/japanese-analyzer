@@ -79,6 +79,7 @@ import {
   REASONING_VIRTUAL_LINE_CHAR_LIMIT,
   ReasoningTextStore
 } from '../app/utils/reasoningTextStore';
+import { PROVIDER_ICONS } from '../app/lib/providerIcons';
 
 assert.strictEqual(getApiEndpoint('/analyze'), '/api/analyze');
 assert.strictEqual(getApiEndpoint('/tts'), '/api/tts');
@@ -136,9 +137,13 @@ assert.strictEqual(getTtsModelName('edge'), 'edge-tts');
 assert.strictEqual(getTtsModelName('gemini'), 'gemini-3.1-flash-tts-preview');
 assert.deepStrictEqual(
   PRESETS.map((preset) => preset.id),
-  ['deepseek', 'openai', 'openrouter']
+  ['deepseek', 'openai', 'openrouter', 'qwen', 'moonshot', 'zhipu', 'siliconflow', 'volcengine', 'gemini', 'groq', 'mistral']
 );
 assert.ok(PRESETS.some((preset) => preset.id === 'deepseek' && preset.models[0]?.caps?.thinking === true));
+for (const preset of PRESETS) {
+  assert.ok(PROVIDER_ICONS[preset.id], `预设 ${preset.id} 缺少对应的本地 logo`);
+  assert.strictEqual(PROVIDER_ICONS[preset.id], `/icons/providers/${preset.id}.svg`);
+}
 assert.strictEqual(normalizeEndpointUrl('https://api.deepseek.com'), 'https://api.deepseek.com/chat/completions');
 assert.strictEqual(normalizeEndpointUrl('https://api.deepseek.com/v1/'), 'https://api.deepseek.com/v1/chat/completions');
 assert.strictEqual(normalizeEndpointUrl('https://api.deepseek.com/chat/completions'), 'https://api.deepseek.com/chat/completions');

@@ -67,6 +67,54 @@ export const PRESETS: readonly ProviderPreset[] = [
     baseUrl: 'https://openrouter.ai/api/v1',
     models: [{ id: 'openai-gpt-4o-mini', name: 'openai/gpt-4o-mini', model: 'openai/gpt-4o-mini' }],
   },
+  {
+    id: 'qwen',
+    name: 'Qwen',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    models: [{ id: 'qwen-plus', name: 'qwen-plus', model: 'qwen-plus' }],
+  },
+  {
+    id: 'moonshot',
+    name: 'Moonshot',
+    baseUrl: 'https://api.moonshot.cn',
+    models: [{ id: 'kimi-k2-0711-preview', name: 'kimi-k2-0711-preview', model: 'kimi-k2-0711-preview' }],
+  },
+  {
+    id: 'zhipu',
+    name: 'Zhipu',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    models: [{ id: 'glm-4.5', name: 'glm-4.5', model: 'glm-4.5' }],
+  },
+  {
+    id: 'siliconflow',
+    name: 'SiliconFlow',
+    baseUrl: 'https://api.siliconflow.cn/v1',
+    models: [{ id: 'qwen3-30b-a3b', name: 'Qwen/Qwen3-30B-A3B', model: 'Qwen/Qwen3-30B-A3B' }],
+  },
+  {
+    id: 'volcengine',
+    name: 'Volcengine',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    models: [{ id: 'doubao-seed-1-6-250615', name: 'doubao-seed-1-6-250615', model: 'doubao-seed-1-6-250615' }],
+  },
+  {
+    id: 'gemini',
+    name: 'Gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    models: [{ id: 'gemini-2.5-flash', name: 'gemini-2.5-flash', model: 'gemini-2.5-flash' }],
+  },
+  {
+    id: 'groq',
+    name: 'Groq',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    models: [{ id: 'llama-3.3-70b-versatile', name: 'llama-3.3-70b-versatile', model: 'llama-3.3-70b-versatile' }],
+  },
+  {
+    id: 'mistral',
+    name: 'Mistral',
+    baseUrl: 'https://api.mistral.ai/v1',
+    models: [{ id: 'mistral-small-latest', name: 'mistral-small-latest', model: 'mistral-small-latest' }],
+  },
 ];
 
 /** 每次请求要发给服务端的最小端点信息（apiKey 走 Authorization: Bearer，不在此列） */
