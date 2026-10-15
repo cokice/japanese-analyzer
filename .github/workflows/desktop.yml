@@ -139,10 +139,11 @@ jobs:
             echo 'configured=false' >> "$GITHUB_OUTPUT"
             echo '::warning::Updater signing key missing. Installers will build without in-app update artifacts.'
           fi
-      - name: Build and attach native installers
-        uses: tauri-apps/tauri-action@v0
+      # Tauri treats an empty APPLE_CERTIFICATE as a certificate to import.
+      # Export only configured secrets so unsigned builds stay supported.
+      - name: Export configured signing credentials
+        uses: actions/github-script@v8
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -151,6 +152,19 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          script: |
+            for (const name of [
+              'TAURI_SIGNING_PRIVATE_KEY', 'TAURI_SIGNING_PRIVATE_KEY_PASSWORD',
+              'APPLE_CERTIFICATE', 'APPLE_CERTIFICATE_PASSWORD', 'APPLE_SIGNING_IDENTITY',
+              'APPLE_ID', 'APPLE_PASSWORD', 'APPLE_TEAM_ID',
+            ]) {
+              if (process.env[name]) core.exportVariable(name, process.env[name]);
+            }
+      - name: Build and attach native installers
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           releaseId: ${{ needs.release.outputs.id }}
           tagName: ${{ needs.release.outputs.tag }}
