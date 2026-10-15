@@ -2,21 +2,21 @@
 
 import { useLanguage } from '../contexts/LanguageContext';
 import Image from 'next/image';
-import type { AIProvider } from '../services/api';
+import type { ProviderProfile } from '../services/api';
 import ThemeToggle from './ThemeToggle';
 import LanguageToggle from './LanguageToggle';
 import { Icon } from './Icons';
-import { ProviderLogo, PROVIDER_LABELS } from './ProviderLogo';
+import { ProviderLogo } from './ProviderLogo';
 
 interface HeaderProps {
   thinking: boolean;
-  aiProvider: AIProvider;
+  activeProfile: ProviderProfile | null;
   onSettingsClick?: () => void;
 }
 
-export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
+export default function Header({ activeProfile, onSettingsClick }: HeaderProps) {
   const { t } = useLanguage();
-  const providerLabel = PROVIDER_LABELS[aiProvider];
+  const providerLabel = activeProfile?.name || t("未配置模型");
 
   return (
     <header className="app-header mx-auto flex w-full max-w-[1240px] items-center px-4 py-4 sm:px-9 sm:py-5">
@@ -49,7 +49,7 @@ export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
           title={t("当前模型服务商：{0}", providerLabel)}
           aria-label={t("当前模型服务商：{0}", providerLabel)}
         >
-          <ProviderLogo provider={aiProvider} className="h-4 w-4 sm:h-5 sm:w-5" />
+          <ProviderLogo profile={activeProfile} className="h-4 w-4 sm:h-5 sm:w-5" />
           <span>{providerLabel}</span>
         </span>
         <a

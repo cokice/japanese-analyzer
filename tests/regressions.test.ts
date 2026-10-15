@@ -20,6 +20,7 @@ import { extractTextFromImage, translateText, loadAISettingsFromStorage } from '
 const request = (body: string, url = 'http://localhost/api/auth', headers: Record<string, string> = {}) =>
   new NextRequest(url, { method: 'POST', body, headers: { 'Content-Type': 'application/json', ...headers } });
 const completion = (reason = 'stop') => ({ choices: [{ message: { content: '読みました' }, finish_reason: reason }] });
+const endpointBody = { baseUrl: 'https://api.test.example', model: 'test-model' };
 
 async function run() {
   const env = { CODE: process.env.CODE, AUTH_COOKIE_SECURE: process.env.AUTH_COOKIE_SECURE };
@@ -78,11 +79,11 @@ async function run() {
     for (const handler of [translate, imageToText]) {
       for (const reason of ['length', 'content_filter']) {
         globalThis.fetch = async () => Response.json(completion(reason));
-        const result = await handler(request(JSON.stringify({ text: '日本語', imageData: 'data:image/png;base64,AA==', provider: 'gemini' }), undefined, { Authorization: 'Bearer test-key' }));
+        const result = await handler(request(JSON.stringify({ text: '日本語', imageData: 'data:image/png;base64,AA==', ...endpointBody }), undefined, { Authorization: 'Bearer test-key' }));
         assert.equal(result.status, 502);
       }
       globalThis.fetch = async () => Response.json(completion());
-      assert.equal((await handler(request(JSON.stringify({ text: '日本語', imageData: 'data:image/png;base64,AA==', provider: 'gemini' }), undefined, { Authorization: 'Bearer test-key' }))).status, 200);
+      assert.equal((await handler(request(JSON.stringify({ text: '日本語', imageData: 'data:image/png;base64,AA==', ...endpointBody }), undefined, { Authorization: 'Bearer test-key' }))).status, 200);
     }
     for (const call of [() => translateText('日本語'), () => extractTextFromImage('data:image/png;base64,AA==')]) {
       globalThis.fetch = async () => Response.json(completion('length'));
@@ -92,11 +93,11 @@ async function run() {
     }
     const controller = new AbortController();
     globalThis.fetch = async (_url, init) => {
-      assert.equal(JSON.parse(String(init?.body)).model, 'gemini-flash-lite-latest');
+      assert.equal(JSON.parse(String(init?.body)).model, 'test-model');
       assert.equal(init?.signal, controller.signal);
       return Response.json(completion());
     };
-    await extractTextFromImage('image', undefined, undefined, 'gemini', 'gemini-flash-lite-latest', controller.signal);
+    await extractTextFromImage('image', undefined, undefined, endpointBody, controller.signal);
     let upstreamSignal: AbortSignal | null | undefined;
     globalThis.fetch = async (_url, init) => {
       upstreamSignal = init?.signal;
@@ -106,7 +107,7 @@ async function run() {
     };
     const upstreamRequest = new NextRequest('http://localhost/api/image-to-text', {
       method: 'POST', signal: controller.signal,
-      headers: { Authorization: 'Bearer test-key' }, body: JSON.stringify({ imageData: 'image', provider: 'gemini' }),
+      headers: { Authorization: 'Bearer test-key' }, body: JSON.stringify({ imageData: 'image', ...endpointBody }),
     });
     assert.equal((await imageToText(upstreamRequest)).status, 499);
 

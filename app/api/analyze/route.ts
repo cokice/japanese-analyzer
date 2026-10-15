@@ -3,7 +3,7 @@ import { getResponseLanguageInstruction } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
-import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
+import { ProviderConfigError, resolveProviderConfig, buildCompletionPayload } from '../_utils/providerConfig';
 import { isUpstreamTimeoutError } from '../_utils/requestTimeout';
 import { requireApiSession } from '../_utils/sessionAuth';
 
@@ -19,16 +19,16 @@ export async function POST(req: NextRequest) {
     const {
       prompt,
       model,
-      apiUrl,
+      baseUrl,
+      caps,
       stream = false,
-      provider,
       thinkingEnabled = false,
     } = requestData;
-    const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
-    
+    const providerConfig = resolveProviderConfig(req, { baseUrl, model, caps });
+
     if (!providerConfig.apiKey) {
       return NextResponse.json(
-        { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
+        { error: { message: '未提供API密钥，请在设置中配置API密钥' } },
         { status: 500 }
       );
     }
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 构建发送到AI服务的请求
-    const payload = withProviderControls(providerConfig.provider, {
+    const payload = buildCompletionPayload(providerConfig.caps, {
       model: providerConfig.model,
       messages: [{ role: "system", content: getResponseLanguageInstruction(locale) }, { role: "user", content: prompt }],
       stream: stream,
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     });
 
     const proxied = await proxyOpenAICompatibleRequest({
-      url: providerConfig.apiUrl,
+      url: providerConfig.baseUrl,
       apiKey: providerConfig.apiKey,
       payload,
       signal: req.signal,

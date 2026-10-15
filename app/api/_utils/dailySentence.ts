@@ -1,10 +1,9 @@
 import { LOCALES, type Locale } from '../../i18n';
 import { buildAnalyzePrompt } from '../../lib/analyzePrompt';
-import { DEFAULT_AI_PROVIDER, type AIProvider } from '../../lib/aiModels';
 import { parseAnalyzeResponseContent } from '../../services/api';
 import { getDayNumber, type DailySentence } from '../../utils/dailySentences';
 import { proxyOpenAICompatibleRequest } from './openaiProxy';
-import { resolveServerProviderConfig, withProviderControls, type StructuredOutputKind } from './providerConfig';
+import { resolveServerProviderConfig, buildCompletionPayload, type ServerProviderConfig, type StructuredOutputKind } from './providerConfig';
 
 // 主题和语法点按日期轮换，避免模型天天写出差不多的句子。
 // 两个列表长度互质（19 × 17），组合要 323 天才会重复。
@@ -48,17 +47,14 @@ const DISALLOWED_SENTENCE_CHARS = /[0-9０-９A-Za-zＡ-Ｚａ-ｚ「」『』�
 
 export class DailySentenceUnavailableError extends Error {}
 
-function pickProvider() {
-  const providers: AIProvider[] = DEFAULT_AI_PROVIDER === 'deepseek' ? ['deepseek', 'gemini'] : ['gemini', 'deepseek'];
-  for (const provider of providers) {
-    const config = resolveServerProviderConfig(provider);
-    if (config.apiKey) return config;
-  }
-  throw new DailySentenceUnavailableError('服务器未配置 API 密钥');
+function pickProvider(): ServerProviderConfig {
+  const config = resolveServerProviderConfig();
+  if (!config) throw new DailySentenceUnavailableError('服务器未配置 API 密钥');
+  return config;
 }
 
 async function complete(
-  config: ReturnType<typeof resolveServerProviderConfig>,
+  config: ServerProviderConfig,
   prompt: string,
   structuredOutput: StructuredOutputKind,
   extra: Record<string, unknown> = {},
@@ -66,7 +62,7 @@ async function complete(
   const proxied = await proxyOpenAICompatibleRequest({
     url: config.apiUrl,
     apiKey: config.apiKey,
-    payload: withProviderControls(config.provider, {
+    payload: buildCompletionPayload(config.caps, {
       model: config.model,
       messages: [{ role: 'user', content: prompt }],
       stream: false,
@@ -102,7 +98,7 @@ export function validateDailySentence(value: DailySentence): DailySentence {
   return { ...value, text };
 }
 
-async function generateOnce(config: ReturnType<typeof pickProvider>, dateKey: string): Promise<DailySentence> {
+async function generateOnce(config: ServerProviderConfig, dateKey: string): Promise<DailySentence> {
   const sentence = parseJsonObject(await complete(config, buildDailySentencePrompt(dateKey), 'dailySentence', { temperature: 1 }));
   const text = typeof sentence.text === 'string' ? sentence.text.trim() : '';
   const rawTranslations = (sentence.translations ?? {}) as Record<string, unknown>;

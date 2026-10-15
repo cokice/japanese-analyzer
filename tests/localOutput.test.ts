@@ -6,6 +6,8 @@ import { getStructuredResponseFormat } from '../app/api/_utils/providerConfig';
 import { runAnalysisUrlTests } from './analysisUrls.test';
 import './pastedText.test';
 
+const endpoint = { baseUrl: 'https://api.test.example', model: 'test-model' };
+
 for (const [reading, expected] of [
   ['としょかん','toshokan'], ['よんだ','yonda'], ['きょう','kyou'], ['がっこう','gakkou'],
   ['きって','kitte'], ['まっちゃ','matcha'], ['しんよう',"shin'you"], ['かんい',"kan'i"],
@@ -47,9 +49,9 @@ assert.strictEqual(corrected.romaji,'yonda');
 assert.strictEqual(corrected.pos,'動詞（五段・他動）');
 const loose = JSON.stringify(compact).replace(compact.explanation,'对应英语"read"。');
 assert.strictEqual(parseWordDetailResponseContent(loose,context).explanation,'对应英语"read"。');
-const schema = (getStructuredResponseFormat('gemini','analysisTokens') as {json_schema:{schema:{properties:{tokens:{items:{properties:Record<string, unknown>}}}}}}).json_schema.schema;
+const schema = (getStructuredResponseFormat({},'analysisTokens') as {json_schema:{schema:{properties:{tokens:{items:{properties:Record<string, unknown>}}}}}}).json_schema.schema;
 assert.ok(!('romaji' in schema.properties.tokens.items.properties));
-const detailSchema = (getStructuredResponseFormat('gemini','wordDetail') as {json_schema:{schema:{properties:Record<string, unknown>}}}).json_schema.schema;
+const detailSchema = (getStructuredResponseFormat({},'wordDetail') as {json_schema:{schema:{properties:Record<string, unknown>}}}).json_schema.schema;
 assert.ok(!('originalWord' in detailSchema.properties));
 assert.ok(!('romaji' in detailSchema.properties));
 
@@ -90,9 +92,9 @@ export async function runLocalOutputTests() {
       if(body.useStream) return new Response(new ReadableStream({start(c){c.enqueue(event(JSON.stringify(compact)));c.enqueue(encoder.encode('data: [DONE]\n\n'));c.close();}}));
       return Response.json({choices:[{message:{content:JSON.stringify(compact)}}]});
     };
-    assert.strictEqual((await getWordDetails('読んだ','動詞','本を読んだ。','よんだ',undefined,'deepseek',undefined,signal)).romaji,'yonda');
+    assert.strictEqual((await getWordDetails('読んだ','動詞','本を読んだ。','よんだ',undefined,endpoint,signal)).romaji,'yonda');
     let final='';
-    await streamWordDetails('読んだ','動詞','本を読んだ。',(text,done)=>{if(done)final=text;},error=>{throw error;},'よんだ',undefined,'deepseek',undefined,signal);
+    await streamWordDetails('読んだ','動詞','本を読んだ。',(text,done)=>{if(done)final=text;},error=>{throw error;},'よんだ',undefined,endpoint,signal);
     assert.strictEqual(final,JSON.stringify(compact));
     // A server/proxy failure may return plain text, HTML, an empty body, or null.
     // Preserve the HTTP error instead of surfacing a secondary JSON parse error.
@@ -124,8 +126,8 @@ export async function runLocalOutputTests() {
     });
     const stopped=new AbortController();
     let callbacks=0;
-    const stopWord=streamWordDetails('読んだ','動詞','本を読んだ。',()=>callbacks++,()=>callbacks++,'よんだ',undefined,'deepseek',undefined,stopped.signal);
-    const stopTranslation=streamTranslateText('本を読んだ。',()=>callbacks++,()=>callbacks++,undefined,'deepseek',undefined,stopped.signal);
+    const stopWord=streamWordDetails('読んだ','動詞','本を読んだ。',()=>callbacks++,()=>callbacks++,'よんだ',undefined,endpoint,stopped.signal);
+    const stopTranslation=streamTranslateText('本を読んだ。',()=>callbacks++,()=>callbacks++,undefined,endpoint,stopped.signal);
     stopped.abort();await Promise.all([stopWord,stopTranslation]);
     assert.strictEqual(callbacks,0,'请求头尚未返回时也可取消，且不触发错误或内容回调');
 
@@ -133,8 +135,8 @@ export async function runLocalOutputTests() {
     const streamOf=(...chunks:Uint8Array[])=>async ()=>new Response(new ReadableStream<Uint8Array>({start(c){for(const chunk of chunks)c.enqueue(chunk);c.close();}}));
     const DONE=encoder.encode('data: [DONE]\n\n');
     const partialStreamCases: {name:string;run:(onChunk:(text:string,done:boolean)=>void,onError:(error:Error)=>void)=>Promise<void>;label:string;empty:string}[]=[
-      {name:'翻译',run:(onChunk,onError)=>streamTranslateText('本を読んだ。',onChunk,onError,undefined,'deepseek'),label:'翻译结果',empty:'译文为空，请重试。'},
-      {name:'图片识别',run:(onChunk,onError)=>streamExtractTextFromImage('data:image/png;base64,dGVzdA==',onChunk,onError,undefined,undefined,'deepseek'),label:'图片文字提取',empty:'没有识别到图片中的文字，请换一张图片重试。'},
+      {name:'翻译',run:(onChunk,onError)=>streamTranslateText('本を読んだ。',onChunk,onError,undefined,endpoint),label:'翻译结果',empty:'译文为空，请重试。'},
+      {name:'图片识别',run:(onChunk,onError)=>streamExtractTextFromImage('data:image/png;base64,dGVzdA==',onChunk,onError,undefined,undefined,endpoint),label:'图片文字提取',empty:'没有识别到图片中的文字，请换一张图片重试。'},
     ];
     for(const {name,run,label,empty} of partialStreamCases){
       const collect=async ()=>{

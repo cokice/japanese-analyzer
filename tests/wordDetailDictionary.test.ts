@@ -44,8 +44,8 @@ assert.strictEqual(reordered.example, '昨日、\n本を読んだ。');
 assert.throws(() => parseWordDetailResponseContent(JSON.stringify({ ...entry, example: [] })), /example 必须是字符串/);
 assert.throws(() => parseWordDetailResponseContent(JSON.stringify({ ...entry, explanation: undefined })), /缺少 explanation/);
 
-// Gemini 的严格响应格式必须允许并要求这些字段，否则会静默丢失例句。
-const format = getStructuredResponseFormat('gemini', 'wordDetail') as {
+// 默认严格响应格式必须允许并要求这些字段，否则会静默丢失例句。
+const format = getStructuredResponseFormat({}, 'wordDetail') as {
   json_schema: { schema: { required: string[]; properties: Record<string, unknown> } };
 };
 for (const field of ['conjugation', 'example', 'exampleTranslation']) {

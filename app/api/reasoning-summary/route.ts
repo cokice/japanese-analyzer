@@ -1,14 +1,12 @@
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { getReasoningSummaryPrompt } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
-import { DEEPSEEK_MODEL_NAME } from '../../lib/aiModels';
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeReasoningSummary } from '../../utils/reasoningSummary';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
-import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
+import { ProviderConfigError, resolveProviderConfig, buildCompletionPayload } from '../_utils/providerConfig';
 import { requireApiSession } from '../_utils/sessionAuth';
 
-const SUMMARY_MODEL = DEEPSEEK_MODEL_NAME;
 const SUMMARY_SNIPPET_CHARS = 800;
 
 function extractAssistantText(data: unknown): string {
@@ -40,18 +38,19 @@ export async function POST(req: NextRequest) {
     }
 
     const providerConfig = resolveProviderConfig(req, {
-      provider: 'deepseek',
-      model: SUMMARY_MODEL,
+      baseUrl: body.baseUrl,
+      model: body.model,
+      caps: body.caps,
     });
 
     if (!providerConfig.apiKey) {
       return NextResponse.json(
-        { error: { message: '未提供 DeepSeek API 密钥' } },
+        { error: { message: '未提供API密钥，请在设置中配置API密钥' } },
         { status: 500 }
       );
     }
 
-    const payload = withProviderControls('deepseek', {
+    const payload = buildCompletionPayload(providerConfig.caps, {
       model: providerConfig.model,
       messages: [
         { role: 'system', content: getReasoningSummaryPrompt(locale) },
@@ -62,7 +61,7 @@ export async function POST(req: NextRequest) {
     }, { enableThinking: false });
 
     const proxied = await proxyOpenAICompatibleRequest({
-      url: providerConfig.apiUrl,
+      url: providerConfig.baseUrl,
       apiKey: providerConfig.apiKey,
       payload,
       signal: req.signal,
@@ -79,7 +78,7 @@ export async function POST(req: NextRequest) {
     const summary = sanitizeReasoningSummary(extractAssistantText(data), locale === 'en' || locale === 'ko' ? 100 : 30);
     if (!summary) {
       return NextResponse.json(
-        { error: { message: 'DeepSeek 没有返回有效的思考摘要' } },
+        { error: { message: '模型没有返回有效的思考摘要' } },
         { status: 502 }
       );
     }

@@ -3,7 +3,7 @@
 import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { translateText, streamTranslateText } from '../services/api';
-import type { AIModelName, AIProvider } from '../services/api';
+import type { EndpointPayload } from '../services/api';
 import ThinkingIndicator from './ThinkingIndicator';
 import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
@@ -13,8 +13,7 @@ import { escapeHtmlForMarkdown, preserveLineBreaksForMarkdown } from '../utils/m
 interface TranslationSectionProps {
   japaneseText: string;
   userApiKey?: string;
-  aiProvider: AIProvider;
-  aiModel: AIModelName;
+  endpoint: EndpointPayload;
   useStream?: boolean;
   trigger?: number;
   analysisSignal?: AbortSignal;
@@ -23,8 +22,7 @@ interface TranslationSectionProps {
 export default function TranslationSection({
   japaneseText,
   userApiKey,
-  aiProvider,
-  aiModel,
+  endpoint,
   useStream = true, // 默认为true，保持向后兼容
   trigger,
   analysisSignal
@@ -56,9 +54,9 @@ export default function TranslationSection({
           if (isCurrent()) setTranslation(chunk);
         }, (error) => {
           if (isCurrent()) setTranslation(t("翻译时发生错误: {0}。", errorText(error.message)));
-        }, userApiKey, aiProvider, aiModel, signal);
+        }, userApiKey, endpoint, signal);
       } else {
-        const text = await translateText(japaneseText, userApiKey, aiProvider, aiModel, signal);
+        const text = await translateText(japaneseText, userApiKey, endpoint, signal);
         if (isCurrent()) setTranslation(text);
       }
     } catch (error) {
@@ -68,7 +66,7 @@ export default function TranslationSection({
         setIsLoading(false); requestRef.current = null;
       }
     }
-  }, [japaneseText, userApiKey, aiProvider, aiModel, useStream, analysisSignal, t, errorText]);
+  }, [japaneseText, userApiKey, endpoint, useStream, analysisSignal, t, errorText]);
 
   const handleCopy = () => {
     if (!translation) return;

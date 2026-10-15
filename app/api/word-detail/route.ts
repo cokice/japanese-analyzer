@@ -2,7 +2,7 @@ import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { normalizeLocale } from '../../i18n';
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
-import { ProviderConfigError, resolveProviderConfig, withProviderControls } from '../_utils/providerConfig';
+import { ProviderConfigError, resolveProviderConfig, buildCompletionPayload } from '../_utils/providerConfig';
 import { isUpstreamTimeoutError } from '../_utils/requestTimeout';
 import { requireApiSession } from '../_utils/sessionAuth';
 import { getWordDetailSystemPrompt } from '../../lib/wordDetailPrompt';
@@ -15,14 +15,14 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     // 解析请求体
-    const { word, pos, sentence, furigana, model, apiUrl, useStream = false, provider, kind } = await readJsonBody(req);
+    const { word, pos, sentence, furigana, model, baseUrl, caps, useStream = false, kind } = await readJsonBody(req);
     // kind: 'phrase' 为用户圈选的多词短语，不需要词性
     const isPhrase = kind === 'phrase';
-    const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
-    
+    const providerConfig = resolveProviderConfig(req, { baseUrl, model, caps });
+
     if (!providerConfig.apiKey) {
       return NextResponse.json(
-        { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
+        { error: { message: '未提供API密钥，请在设置中配置API密钥' } },
         { status: 500 }
       );
     }
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const payload = withProviderControls(providerConfig.provider, {
+    const payload = buildCompletionPayload(providerConfig.caps, {
       model: providerConfig.model,
       messages: [
         { role: "system", content: isPhrase ? getPhraseDetailSystemPrompt(locale) : getWordDetailSystemPrompt(locale) },
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     }, { structuredOutput: isPhrase ? 'phraseDetail' : 'wordDetail' });
 
     const proxied = await proxyOpenAICompatibleRequest({
-      url: providerConfig.apiUrl,
+      url: providerConfig.baseUrl,
       apiKey: providerConfig.apiKey,
       payload,
       signal: req.signal,

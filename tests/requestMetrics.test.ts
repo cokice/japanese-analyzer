@@ -3,6 +3,8 @@ import { createRequestMetrics, getRequestErrorCategory } from '../app/utils/anal
 import { ApiRequestError, InvalidResponseError } from '../app/utils/requestErrors';
 import { analyzeSentence, streamAnalyzeSentence, streamChat } from '../app/services/api';
 
+const endpoint = { baseUrl: 'https://api.test.example', model: 'test-model' };
+
 export async function runRequestMetricsTests() {
   type Event = { name: string; data: Record<string, string | number> };
   const events: Event[] = [];
@@ -68,7 +70,7 @@ export async function runRequestMetricsTests() {
   console.error = () => {};
   try {
     globalThis.fetch = async () => new Response('gateway error', { status: 429 });
-    await assert.rejects(analyzeSentence('天気', undefined, 'deepseek'), error => getRequestErrorCategory(error) === 'rate_limit');
+    await assert.rejects(analyzeSentence('天気', undefined, endpoint), error => getRequestErrorCategory(error) === 'rate_limit');
     const errors: unknown[] = [];
     await streamAnalyzeSentence('天気', () => assert.fail('HTTP failure must not succeed'), error => errors.push(error));
     await streamChat([], () => assert.fail('HTTP failure must not succeed'), error => errors.push(error));

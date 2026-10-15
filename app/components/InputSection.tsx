@@ -7,7 +7,7 @@ import { getImageExtractionPrompt } from '../lib/languagePrompts';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
-import type { AIProvider, AIModelName, TTSProvider } from '../services/api';
+import type { EndpointPayload, ProviderProfile, TTSProvider } from '../services/api';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
 import {
   getImageRecognitionUsage,
@@ -30,8 +30,8 @@ interface InputSectionProps {
   onAnalyze: (text: string, usage?: AnalyzeUsageMetadata) => void;
   onCancelAnalyze: () => void;
   userApiKey?: string;
-  aiProvider: AIProvider;
-  aiModel?: AIModelName;
+  activeProfile: ProviderProfile | null;
+  endpoint: EndpointPayload;
   geminiApiKey?: string;
   useStream?: boolean;
   ttsProvider: TTSProvider;
@@ -92,8 +92,8 @@ export default function InputSection({
   onAnalyze,
   onCancelAnalyze,
   userApiKey,
-  aiProvider,
-  aiModel,
+  activeProfile,
+  endpoint,
   geminiApiKey,
   useStream = true, // 默认启用流式输出
   ttsProvider,
@@ -152,7 +152,7 @@ export default function InputSection({
     setUploadStatus('');
     setTtsAudioUrl(null);
     window.speechSynthesis?.cancel();
-  }, [aiProvider, aiModel, locale, ttsProvider]);
+  }, [endpoint, locale, ttsProvider]);
 
   const cancelInputRequests = () => {
     imageRequest.current.cancel();
@@ -290,9 +290,9 @@ export default function InputSection({
   const markImageRecognitionUsed = () => {
     usageMetadataRef.current = {
       ...usageMetadataRef.current,
-      imageRecognition: getImageRecognitionUsage(aiProvider, aiModel),
+      imageRecognition: getImageRecognitionUsage(activeProfile?.id ?? '', endpoint.model),
     };
-    trackImageRecognitionUsage(aiProvider, aiModel);
+    trackImageRecognitionUsage(activeProfile?.id ?? '', endpoint.model);
   };
 
   const markTtsUsed = (provider: TTSProvider) => {
@@ -454,15 +454,14 @@ export default function InputSection({
             setUploadStatusClass('mt-2 text-sm');
             setIsImageUploading(false);
           },
-          imageExtractionPrompt,
-          userApiKey,
-          aiProvider,
-          aiModel,
-          request.signal
-        );
-      } else {
-        // 使用传统API进行图片文字提取
-        const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, aiProvider, aiModel, request.signal);
+           imageExtractionPrompt,
+           userApiKey,
+           endpoint,
+           request.signal
+         );
+       } else {
+         // 使用传统API进行图片文字提取
+         const extractedText = await extractTextFromImage(compressedImageData, imageExtractionPrompt, userApiKey, endpoint, request.signal);
         if (!request.isCurrent()) return;
         setInputText(extractedText);
         markImageRecognitionUsed();

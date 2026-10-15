@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AssistantModalPrimitive, TextMessagePartProvider } from '@assistant-ui/react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { streamChat, ChatMessage as APIMessage } from '../services/api';
-import type { AIModelName, AIProvider } from '../services/api';
+import type { EndpointPayload, ProviderProfile } from '../services/api';
 import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { MarkdownText } from '@/components/ui/markdown-text';
@@ -22,12 +22,12 @@ interface ChatMessage {
 interface AIChatProps {
   hidden?: boolean;
   userApiKey?: string;
-  aiProvider: AIProvider;
-  aiModel: AIModelName;
+  activeProfile: ProviderProfile | null;
+  endpoint: EndpointPayload;
   currentSentence?: string;
 }
 
-export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentence, hidden = false }: AIChatProps) {
+export default function AIChat({ userApiKey, activeProfile, endpoint, currentSentence, hidden = false }: AIChatProps) {
   const { t, locale, errorText } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -104,7 +104,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
     const controller = new AbortController();
     requestRef.current = controller;
     const isCurrent = () => requestRef.current === controller && !controller.signal.aborted;
-    const metrics = createRequestMetrics('chat', aiProvider, aiModel, true, controller.signal);
+    const metrics = createRequestMetrics('chat', activeProfile?.id ?? '', endpoint.model, true, controller.signal);
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -179,8 +179,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
           setIsLoading(false);
         },
         userApiKey,
-        aiProvider,
-        aiModel,
+        endpoint,
         controller.signal
       );
     } catch (error) {
