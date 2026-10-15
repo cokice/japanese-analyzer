@@ -5,10 +5,17 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build && node scripts/desktop/record-build.mjs",
     "start": "next start",
     "lint": "eslint .",
-    "test": "tsx tests/api.test.ts && tsx tests/i18n.test.ts && tsx tests/regressions.test.ts"
+    "test": "tsx tests/api.test.ts && tsx tests/i18n.test.ts && tsx tests/regressions.test.ts",
+    "desktop:dev": "node scripts/desktop/dev.mjs",
+    "desktop:package-server": "node scripts/desktop/package-server.mjs",
+    "desktop:build": "npm run desktop:package-server && tauri build",
+    "desktop:test": "node --test tests/desktop.test.mjs"
+  },
+  "desktop": {
+    "nodeVersion": "22.23.3"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.14.16",
@@ -35,6 +42,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@tauri-apps/cli": "^2.12.3",
     "@types/node": "^20",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

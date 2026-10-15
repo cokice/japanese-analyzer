@@ -3,6 +3,8 @@
 .vercel
 .claude
 .codex-dev
+.desktop-cache
+src-tauri
 .github
 node_modules
 coverage
