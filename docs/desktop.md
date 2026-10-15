@@ -93,6 +93,10 @@ npx tauri signer generate --ci -w ~/.tauri/japanese-analyzer.key
 
 `.github/workflows/desktop.yml` 独立于 Docker CI，tag `v*` 触发正式 Release，手动触发生成 draft。validate 执行测试、lint、类型检查和 Web build，并归档验证后的 standalone/static/public。原生 job 在 macOS arm64、macOS Intel（显式 `macos-15-intel` runner）和 Windows x64 上重新构建，随后组装资源、运行 Node 冒烟和 Rust 测试，通过 `tauri-apps/tauri-action@v0` 上传安装包及签名。签名私钥按该 Action 实际接口通过环境变量传入。
 
+手动触发时可勾选 `windows_only`，只生成 Windows 测试安装包，不发布跨平台 updater 清单。默认及 tag 发布仍构建全部平台。Windows job 还会在临时目录静默安装 NSIS，实际启动桌面程序，确认窗口响应、WebView2 加载本地应用、鉴权端点可达，以及关闭主窗口后内嵌 Node 退出。
+
+Windows 的打包启动页使用 `http://tauri.localhost`（启用 HTTPS 时为 `https://tauri.localhost`），macOS 使用 `tauri://localhost`。这些是应用内部 origin，导航拦截器必须保留在 WebView 内；外部链接通过后台任务交给系统浏览器，避免阻塞 WebView2 导航回调。`server.log` 中的 `Main webview ready: http://127.0.0.1:<port>` 表示主窗口已实际完成本地页面加载，而非仅服务端健康检查通过。
+
 各平台完成后单独汇总已上传的签名，生成 `latest-darwin.json` 和 `latest-windows.json`，与 updater 配置端点一致，避免多个矩阵 job 并发覆盖 manifest。macOS manifest 同时含两个架构。draft 不会通过 `/releases/latest` 推给正式用户。缺少 updater 私钥时仍产出普通安装包，但不发布更新 manifest。
 
 操作系统代码签名与 updater ed25519 签名独立。Apple Developer ID + 公证可配置 `APPLE_CERTIFICATE`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_SIGNING_IDENTITY`、`APPLE_ID`、`APPLE_PASSWORD`、`APPLE_TEAM_ID`；未提供时产出无 Developer ID 签名的包。接入 Apple 公证时还需验证内置 Node、原生依赖的嵌套签名与 JIT entitlement 后再发布。Windows 证书签名留待配置；未签名包可能触发 SmartScreen。
