@@ -257,7 +257,11 @@ export function buildCompletionPayload(
       ...payload,
       ...responseFormat,
       thinking: { type: thinkingEnabled ? 'enabled' : 'disabled' },
-      ...(thinkingEnabled ? { reasoning_effort: 'high' } : {}),
+      // reasoning_effort 的合法取值因厂商而异，只发送用户为该服务声明的值，
+      // 未声明时省略、由服务商使用自身默认值。
+      ...(thinkingEnabled && caps.reasoningEffort
+        ? { reasoning_effort: caps.reasoningEffort }
+        : {}),
     };
   }
 

@@ -2,7 +2,7 @@
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useMemo, useState } from 'react';
-import { PRESETS, createCustomProfileId, type ProviderProfile } from '../lib/aiModels';
+import { PRESETS, createCustomProfileId, type ProviderCaps, type ProviderProfile } from '../lib/aiModels';
 import { Icon } from './Icons';
 import { ProviderLogo } from './ProviderLogo';
 import { Switch } from '@/components/ui/switch';
@@ -34,6 +34,10 @@ function capThinking(profile: ProviderProfile): boolean {
   return profile.caps?.thinking === true;
 }
 
+function capReasoningEffort(profile: ProviderProfile): string {
+  return typeof profile.caps?.reasoningEffort === 'string' ? profile.caps.reasoningEffort : '';
+}
+
 function emptyProfile(): ProviderProfile {
   return { id: createCustomProfileId(), name: '', baseUrl: '', apiKey: '', model: '', caps: { jsonSchema: true, thinking: false } };
 }
@@ -58,6 +62,7 @@ export default function SettingsModal({
   const [draftModel, setDraftModel] = useState('');
   const [draftJsonSchema, setDraftJsonSchema] = useState(true);
   const [draftThinking, setDraftThinking] = useState(false);
+  const [draftReasoningEffort, setDraftReasoningEffort] = useState('');
   const [geminiKey, setGeminiKey] = useState(geminiApiKey);
   const [thinkingEnabled, setThinkingEnabled] = useState(initialThinkingEnabled);
   const [streamEnabled, setStreamEnabled] = useState(useStream);
@@ -88,6 +93,7 @@ export default function SettingsModal({
       setDraftModel(first.model);
       setDraftJsonSchema(capJsonSchema(first));
       setDraftThinking(capThinking(first));
+      setDraftReasoningEffort(capReasoningEffort(first));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen]);
@@ -103,6 +109,7 @@ export default function SettingsModal({
     setDraftModel(target.model);
     setDraftJsonSchema(capJsonSchema(target));
     setDraftThinking(capThinking(target));
+    setDraftReasoningEffort(capReasoningEffort(target));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingId]);
 
@@ -120,6 +127,16 @@ export default function SettingsModal({
     if (!current) return;
     commitDraft(editingId, { ...current, ...patch });
   };
+
+  // 汇总当前表单里的能力位，避免单个开关覆盖其他开关的改动；
+  // 同一事件里 setState 尚未生效，新值通过 overrides 传入
+  const draftCaps = (overrides: { jsonSchema?: boolean; thinking?: boolean; reasoningEffort?: string } = {}): ProviderCaps => ({
+    jsonSchema: overrides.jsonSchema ?? draftJsonSchema,
+    thinking: overrides.thinking ?? draftThinking,
+    ...((overrides.reasoningEffort ?? draftReasoningEffort).trim()
+      ? { reasoningEffort: (overrides.reasoningEffort ?? draftReasoningEffort).trim() }
+      : {}),
+  });
 
   const addFromPreset = (presetId: string) => {
     const preset = PRESETS.find((p) => p.id === presetId);
@@ -140,6 +157,7 @@ export default function SettingsModal({
     setDraftModel(profile.model);
     setDraftJsonSchema(capJsonSchema(profile));
     setDraftThinking(capThinking(profile));
+    setDraftReasoningEffort(capReasoningEffort(profile));
     setError('');
   };
 
@@ -153,6 +171,7 @@ export default function SettingsModal({
     setDraftModel('');
     setDraftJsonSchema(true);
     setDraftThinking(false);
+    setDraftReasoningEffort('');
     setError('');
   };
 
@@ -171,11 +190,13 @@ export default function SettingsModal({
       setDraftModel(remaining[0].model);
       setDraftJsonSchema(capJsonSchema(remaining[0]));
       setDraftThinking(capThinking(remaining[0]));
+      setDraftReasoningEffort(capReasoningEffort(remaining[0]));
     } else {
       setDraftName('');
       setDraftBaseUrl('');
       setDraftApiKey('');
       setDraftModel('');
+      setDraftReasoningEffort('');
     }
     setError('');
   };
@@ -190,7 +211,7 @@ export default function SettingsModal({
           baseUrl: draftBaseUrl.trim(),
           apiKey: draftApiKey.trim(),
           model: draftModel.trim(),
-          caps: { jsonSchema: draftJsonSchema, thinking: draftThinking },
+          caps: draftCaps(),
         });
       }
     }
@@ -354,7 +375,7 @@ export default function SettingsModal({
                   <Switch
                     aria-label={t('使用严格结构化输出（json_schema）')}
                     checked={draftJsonSchema}
-                    onCheckedChange={(v) => { setDraftJsonSchema(v); handleEditChange({ caps: { jsonSchema: v, thinking: draftThinking } }); }}
+                    onCheckedChange={(v) => { setDraftJsonSchema(v); handleEditChange({ caps: draftCaps({ jsonSchema: v }) }); }}
                   />
                 </div>
               </div>
@@ -367,10 +388,25 @@ export default function SettingsModal({
                   <Switch
                     aria-label={t('支持思考 / 推理参数')}
                     checked={draftThinking}
-                    onCheckedChange={(v) => { setDraftThinking(v); handleEditChange({ caps: { ...activeProfile?.caps, thinking: v } }); }}
+                    onCheckedChange={(v) => { setDraftThinking(v); handleEditChange({ caps: draftCaps({ thinking: v }) }); }}
                   />
                 </div>
               </div>
+              {draftThinking && (
+                <div>
+                  <label htmlFor="profileReasoningEffortInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+                    {t('思考强度（reasoning_effort，可选）')}
+                  </label>
+                  <input
+                    id="profileReasoningEffortInput"
+                    className="nd-input"
+                    placeholder={t('如 xhigh / medium / low；留空用服务商默认')}
+                    value={draftReasoningEffort}
+                    onChange={(e) => { setDraftReasoningEffort(e.target.value); handleEditChange({ caps: draftCaps({ reasoningEffort: e.target.value }) }); }}
+                  />
+                  <p className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>{t('不同服务商接受的值不同，请按该服务商文档填写。')}</p>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 {activeProfile?.id !== editingId && (

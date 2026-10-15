@@ -146,6 +146,16 @@ assert.deepStrictEqual(
   sanitizeProfiles([{ id: 'a', baseUrl: 'https://x.example', model: 'm' }, { id: 'skip' }]),
   [{ id: 'a', name: 'a', baseUrl: 'https://x.example', apiKey: '', model: 'm', caps: {} }]
 );
+assert.deepStrictEqual(
+  sanitizeProfiles([
+    { id: 'b', baseUrl: 'https://x.example', model: 'm', caps: { jsonSchema: false, thinking: true, reasoningEffort: ' xhigh ' } },
+    { id: 'c', baseUrl: 'https://x.example', model: 'm', caps: { thinking: true, reasoningEffort: '   ' } },
+  ]),
+  [
+    { id: 'b', name: 'b', baseUrl: 'https://x.example', apiKey: '', model: 'm', caps: { jsonSchema: false, thinking: true, reasoningEffort: 'xhigh' } },
+    { id: 'c', name: 'c', baseUrl: 'https://x.example', apiKey: '', model: 'm', caps: { thinking: true } },
+  ]
+);
 
 const oldCode = process.env.CODE;
 try {
@@ -366,6 +376,7 @@ assert.deepStrictEqual(buildCompletionPayload(deepseekCaps, { model: 'deepseek-c
   thinking: { type: 'disabled' },
 });
 
+// 未声明 reasoning_effort 时不发送该字段，由服务商使用自身默认值
 assert.deepStrictEqual(buildCompletionPayload(
   deepseekCaps,
   { model: 'deepseek-chat' },
@@ -373,7 +384,27 @@ assert.deepStrictEqual(buildCompletionPayload(
 ), {
   model: 'deepseek-chat',
   thinking: { type: 'enabled' },
-  reasoning_effort: 'high',
+});
+
+// 声明了 reasoning_effort 且开启思考时才发送，取值原样透传
+assert.deepStrictEqual(buildCompletionPayload(
+  { ...deepseekCaps, reasoningEffort: 'xhigh' },
+  { model: 'qwen-test' },
+  { enableThinking: true }
+), {
+  model: 'qwen-test',
+  thinking: { type: 'enabled' },
+  reasoning_effort: 'xhigh',
+});
+
+// 声明了 reasoning_effort 但关闭思考时同样不发送
+assert.deepStrictEqual(buildCompletionPayload(
+  { ...deepseekCaps, reasoningEffort: 'xhigh' },
+  { model: 'qwen-test' },
+  { enableThinking: false }
+), {
+  model: 'qwen-test',
+  thinking: { type: 'disabled' },
 });
 
 assert.deepStrictEqual(buildCompletionPayload(

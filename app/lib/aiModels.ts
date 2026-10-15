@@ -7,6 +7,11 @@ export interface ProviderCaps {
   jsonSchema?: boolean;
   /** 该厂商支持 DeepSeek 风格的 thinking / reasoning_effort 参数 */
   thinking?: boolean;
+  /**
+   * 启用深度思考时随请求发送的 reasoning_effort 取值。
+   * 不同厂商接受的值不同（如 xhigh / medium / low，或 high），留空则不发送、由服务商用默认值。
+   */
+  reasoningEffort?: string;
 }
 
 /** 每次请求要发给服务端的最小端点信息（apiKey 走 Authorization: Bearer，不在此列） */
@@ -66,7 +71,13 @@ export function sanitizeProfiles(raw: unknown): ProviderProfile[] {
     const baseUrl = typeof item.baseUrl === 'string' ? item.baseUrl.trim() : '';
     const model = typeof item.model === 'string' ? item.model.trim() : '';
     if (!baseUrl || !model) continue;
-    const caps = item.caps && typeof item.caps === 'object' ? (item.caps as ProviderCaps) : {};
+    const rawCaps = item.caps && typeof item.caps === 'object' ? (item.caps as Record<string, unknown>) : {};
+    const caps: ProviderCaps = {};
+    if (typeof rawCaps.jsonSchema === 'boolean') caps.jsonSchema = rawCaps.jsonSchema;
+    if (typeof rawCaps.thinking === 'boolean') caps.thinking = rawCaps.thinking;
+    if (typeof rawCaps.reasoningEffort === 'string' && rawCaps.reasoningEffort.trim()) {
+      caps.reasoningEffort = rawCaps.reasoningEffort.trim();
+    }
     profiles.push({
       id,
       name: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : id,
