@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod navigation;
 mod server;
 
 use serde::Serialize;
@@ -31,27 +32,27 @@ fn authorize(window: &WebviewWindow, server: &server::Server) -> Result<(), Stri
 }
 
 #[tauri::command]
-fn server_status(
+async fn server_status(
     window: WebviewWindow,
-    server: tauri::State<server::Server>,
+    server: tauri::State<'_, server::Server>,
 ) -> Result<server::Status, String> {
     authorize(&window, &server)?;
     Ok(server.status())
 }
 
 #[tauri::command]
-fn restart_server(
+async fn restart_server(
     window: WebviewWindow,
-    server: tauri::State<server::Server>,
+    server: tauri::State<'_, server::Server>,
 ) -> Result<(), String> {
     authorize(&window, &server)?;
     server.restart()
 }
 
 #[tauri::command]
-fn reassign_port(
+async fn reassign_port(
     window: WebviewWindow,
-    server: tauri::State<server::Server>,
+    server: tauri::State<'_, server::Server>,
 ) -> Result<(), String> {
     authorize(&window, &server)?;
     server.reassign_port()
@@ -131,7 +132,7 @@ async fn install_update(window: WebviewWindow, app: tauri::AppHandle) -> Result<
 }
 
 #[tauri::command]
-fn open_releases(window: WebviewWindow, app: tauri::AppHandle) -> Result<(), String> {
+async fn open_releases(window: WebviewWindow, app: tauri::AppHandle) -> Result<(), String> {
     authorize(&window, &app.state::<server::Server>())?;
     app.opener()
         .open_url(RELEASES, None::<&str>)
@@ -148,6 +149,7 @@ fn settings(app: &tauri::AppHandle) {
         "desktop-settings",
         WebviewUrl::App("index.html?settings=1".into()),
     )
+    .use_https_scheme(main_uses_https(app))
     .title("桌面设置 / Desktop settings")
     .inner_size(640.0, 620.0)
     .min_inner_size(560.0, 480.0)
@@ -157,26 +159,27 @@ fn settings(app: &tauri::AppHandle) {
     }
 }
 
+fn main_uses_https(app: &tauri::AppHandle) -> bool {
+    app.config()
+        .app
+        .windows
+        .iter()
+        .find(|window| window.label == "main")
+        .is_some_and(|window| window.use_https_scheme)
+}
+
 fn main() {
     let app = tauri::Builder::default()
         .plugin(
             tauri::plugin::Builder::<tauri::Wry>::new("external-link-guard")
                 .on_navigation(|webview, url| {
-                    let scheme = url.scheme();
-                    if scheme == "http" || scheme == "https" {
-                        let is_local = matches!(url.host_str(), Some("127.0.0.1" | "localhost"));
-                        if !is_local {
-                            let _ = webview
-                                .app_handle()
-                                .opener()
-                                .open_url(url.as_str(), None::<&str>);
-                            return false;
-                        }
-                    } else if scheme == "mailto" || scheme == "tel" {
-                        let _ = webview
-                            .app_handle()
-                            .opener()
-                            .open_url(url.as_str(), None::<&str>);
+                    if navigation::opens_externally(url) {
+                        let app = webview.app_handle().clone();
+                        let url = url.to_string();
+                        // Never wait for the OS browser from a WebView2 navigation callback.
+                        tauri::async_runtime::spawn_blocking(move || {
+                            let _ = app.opener().open_url(url, None::<&str>);
+                        });
                         return false;
                     }
                     true
@@ -193,6 +196,15 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .manage(Updates::default())
+        .on_page_load(|webview, payload| {
+            if webview.label() == "main"
+                && matches!(payload.event(), tauri::webview::PageLoadEvent::Finished)
+            {
+                if let Some(server) = webview.app_handle().try_state::<server::Server>() {
+                    server.record_page_load(payload.url());
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             server_status,
             restart_server,
@@ -204,8 +216,8 @@ fn main() {
         .setup(|app| {
             let handle = app.handle().clone();
             ctrlc::set_handler(move || handle.exit(0))?;
-            let window = app.get_webview_window("main").expect("main window");
-            app.manage(server::Server::start(app.handle().clone(), window.url()?)?);
+            let home = navigation::launcher_url(main_uses_https(app.handle()));
+            app.manage(server::Server::start(app.handle().clone(), home)?);
             // Preserve the platform's standard editing shortcuts and application menu on macOS.
             #[cfg(target_os = "macos")]
             {

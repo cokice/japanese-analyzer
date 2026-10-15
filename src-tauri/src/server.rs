@@ -35,6 +35,7 @@ pub struct Server {
     tx: mpsc::Sender<Signal>,
     status: Arc<Mutex<Status>>,
     thread: Mutex<Option<JoinHandle<()>>>,
+    log: Arc<Mutex<RollingLog>>,
     pub asset_url: Url,
 }
 
@@ -53,6 +54,7 @@ impl Server {
         }));
         let (tx, rx) = mpsc::channel();
         let worker_status = status.clone();
+        let worker_log = log.clone();
         let home = asset_url.clone();
         let resource_dir = app.path().resource_dir()?.join("resources/server");
         let port_file = data.join("server-port");
@@ -72,7 +74,7 @@ impl Server {
                 dev_port,
                 port_file,
                 worker_status,
-                log,
+                worker_log,
                 rx,
             );
         });
@@ -80,6 +82,7 @@ impl Server {
             tx,
             status,
             thread: Mutex::new(Some(thread)),
+            log,
             asset_url,
         })
     }
@@ -88,12 +91,27 @@ impl Server {
         self.status.lock().unwrap().clone()
     }
 
+    pub fn record_page_load(&self, url: &Url) {
+        let origin = url.origin().ascii_serialization();
+        let state = self.status();
+        if state.phase == "running" && state.url.as_deref() == Some(origin.as_str()) {
+            // Record the origin only; never log URL query parameters or fragments.
+            let _ = self
+                .log
+                .lock()
+                .unwrap()
+                .append(format!("\nMain webview ready: {origin}\n").as_bytes());
+        }
+    }
+
     pub fn restart(&self) -> Result<(), String> {
         self.tx.send(Signal::Restart).map_err(|e| e.to_string())
     }
 
     pub fn reassign_port(&self) -> Result<(), String> {
-        self.tx.send(Signal::ReassignPort).map_err(|e| e.to_string())
+        self.tx
+            .send(Signal::ReassignPort)
+            .map_err(|e| e.to_string())
     }
 
     pub fn stop(&self) {
