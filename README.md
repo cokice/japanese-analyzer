@@ -62,6 +62,32 @@
 
 服务器配置的 Key 供所有访客使用；用户也可以在设置里填自己的 Key，保存在自己的浏览器里，请求时经本应用服务端转发给模型服务商。
 
+## 桌面版（macOS / Windows）
+
+从 [GitHub Releases](https://github.com/cokice/japanese-analyzer/releases) 下载：macOS 12+ 选择 Apple Silicon（aarch64）或 Intel（x64）的 DMG，将应用拖入「应用程序」；Windows 10/11 x64 运行 NSIS `setup.exe`。桌面包内置 Node.js，无需另外安装；Windows 需要 WebView2，安装程序会在缺失时联网下载安装。
+
+功能与 Web 版一致，在应用设置中填写自己的模型 Key 即可使用解析、词详情、AI 助手、图片识别与朗读。未配置服务端 Key 时「今日一句」使用内置句；Edge TTS 可直接使用，Gemini TTS 需要自己的 Key。模型调用需要联网，历史记录和个人设置保存在本机 WebView 中。
+
+通过原生菜单「桌面 → 桌面设置」（`⌘/Ctrl+,`）检查更新：macOS 可在应用内下载、验证签名、替换完整应用并重启；Windows 显示「有新版本」，请前往 Releases 下载并运行完整安装包。
+
+首次安装的常见提示：未经过 Apple 签名和公证的 macOS 包可能被 Gatekeeper 拦截，可右键应用选择「打开」，或在系统设置「隐私与安全性」中按系统提示允许打开；未代码签名的 Windows 包可能显示 SmartScreen 提示，请核实下载来源后选择「更多信息 → 仍要运行」。安装包的更新签名与操作系统代码签名是两套独立机制。
+
+桌面开发需要 Node.js 22、Rust stable（至少 1.90）及平台工具链：macOS 的 Xcode Command Line Tools，或 Windows 的 MSVC C++ Build Tools 与 WebView2。
+
+```bash
+npm ci
+npm run desktop:dev
+```
+
+前端支持 Next.js 热更新；退出桌面窗口会同时清理开发服务。生产打包：
+
+```bash
+npm run build             # 在目标 OS / 架构上使用 Node 22 构建
+npm run desktop:build     # 下载校验内置运行时，生成 .app/.dmg 或 NSIS
+```
+
+完整架构、签名与发布设置、日志位置及验收步骤见 [桌面开发文档](docs/desktop.md)。
+
 ## 快速开始
 
 需要 Node.js 22。

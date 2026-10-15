@@ -62,6 +62,32 @@
 
 Keys configured on the server are shared by all visitors. Users can also enter their own keys in Settings; they're stored in that browser and sent through this app's server to the model provider with each request.
 
+## Desktop app (macOS / Windows)
+
+Download from [GitHub Releases](https://github.com/cokice/japanese-analyzer/releases). On macOS 12+, choose the Apple Silicon (aarch64) or Intel (x64) DMG and drag the app into Applications. On Windows 10/11 x64, run the NSIS `setup.exe`. Node.js is included. Windows needs WebView2; the installer downloads it when missing.
+
+The desktop app shares all Web features. Enter your model API key in the application settings to use analysis, word details, the AI assistant, image recognition, and speech. Without server keys, the daily sentence uses built-in examples. Edge TTS works without a model key; Gemini TTS needs your Gemini key. Model calls require an internet connection. History and personal settings stay in the local WebView.
+
+Open the native **Desktop → Desktop settings** menu (`Cmd/Ctrl+,`) to check for updates. macOS can download, verify, install the entire app, and restart in-app. Windows shows an update notice and links to Releases; download and run the full installer to update every component.
+
+Unsigned/unnotarized macOS builds may trigger Gatekeeper: right-click the app and choose Open, or follow the system prompt under Privacy & Security. Unsigned Windows builds may trigger SmartScreen: verify the download source before choosing More info → Run anyway. Updater signatures and OS code signing are separate mechanisms.
+
+Development requires Node.js 22, Rust stable (1.90+), and the platform toolchain: Xcode Command Line Tools on macOS, or MSVC C++ Build Tools and WebView2 on Windows.
+
+```bash
+npm ci
+npm run desktop:dev
+```
+
+Next.js hot reload works in the desktop WebView. Closing the app also stops the development server. To package on the target OS and architecture:
+
+```bash
+npm run build             # Build with Node 22
+npm run desktop:build     # Download/verify runtime, create .app/.dmg or NSIS
+```
+
+See [desktop development](docs/desktop.md) for architecture, signing, release setup, logs, and acceptance checks.
+
 ## Quick start
 
 Requires Node.js 22.
