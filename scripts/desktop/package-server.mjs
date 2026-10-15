@@ -5,6 +5,7 @@ import { basename, join, relative } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { pathToFileURL } from 'node:url';
 import { root, readJson, packageJson, run } from './common.mjs';
+import { assertDesktopBuildNode } from './check-node.mjs';
 
 export function runtimeTarget(platform, arch) {
   if (platform === 'darwin' && ['arm64', 'x64'].includes(arch)) return `darwin-${arch}`;
@@ -40,8 +41,9 @@ export async function packageServer() {
   const build = await readJson(join(root, '.next/desktop-build.json')).catch(() => {
     throw new Error('Missing build metadata. Run npm run build with Node 22 first.');
   });
-  if (!build.nodeVersion.startsWith('22.') || build.appVersion !== pkg.version) {
-    throw new Error('Standalone build must use Node 22 and the current package version. Run npm run build again.');
+  assertDesktopBuildNode(build.nodeVersion, nodeVersion, 'Standalone build Node.js');
+  if (build.appVersion !== pkg.version) {
+    throw new Error(`Standalone app version ${build.appVersion} does not match package version ${pkg.version}. Run npm run build again.`);
   }
   // Next can trace optional native modules (e.g. sharp). Do not ship another OS/architecture's build.
   if (build.platform !== process.platform || build.arch !== process.arch) {
