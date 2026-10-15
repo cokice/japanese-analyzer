@@ -139,6 +139,43 @@ export default function Home() {
     return () => mql.removeEventListener('change', update);
   }, []);
 
+  // 桌面端全局外链拦截与图片拖放默认行为阻止（防止 WebView 导航至 file:// 覆盖应用）
+  useEffect(() => {
+    const isTauri = typeof window !== 'undefined' && Boolean((window as unknown as { __TAURI__?: unknown; __TAURI_INTERNALS__?: unknown }).__TAURI__ || (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
+
+    const handleExternalLinkClick = (event: MouseEvent) => {
+      if (!isTauri) return;
+      const anchor = (event.target as HTMLElement)?.closest('a');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      if (!href) return;
+      if (/^https?:\/\//i.test(href)) {
+        try {
+          const url = new URL(href, window.location.href);
+          if (url.origin !== window.location.origin) {
+            event.preventDefault();
+            // 在桌面端触发导航，由 Rust 端 on_navigation 统一拦截并调用系统默认浏览器打开
+            window.location.href = url.href;
+          }
+        } catch {}
+      }
+    };
+
+    const preventFileDropNavigation = (event: DragEvent) => {
+      // 阻止浏览器默认将拖入的文件作为页面打开的行为
+      event.preventDefault();
+    };
+
+    document.addEventListener('click', handleExternalLinkClick);
+    window.addEventListener('dragover', preventFileDropNavigation);
+    window.addEventListener('drop', preventFileDropNavigation);
+    return () => {
+      document.removeEventListener('click', handleExternalLinkClick);
+      window.removeEventListener('dragover', preventFileDropNavigation);
+      window.removeEventListener('drop', preventFileDropNavigation);
+    };
+  }, []);
+
   useEffect(() => () => {
     analysisAbortControllerRef.current?.abort('unmount');
     reasoningSummaryControllerRef.current?.cancel();

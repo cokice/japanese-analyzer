@@ -69,6 +69,7 @@ export const messages = {
   "文字提取成功！请确认后点击\"解析\"。": {"zh-TW": "文字擷取成功！請確認後點選「解析」。", "en": "Text extracted. Review it, then select “Analyze”.", "ko": "글자를 추출했습니다. 내용을 확인한 후 ‘분석’을 눌러 주세요."},
   "提取时发生错误: {0}。": {"zh-TW": "擷取文字時發生錯誤：{0}", "en": "Text extraction failed: {0}", "ko": "글자 추출 중 오류가 발생했습니다: {0}"},
   "检测到粘贴的图片，正在识别...": {"zh-TW": "偵測到貼上的圖片，正在辨識…", "en": "Pasted image detected. Recognizing text…", "ko": "붙여넣은 이미지를 감지했습니다. 글자를 인식하는 중…"},
+  "检测到拖放的图片，正在识别...": {"zh-TW": "偵測到拖放的圖片，正在辨識…", "en": "Dropped image detected. Recognizing text…", "ko": "드롭한 이미지를 감지했습니다. 글자를 인식하는 중…"},
   "无法创建canvas上下文": {"zh-TW": "無法建立畫布", "en": "Could not create an image canvas", "ko": "이미지 캔버스를 생성할 수 없습니다"},
   "图片加载失败": {"zh-TW": "圖片載入失敗", "en": "Could not load the image", "ko": "이미지를 불러올 수 없습니다"},
   "无法读取文件": {"zh-TW": "無法讀取檔案", "en": "Could not read the file", "ko": "파일을 읽을 수 없습니다"},

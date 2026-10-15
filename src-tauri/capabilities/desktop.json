@@ -8,6 +8,7 @@
     "core:default",
     "allow-server-status",
     "allow-restart-server",
+    "allow-reassign-port",
     "allow-check-update",
     "allow-install-update",
     "allow-open-releases"

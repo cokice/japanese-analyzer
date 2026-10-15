@@ -7,6 +7,7 @@ fn main() {
         tauri_build::AppManifest::new().commands(&[
             "server_status",
             "restart_server",
+            "reassign_port",
             "check_update",
             "install_update",
             "open_releases",

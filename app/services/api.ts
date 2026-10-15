@@ -98,11 +98,6 @@ const ANALYSIS_CHUNK_CONCURRENCY = 3;
 export const DEFAULT_API_URL = "/api";
 const GEMINI_TTS_MODEL_NAME = 'gemini-3.1-flash-tts-preview';
 const EDGE_TTS_MODEL_NAME = 'edge-tts';
-const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
-const EDGE_TTS_VOICES = {
-  male: 'ja-JP-KeitaNeural',
-  female: 'ja-JP-NanamiNeural',
-};
 
 export function getTtsModelName(provider: TTSProvider = 'edge'): string {
   return provider === 'gemini' ? GEMINI_TTS_MODEL_NAME : EDGE_TTS_MODEL_NAME;
@@ -1546,18 +1541,6 @@ export async function streamExtractTextFromImage(
   }
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  let binary = '';
-
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-
-  return btoa(binary);
-}
-
 // 合成语音
 export async function synthesizeSpeech(
   text: string,
@@ -1566,38 +1549,6 @@ export async function synthesizeSpeech(
   userApiKey?: string
 ): Promise<{ audio: string; mimeType: string }> {
   const { gender = 'female', voice = 'Kore', rate = 0, pitch = 0 } = options;
-
-  if (provider === 'edge') {
-    const response = await fetch(EDGE_TTS_URL, {
-      method: 'POST',
-      signal: options.signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text,
-        voice: EDGE_TTS_VOICES[gender],
-        rate,
-        pitch,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const message = typeof errorData.error === 'string'
-        ? errorData.error
-        : errorData.error?.message || `Edge TTS 请求失败（HTTP ${response.status}）`;
-      throw new Error(message);
-    }
-
-    const audioBuffer = await response.arrayBuffer();
-    if (!audioBuffer.byteLength) {
-      throw new Error('Edge TTS 返回空音频');
-    }
-
-    return {
-      audio: arrayBufferToBase64(audioBuffer),
-      mimeType: response.headers.get('content-type') || 'audio/mpeg',
-    };
-  }
 
   const apiUrl = getApiEndpoint('/tts');
   const headers = getHeaders(userApiKey);
@@ -1617,8 +1568,11 @@ export async function synthesizeSpeech(
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error?.message || 'TTS 请求失败');
+    const errorData = await response.json().catch(() => ({}));
+    const message = typeof errorData.error === 'string'
+      ? errorData.error
+      : errorData.error?.message || `TTS 请求失败（HTTP ${response.status}）`;
+    throw new Error(message);
   }
 
   return response.json();
