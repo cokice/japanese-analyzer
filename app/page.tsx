@@ -636,6 +636,10 @@ export default function Home() {
               onCancelAnalyze={handleCancelAnalysis}
                 userApiKey={userApiKey}
                 activeService={activeService}
+                services={services}
+                activeServiceId={activeService?.id ?? ''}
+                activeModelId={activeModel?.id ?? ''}
+                onSelectModel={handleSelectModel}
                 endpoint={endpoint}
                 geminiApiKey={geminiApiKey}
                useStream={useStream}

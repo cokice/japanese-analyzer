@@ -17,6 +17,7 @@ import {
   type AnalyzeUsageMetadata
 } from '../utils/analytics';
 import { Icon } from './Icons';
+import ModelSwitcher from './ModelSwitcher';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { TextShimmer } from '@/components/ui/text-shimmer';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
@@ -31,6 +32,11 @@ interface InputSectionProps {
   onCancelAnalyze: () => void;
   userApiKey?: string;
   activeService: ProviderProfile | null;
+  /** 模型选择：输入区下方级联切换已配置的服务商/模型 */
+  services?: ProviderProfile[];
+  activeServiceId?: string;
+  activeModelId?: string;
+  onSelectModel?: (serviceId: string, modelId: string) => void;
   endpoint: EndpointPayload;
   geminiApiKey?: string;
   useStream?: boolean;
@@ -93,6 +99,10 @@ export default function InputSection({
   onCancelAnalyze,
   userApiKey,
   activeService,
+  services = [],
+  activeServiceId = '',
+  activeModelId = '',
+  onSelectModel,
   endpoint,
   geminiApiKey,
   useStream = true, // 默认启用流式输出
@@ -771,6 +781,16 @@ export default function InputSection({
               <div className="input-action-bar mt-3.5 flex items-center">
                 {/* 左侧工具按钮区域 */}
                 <div className="input-tools flex items-center gap-2">
+                  {/* 模型选择：先选服务商，再选其下的模型 */}
+                  {onSelectModel && (
+                    <ModelSwitcher
+                      services={services}
+                      activeServiceId={activeServiceId}
+                      activeModelId={activeModelId}
+                      onSelectModel={onSelectModel}
+                    />
+                  )}
+
                   {/* 上传图片按钮 */}
                   <button
                     id="uploadImageButton"
