@@ -40,7 +40,7 @@ jobs:
       - run: npm run desktop:test
       - run: npm run lint
       - run: npx tsc --noEmit
-      - run: npm run build
+      - run: npm run dictionary:check && npm run build
       - name: Archive validated web output (preserve dotfiles and permissions)
         run: tar --exclude='.env*' -czf desktop-web.tar.gz .next/standalone .next/static .next/desktop-build.json public
       - uses: actions/upload-artifact@v5
@@ -129,7 +129,7 @@ jobs:
       - run: npm ci
       # Next may trace optional native modules. A Linux standalone artifact cannot
       # safely be used for macOS/Windows; build again on the actual OS/architecture.
-      - run: npm run build
+      - run: npm run dictionary:check && npm run build
       - run: npm run desktop:package-server
       - name: Smoke bundled Node and standalone (also on Windows)
         run: node scripts/desktop/smoke-server.mjs

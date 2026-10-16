@@ -32,3 +32,9 @@ Third-party components
 ----------------------
 Dependencies, fonts, and other third-party materials retain their respective
 licenses and notices. The project-wide license does not replace those terms.
+
+Dictionary data: JMdict, copyright James William Breen and EDRDG, CC BY-SA 4.0.
+JSON conversion: jmdict-simplified, Dmitry Shpika and contributors.
+This application converts the English JSON into hashed lookup and entry shards, preserving entry and sense restrictions.
+Sources and licenses: https://www.edrdg.org/edrdg/licence.html and https://github.com/scriptin/jmdict-simplified
+Local copies: LICENSES/EDRDG.html and LICENSES/CC-BY-SA-4.0.txt.

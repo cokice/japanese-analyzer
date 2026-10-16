@@ -42,7 +42,7 @@ jobs:
         run: npm run lint
 
       - name: Build Next.js app
-        run: npm run build
+        run: npm run dictionary:check && npm run build
 
   docker-plan:
     name: Prepare Docker build
