@@ -1,0 +1,8 @@
+© CC BY-SA 4.0 Stephen Kraus 2023-2026
+
+You are free to use, modify, and redistribute Jitendex files under the terms of the Creative Commons Attribution-ShareAlike License (V4.0)
+
+Jitendex includes material from several copyrighted sources in compliance with the terms and conditions of those projects.
+
+• JMdict (EDICT, etc.) dictionary data is provided by the Electronic Dictionaries Research Group. Visit edrdg.org for more information.
+• Example sentences (Japanese and English) are provided by Tatoeba (https://tatoeba.org/). This data is licensed CC BY 2.0 FR.

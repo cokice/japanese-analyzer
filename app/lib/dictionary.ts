@@ -1,18 +1,37 @@
 import { toHiragana } from '../utils/romaji';
+import type { Locale } from '../i18n';
 
 export interface DictionarySource { id: string; name: string; version: string; date: string; url: string; license: string; licenseUrl: string; }
 export interface DictionarySense { id: string; pos: string[]; glosses: string[]; appliesToSpellings: string[]; appliesToReadings: string[]; tags: string[]; notes: string[]; }
+export type DictionaryLanguage = 'zh-Hans' | 'zh-Hant' | 'ko';
+export type DictionaryContent = string | DictionaryContent[] | {
+  tag: string; content?: DictionaryContent; role?: string; label?: string; lang?: string; title?: string;
+  href?: string; asset?: string; glyph?: boolean; alt?: string; colSpan?: number; rowSpan?: number;
+};
+export interface LocalizedBlock { id: string; appliesTo: { spelling: string; reading: string }[]; content: DictionaryContent; url?: string; }
+export interface DictionaryLocalizationInfo {
+  language: DictionaryLanguage; origin: 'community-machine-translation' | 'dictionary-original'; source: DictionarySource;
+  upstreamDate: string; conversion?: string;
+}
+export interface DictionaryLocalization extends DictionaryLocalizationInfo { blocks: LocalizedBlock[]; }
+export interface LocalizationStatus { language: DictionaryLanguage; status: 'ready' | 'unavailable'; }
+export function dictionaryLanguage(locale: Locale): DictionaryLanguage | undefined {
+  if (locale === 'zh-CN') return 'zh-Hans';
+  if (locale === 'zh-TW') return 'zh-Hant';
+  if (locale === 'ko') return 'ko';
+}
 export interface DictionaryEntry {
   id: string; common: boolean;
   spellings: { text: string; common: boolean; tags: string[] }[];
   readings: { text: string; common: boolean; appliesTo: string[]; tags: string[] }[];
   senses: DictionarySense[];
   source: DictionarySource;
+  localizations?: DictionaryLocalization[];
 }
 export interface DictionaryProvider { id: string; name: string; adapter: 'builtin' | 'http-v1'; lookupUrl?: string; apiKey?: string; }
 export interface DictionarySettings { providers: DictionaryProvider[]; activeId: string; }
-export interface DictionaryQuery { query: string; dictionaryForm?: string; reading?: string; offset?: number; }
-export interface DictionaryResult { entries: DictionaryEntry[]; total: number; offset: number; hasMore: boolean; source: DictionarySource; fallback?: 'empty' | 'timeout' | 'unavailable'; tags?: Record<string, string>; }
+export interface DictionaryQuery { query: string; dictionaryForm?: string; reading?: string; offset?: number; locale?: Locale; }
+export interface DictionaryResult { entries: DictionaryEntry[]; total: number; offset: number; hasMore: boolean; source: DictionarySource; fallback?: 'empty' | 'timeout' | 'unavailable'; tags?: Record<string, string>; localizationStatus?: LocalizationStatus; datasets?: DictionaryLocalizationInfo[]; }
 export const BUILTIN_DICTIONARY: DictionaryProvider = { id: 'builtin', name: 'JMdict', adapter: 'builtin' };
 export const DICTIONARY_SETTINGS_KEY = 'japaneseAnalyzer:dictionary:v1';
 export const normalizeDictionaryKey = (value: string) => toHiragana(value).trim();

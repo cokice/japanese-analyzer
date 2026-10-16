@@ -25,6 +25,6 @@ export async function queryDictionary(query: DictionaryQuery, provider: Dictiona
   const result = await postLearning<DictionaryResult>('/api/dictionary/lookup', { ...query, provider, test }, signal);
   signal.throwIfAborted();
   // Fallbacks must retry the chosen service next time; never cache temporary outages.
-  if (!test && !result.fallback) dictionaryCache.set(key, { result, expires: Date.now() + (provider.adapter === 'builtin' ? 10 : 2) * 60_000 });
+  if (!test && !result.fallback && result.localizationStatus?.status !== 'unavailable') dictionaryCache.set(key, { result, expires: Date.now() + (provider.adapter === 'builtin' ? 10 : 2) * 60_000 });
   return result;
 }

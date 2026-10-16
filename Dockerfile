@@ -33,6 +33,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
+# Validate the final runtime, permissions and bundled data without external
+# network access. The test script is mounted for this layer, not shipped.
+RUN --network=none --mount=type=bind,source=scripts/dictionary/smoke.mjs,target=/tmp/dictionary-smoke.mjs \
+    node /tmp/dictionary-smoke.mjs /app
+
 EXPOSE 3002
 
 CMD ["node", "server.js"]

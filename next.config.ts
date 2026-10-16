@@ -2,7 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  outputFileTracingIncludes: { "/api/dictionary/lookup": ["./data/dictionary/**/*", "./LICENSES/EDRDG.html", "./LICENSES/CC-BY-SA-4.0.txt"] },
+  outputFileTracingIncludes: {
+    "/api/dictionary/lookup": ["./data/dictionary/**/*", "./LICENSES/**/*"],
+    "/api/dictionary/assets/*": ["./data/dictionary/manifest.json", "./data/dictionary/locales/manifest.json", "./data/dictionary/locales/assets/**/*", "./LICENSES/**/*"],
+  },
   outputFileTracingRoot: process.cwd(),
   experimental: {
     // 把首屏 CSS 内联进 HTML，省掉 <link rel="stylesheet"> 的渲染阻塞往返（仅生产构建生效）。

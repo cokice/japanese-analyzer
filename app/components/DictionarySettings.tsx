@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { queryDictionary } from '../services/learning';
 import { type DictionarySettings as Settings } from '../lib/dictionary';
+import type { DictionaryLocalizationInfo } from '../lib/dictionary';
 import { LatestRequest } from '../utils/latestRequest';
 
 export default function DictionarySettings({ value, onChange }: { value: Settings; onChange: (s: Settings) => void }) {
@@ -10,8 +11,9 @@ export default function DictionarySettings({ value, onChange }: { value: Setting
   const [name, setName] = useState(''); const [url, setUrl] = useState(''); const [key, setKey] = useState('');
   const [status, setStatus] = useState(''); const [loading, setLoading] = useState(false);
   const [metadata, setMetadata] = useState(''); const request = useRef(new LatestRequest());
+  const [datasets, setDatasets] = useState<DictionaryLocalizationInfo[]>([]);
   useEffect(() => { request.current.cancel(); setLoading(false); setStatus(''); }, [url, key]);
-  useEffect(() => { const manager = request.current; const controller = new AbortController(); void queryDictionary({ query: '駅' }, value.providers[0], controller.signal).then(r => setMetadata(`${r.source.name} · ${r.source.date} · ${r.source.version}`)).catch(() => setMetadata(t('词典数据不可用，请重新准备词典数据'))); return () => { controller.abort(); manager.cancel(); }; }, [value.providers, t]);
+  useEffect(() => { const manager = request.current; const controller = new AbortController(); void queryDictionary({ query: '駅' }, value.providers[0], controller.signal).then(r => { if (!controller.signal.aborted) { setMetadata(`${r.source.name} · ${r.source.date} · ${r.source.version}`); setDatasets(r.datasets ?? []); } }).catch(() => { if (!controller.signal.aborted) setMetadata(t('词典数据不可用，请重新准备词典数据')); }); return () => { controller.abort(); manager.cancel(); }; }, [value.providers, t]);
   const validUrl = () => { try { const u = new URL(url); return /^https?:$/.test(u.protocol) && !u.username && !u.password && !u.search && !u.hash; } catch { return false; } };
   const test = async () => {
     const ticket = request.current.start(); setLoading(true); setStatus('');
@@ -21,6 +23,8 @@ export default function DictionarySettings({ value, onChange }: { value: Setting
   };
   return <section className="dictionary-settings">
     <h3>{t('词典服务')}</h3><p className="tool-note">{metadata}</p>
+    <p className="tool-note">{t('内置解释按界面语言显示；AI 翻译仅在点击后生成。')}</p>
+    {datasets.map(data => <p className="tool-note" key={data.language}><a href={data.source.url} target="_blank" rel="noreferrer">{data.source.name}</a> · {data.language} · {data.source.version}{data.conversion && ` · ${t('简转繁')}`}<br />{t('发布：{0} · 上游数据：{1}', data.source.date, data.upstreamDate)} · {t(data.origin === 'community-machine-translation' ? '社区机器译文' : '词典原文')}{(Date.now() - Date.parse(data.source.date) > 90 * 86400_000 || Date.now() - Date.parse(data.upstreamDate) > 180 * 86400_000) && <span> · {t('数据较旧，请通过应用更新词典。')}</span>}</p>)}
     <p className="tool-note">{t('内置词典随应用更新，运行时不下载数据。')}</p>
     <select className="learning-input" aria-label={t('词典服务')} value={value.activeId} onChange={e => onChange({ ...value, activeId: e.target.value })}>{value.providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
     {value.providers.filter(p => p.adapter !== 'builtin').map(p => <div className="learning-actions" key={p.id}><span>{p.name}</span><button type="button" className="nd-ghost-btn" onClick={() => onChange({ providers: value.providers.filter(x => x.id !== p.id), activeId: value.activeId === p.id ? 'builtin' : value.activeId })}>{t('删除')}</button></div>)}

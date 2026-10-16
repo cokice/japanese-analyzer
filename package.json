@@ -8,14 +8,14 @@
     "build": "next build && node scripts/desktop/record-build.mjs",
     "start": "next start",
     "lint": "eslint .",
-    "test": "tsx tests/api.test.ts && tsx tests/i18n.test.ts && tsx tests/regressions.test.ts && tsx tests/speech.test.ts && tsx tests/learning.test.ts && tsx tests/learningHooks.test.tsx && tsx tests/sentenceCache.test.tsx && tsx tests/sentenceVocabulary.test.tsx && tsx tests/dictionaryExperience.test.tsx && node --test tests/dictionary-build.test.mjs",
+    "test": "tsx tests/api.test.ts && tsx tests/i18n.test.ts && tsx tests/regressions.test.ts && tsx tests/speech.test.ts && tsx tests/learning.test.ts && tsx tests/learningHooks.test.tsx && tsx tests/sentenceCache.test.tsx && tsx tests/sentenceVocabulary.test.tsx && tsx tests/dictionaryExperience.test.tsx && tsx tests/dictionaryLocalesUI.test.tsx && tsx tests/dictionaryLocales.test.ts && node --test tests/dictionary-build.test.mjs tests/dictionary-locales-build.test.mjs",
     "tauri": "tauri",
     "desktop:dev": "node scripts/desktop/dev.mjs",
     "desktop:package-server": "node scripts/desktop/package-server.mjs",
     "desktop:build": "node scripts/desktop/check-node.mjs && npm run build && npm run desktop:package-server && tauri build",
     "desktop:test": "node --test tests/desktop.test.mjs",
-    "dictionary:prepare": "node scripts/dictionary/prepare.mjs",
-    "dictionary:check": "node scripts/dictionary/update.mjs --check",
+    "dictionary:prepare": "node scripts/dictionary/prepare.mjs && node scripts/dictionary/prepare-locales.mjs",
+    "dictionary:check": "node scripts/dictionary/update.mjs --check && node scripts/dictionary/update-locales.mjs --check",
     "predev": "npm run dictionary:prepare",
     "prebuild": "npm run dictionary:check && npm run dictionary:prepare",
     "dictionary:smoke": "node scripts/dictionary/smoke.mjs"
@@ -55,7 +55,10 @@
     "@types/react-test-renderer": "^19.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.26",
+    "fflate": "0.8.2",
+    "opencc-js": "1.3.1",
     "react-test-renderer": "^19.2.3",
+    "sharp": "0.34.5",
     "tsx": "^4.19.4",
     "typescript": "^5"
   }

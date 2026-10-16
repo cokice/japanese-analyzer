@@ -44,3 +44,9 @@ Use a license compatible with the current project for new contributions and pres
 以上是项目的许可范围及操作说明，不替代 [AGPL 正文](./LICENSE)和适用材料的原有许可。
 
 These notes explain project scope and practices; the [AGPL text](./LICENSE) and the original licenses of applicable materials govern.
+
+## 词典数据 / Dictionary data
+
+词典数据保留来源许可，不改为 AGPL：JMdict、Jitendex 中文社区版及韩文维基词典文本采用 CC BY-SA 4.0；例句及图片按其原始署名与授权保留。中文社区包由模型翻译和校订，繁体版是 OpenCC 转换结果。源包署名、HanaMin 字形许可、OpenCC 许可和维基词典转换说明位于 [LICENSES](./LICENSES)，各数据锁文件记录来源 URL、日期及摘要。界面中的来源链接可用于查阅原词条；重新分发数据时应保留这些署名、许可与修改说明。
+
+Dictionary data retain their source licenses, separately from AGPL. See [NOTICE](./NOTICE), [Jitendex notices](./LICENSES/Jitendex-zh-NOTICE.md), [Wiktionary data notes](./LICENSES/Wiktionary-data.md), and the other files in `LICENSES/`. Preserve attributions, original licenses and transformation notices when redistributing the generated data.
