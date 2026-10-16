@@ -44,6 +44,9 @@ jobs:
       - name: Build Next.js app
         run: npm run dictionary:check && npm run build
 
+      - name: Smoke test bundled dictionary
+        run: npm run dictionary:smoke
+
   docker-plan:
     name: Prepare Docker build
     runs-on: ubuntu-latest

@@ -24,7 +24,7 @@ export async function prepare() {
   const target = join(root, 'data/dictionary');
   try {
     const manifest = JSON.parse(await readFile(join(target, 'manifest.json'), 'utf8'));
-    if (manifest.archiveSha256 === lock.sha256 && manifest.formatVersion === lock.formatVersion) {
+    if (manifest.archiveSha256 === lock.sha256 && manifest.formatVersion === lock.formatVersion && Object.keys(manifest.files).length === 512) {
       for (const [name, hash] of Object.entries(manifest.files)) {
         if (digest(await readFile(join(target, name))) !== hash) throw new Error('Corrupt dictionary shard');
       }

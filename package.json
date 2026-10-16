@@ -17,7 +17,7 @@
     "dictionary:prepare": "node scripts/dictionary/prepare.mjs",
     "dictionary:check": "node scripts/dictionary/update.mjs --check",
     "predev": "npm run dictionary:prepare",
-    "prebuild": "npm run dictionary:prepare",
+    "prebuild": "npm run dictionary:check && npm run dictionary:prepare",
     "dictionary:smoke": "node scripts/dictionary/smoke.mjs"
   },
   "desktop": {

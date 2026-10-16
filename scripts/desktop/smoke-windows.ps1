@@ -17,7 +17,7 @@ try {
     $installerProcess = Start-Process -FilePath $Installer -ArgumentList '/S', "/D=$installDirectory" -PassThru
     if (-not $installerProcess.WaitForExit(120000)) { throw 'NSIS installation timed out.' }
     if ($installerProcess.ExitCode -ne 0) { throw "NSIS exited with $($installerProcess.ExitCode)." }
-    foreach ($relative in @('japanese-analyzer-desktop.exe', 'resources/server/node.exe', 'resources/server/server.js', 'resources/server/.next/static')) {
+    foreach ($relative in @('japanese-analyzer-desktop.exe', 'resources/server/node.exe', 'resources/server/server.js', 'resources/server/.next/static', 'resources/server/data/dictionary/manifest.json')) {
         if (-not (Test-Path (Join-Path $installDirectory $relative))) { throw "Installed resource missing: $relative" }
     }
     Write-Host 'NSIS installed the desktop executable, bundled Node, and Next resources.'
@@ -52,6 +52,11 @@ try {
         Start-Sleep -Milliseconds 300
     }
     if (-not $ready) { throw 'Installed desktop did not load the local application in a responsive window.' }
+    foreach ($query in @('駅', '食べる')) {
+        $body = [System.Text.Encoding]::UTF8.GetBytes((@{ query = $query } | ConvertTo-Json -Compress))
+        $dictionary = Invoke-RestMethod -Uri "$baseUrl/api/dictionary/lookup" -Method Post -ContentType 'application/json; charset=utf-8' -Body $body -TimeoutSec 8
+        if ($dictionary.entries.Count -eq 0 -or $dictionary.source.id -ne 'jmdict') { throw 'Installed dictionary lookup failed.' }
+    }
     Write-Host "Installed desktop reached $baseUrl in its own responsive WebView2 window."
 
     if (-not $appProcess.CloseMainWindow()) { throw 'Could not close the desktop main window.' }
