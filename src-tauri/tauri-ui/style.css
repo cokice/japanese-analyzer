@@ -1,16 +1,565 @@
-:root { color-scheme: light dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f5f4f0; color: #282c29; }
-main { width: min(85vw, 560px); padding: 40px 0; text-align: center; }
-h1 { font-size: 24px; margin: 22px 0 14px; font-weight: 600; }
-h2 { font-size: 18px; }
-p { line-height: 1.65; }
-.detail { font-size: 12px; opacity: .72; overflow-wrap: anywhere; white-space: pre-wrap; }
-section { border-top: 1px solid #8885; margin-top: 28px; padding-top: 12px; }
-.actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-button { cursor: pointer; background: #4b6550; border: 0; border-radius: 8px; color: white; font: inherit; padding: 10px 16px; }
-button:focus-visible { outline: 3px solid #a4b7a7; outline-offset: 3px; }
-button:disabled { cursor: wait; opacity: .5; }
-[hidden] { display: none !important; }
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans JP", "Hiragino Sans", sans-serif;
+  
+  /* 基础主色与画布（对齐主应用 globals.css） */
+  --bg-color: #f5f5f7;
+  --bg-card: #ffffff;
+  --text-main: #242426;
+  --text-muted: #737379;
+  --line: #ebebed;
+  --track-bg: rgba(109, 76, 219, 0.12);
+  
+  /* 核心紫色调主题 */
+  --primary: #6d4cdb;
+  --primary-2: #5a39c8;
+  --primary-soft: #f0ecfa;
+  
+  /* 词性颜色规范（完全对齐主应用 Design Tokens） */
+  --pos-n: #4f75be;    /* 名词 blue */
+  --pos-v: #388774;    /* 动词 green */
+  --pos-adj: #d97706;  /* 形容词 amber */
+  --pos-adjv: #e11d48; /* 形容动词 rose */
+  --pos-adv: #0d9488;  /* 副词 teal */
+  --pos-adn: #7c3aed;  /* 连体词 violet */
+  --pos-conj: #dc2626; /* 接续词 red */
+  --pos-p: #bb7049;    /* 助词 orange */
+  --pos-aux: #a260a8;  /* 助动词 fuchsia */
+  --pos-o: #6b7280;    /* 其他/标点 gray */
+}
+
 @media (prefers-color-scheme: dark) {
-  body { background: #191d1a; color: #e5e7e4; }
+  :root {
+    --bg-color: #202022;
+    --bg-card: #2b2b2e;
+    --text-main: #f2f2f4;
+    --text-muted: #a0a0a7;
+    --line: #3b3b3f;
+    --track-bg: rgba(139, 111, 255, 0.16);
+    
+    --primary: #8b6fff;
+    --primary-2: #7a5cff;
+    --primary-soft: #3b305a;
+    
+    --pos-n: #7e9ed7;
+    --pos-v: #72b6a2;
+    --pos-adj: #c9a369;
+    --pos-adjv: #d18a9b;
+    --pos-adv: #6db6b0;
+    --pos-adn: #b697d5;
+    --pos-conj: #d48c87;
+    --pos-p: #d39a78;
+    --pos-aux: #bf90c3;
+    --pos-o: #9ca3af;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-color);
+  color: var(--text-main);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+main {
+  width: min(90vw, 680px);
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* 主展示区域 */
+.stage-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 解构文句外层包裹：水平居中对齐所有词块单元 */
+.quote-wrapper {
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: nowrap;
+  color: var(--text-main);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  padding-bottom: 4px;
+}
+
+.stage-container.visible .quote-wrapper {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 单个词块单元：采用两层网格（上行假名、下行文字），确保所有文字基线严格水平对齐 */
+.word-unit {
+  display: inline-grid;
+  grid-template-rows: 18px auto;
+  align-items: end;
+  justify-items: center;
+  margin: 0 0.5px;
+  padding: 3px 2px;
+  border-radius: 8px;
+  position: relative;
+  transition: margin 0.38s cubic-bezier(0.34, 1.56, 0.64, 1),
+              padding 0.38s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background-color 0.4s ease,
+              color 0.4s ease;
+}
+
+/* 下层主体汉字/假名文本 */
+.word-body {
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0;
+  color: var(--text-main);
+  transition: color 0.4s ease;
+}
+
+/* 上层振假名读音槽 */
+.word-ruby {
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  user-select: none;
+  min-height: 14px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), color 0.4s ease;
+}
+
+/* 阶段 2：振假名优雅浮现 */
+.stage-container.stage-furi .word-ruby {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 阶段 3：弹开分词间距 */
+.stage-container.stage-tokenize .word-unit {
+  margin: 0 4.5px;
+  padding: 3px 5px;
+}
+
+/* 标点符号紧随前字，不额外占位 */
+.word-unit.is-punct {
+  margin: 0 !important;
+  padding: 3px 0 !important;
+}
+
+.word-unit.is-punct .word-body {
+  color: var(--pos-o);
+}
+
+/* 阶段 3 & 4：词性柔光着色高亮 */
+.stage-container.stage-highlight .word-unit.pos-noun {
+  background-color: color-mix(in srgb, var(--pos-n) 12%, transparent);
+}
+.stage-container.stage-highlight .word-unit.pos-noun .word-body,
+.stage-container.stage-highlight .word-unit.pos-noun .word-ruby {
+  color: var(--pos-n);
+}
+
+.stage-container.stage-highlight .word-unit.pos-verb {
+  background-color: color-mix(in srgb, var(--pos-v) 12%, transparent);
+}
+.stage-container.stage-highlight .word-unit.pos-verb .word-body,
+.stage-container.stage-highlight .word-unit.pos-verb .word-ruby {
+  color: var(--pos-v);
+}
+
+.stage-container.stage-highlight .word-unit.pos-adj {
+  background-color: color-mix(in srgb, var(--pos-adj) 12%, transparent);
+}
+.stage-container.stage-highlight .word-unit.pos-adj .word-body,
+.stage-container.stage-highlight .word-unit.pos-adj .word-ruby {
+  color: var(--pos-adj);
+}
+
+.stage-container.stage-highlight .word-unit.pos-particle {
+  background-color: color-mix(in srgb, var(--pos-p) 12%, transparent);
+}
+.stage-container.stage-highlight .word-unit.pos-particle .word-body,
+.stage-container.stage-highlight .word-unit.pos-particle .word-ruby {
+  color: var(--pos-p);
+}
+
+.stage-container.stage-highlight .word-unit.pos-aux {
+  background-color: color-mix(in srgb, var(--pos-aux) 12%, transparent);
+}
+.stage-container.stage-highlight .word-unit.pos-aux .word-body,
+.stage-container.stage-highlight .word-unit.pos-aux .word-ruby {
+  color: var(--pos-aux);
+}
+
+/* 极细紫色进度底线 */
+.progress-track {
+  width: 0;
+  max-width: 520px;
+  height: 2.5px;
+  background: var(--track-bg);
+  border-radius: 999px;
+  margin-top: 14px;
+  overflow: hidden;
+  position: relative;
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stage-container.visible .progress-track {
+  width: 82%;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--primary), var(--primary-2));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 40%, transparent);
+  border-radius: 999px;
+  transition: width 0.25s linear;
+}
+
+/* 动态打字翻译流容器 */
+.quote-translation {
+  margin-top: 18px;
+  font-size: 14px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: color 0.4s ease;
+}
+
+/* 单个字符平滑渐显飞入（保留空格宽度） */
+.trans-char {
+  display: inline-block;
+  white-space: pre;
+  opacity: 0;
+  transform: translateY(4px);
+  animation: charFadeIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes charFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 动态打字光标 */
+.typing-cursor {
+  display: inline-block;
+  width: 1.5px;
+  height: 13px;
+  background: var(--primary);
+  margin-left: 3px;
+  border-radius: 1px;
+  animation: cursorBlink 0.75s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 0.9; }
+}
+
+/* 翻译完成后的呼吸效果 */
+.quote-translation.breathe {
+  animation: transBreathe 3s ease-in-out infinite;
+}
+
+@keyframes transBreathe {
+  0%, 100% {
+    opacity: 0.65;
+    transform: scale(1);
+    color: var(--text-muted);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.015);
+    color: var(--text-main);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--primary) 22%, transparent);
+  }
+}
+
+/* 状态文字：带有呼吸脉动指示 */
+.status-indicator {
+  margin-top: 22px;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  opacity: 0.85;
+  animation: statusPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ========================================================
+   方案 2：【全屏无界轻触 + 磁性准星光标】（Option 2: Ambient Cursor）
+   ======================================================== */
+
+/* 整体舞台交互态：在 Ready 后整个窗口光标变为精细交互 */
+body.ready-for-entrance {
+  cursor: pointer;
+}
+
+/* 磁性跟随光标容器（硬件加速，鼠标移动平滑跟随） */
+.ambient-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  transform: translate(-100px, -100px);
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+body.ready-for-entrance .ambient-cursor {
+  opacity: 1;
+}
+
+/* 外层微光呼吸环（极细纯粹紫光） */
+.cursor-ring {
+  position: absolute;
+  top: -15px;
+  left: -15px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--primary) 38%, transparent);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 15%, transparent);
+  animation: cursorRingPulse 2.8s ease-in-out infinite;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s,
+              background-color 0.2s;
+}
+
+/* 核心精细小圆心 */
+.cursor-core {
+  position: absolute;
+  top: -2.5px;
+  left: -2.5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 6px var(--primary);
+}
+
+@keyframes cursorRingPulse {
+  0%, 100% {
+    transform: scale(1);
+    border-color: color-mix(in srgb, var(--primary) 32%, transparent);
+  }
+  50% {
+    transform: scale(1.15);
+    border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+    background-color: color-mix(in srgb, var(--primary) 8%, transparent);
+  }
+}
+
+/* 点击屏幕任意位置时生成的全屏瞬时水波纹扩散特效 */
+.click-ripple-wave {
+  position: fixed;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 9998;
+  border: 1.5px solid var(--primary);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0.9;
+  animation: clickRippleExpand 0.75s cubic-bezier(0.12, 0.8, 0.32, 1) forwards;
+}
+
+@keyframes clickRippleExpand {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.9;
+    border-width: 2px;
+  }
+  60% {
+    opacity: 0.45;
+  }
+  100% {
+    width: 600px;
+    height: 600px;
+    opacity: 0;
+    border-width: 0.5px;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* 首次启动：极简打字提示指示区（彻底无厚重按钮，零视觉负担） */
+.zen-prompt-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  animation: promptFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes promptFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 循环打字微标 */
+.shortcut-tip {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  user-select: none;
+}
+
+.shortcut-text {
+  font-family: inherit;
+  white-space: pre;
+  opacity: 0.88;
+}
+
+.shortcut-cursor {
+  display: inline-block;
+  width: 1.5px;
+  height: 12px;
+  background: var(--primary);
+  margin-left: 3px;
+  animation: cursorBlink 0.75s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+/* 阶段 4：准备就绪与淡出微光动效 */
+.stage-container.stage-ready {
+  opacity: 0.95;
+}
+
+/* 触发入场瞬间的解构散开特效 */
+.stage-container.stage-unravel .quote-wrapper {
+  transform: scale(1.04);
+  filter: blur(4px);
+  opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.4s ease-out,
+              opacity 0.35s ease-out;
+}
+
+.stage-container.stage-unravel .progress-track,
+.stage-container.stage-unravel .quote-translation,
+.stage-container.stage-unravel .zen-prompt-area {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.stage-container.stage-leaving {
+  opacity: 0;
+  transform: scale(0.975);
+  transition: opacity 0.35s ease-out, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 异常与设置区域保持整洁 */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+button {
+  cursor: pointer;
+  background: var(--primary);
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 18px;
+  transition: opacity 0.2s, background-color 0.2s;
+}
+
+button:hover {
+  background: var(--primary-2);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
+.detail {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  margin-top: 12px;
+  line-height: 1.6;
+}
+
+section#settings {
+  border-top: 1px solid var(--line);
+  margin-top: 32px;
+  padding-top: 16px;
+  width: 100%;
+}
+
+h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+[hidden] {
+  display: none !important;
 }
