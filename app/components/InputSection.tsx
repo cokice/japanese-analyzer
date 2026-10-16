@@ -994,33 +994,33 @@ export default function InputSection({
                   </div>
                 </div>
 
-                <div className="flex-1" />
+                <div className="input-submit-controls">
+                  {/* 清空按钮 */}
+                  {inputText.trim() !== '' && (
+                    <button
+                      className="input-tool-button input-clear-button"
+                      onClick={() => {
+                        handleInputTextChange('');
+                        setTtsAudioUrl(null);
+                        setShowFirstVisitExample(false);
+                        clearUsageMetadata();
+                      }}
+                      title={t("清空内容")}
+                      aria-label={t("清空内容")}
+                    >
+                      {Icon.xSm}
+                    </button>
+                  )}
 
-                {/* 清空按钮 */}
-                {inputText.trim() !== '' && (
-                  <button
-                    className="input-tool-button input-clear-button mr-2"
-                    onClick={() => {
-                      handleInputTextChange('');
-                      setTtsAudioUrl(null);
-                      setShowFirstVisitExample(false);
-                      clearUsageMetadata();
-                    }}
-                    title={t("清空内容")}
-                    aria-label={t("清空内容")}
-                  >
-                    {Icon.xSm}
-                  </button>
-                )}
-
-                {/* 解析按钮 */}
-                <StateMorphButton
-                  id="analyzeButton"
-                  onClick={isLoading ? handleCancelAnalyze : handleAnalyze}
-                  disabled={!isLoading && !inputText.trim()}
-                  state={isAnalyzing ? 'loading' : submitState === 'success' && !analysisError ? 'success' : 'idle'}
-                  className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
-                />
+                  {/* 解析按钮 */}
+                  <StateMorphButton
+                    id="analyzeButton"
+                    onClick={isLoading ? handleCancelAnalyze : handleAnalyze}
+                    disabled={!isLoading && !inputText.trim()}
+                    state={isAnalyzing ? 'loading' : submitState === 'success' && !analysisError ? 'success' : 'idle'}
+                    className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
+                  />
+                </div>
               </div>
 
               {/* 隐藏的文件输入 */}

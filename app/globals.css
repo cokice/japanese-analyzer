@@ -2032,10 +2032,18 @@ body {
 .input-tool-disclosure { width: 32px; }
 .input-tool-disclosure[aria-expanded="true"] { background: var(--line); color: var(--ink); }
 .input-action-bar {
+  flex-wrap: wrap;
+  row-gap: 8px;
   --input-glass: linear-gradient(155deg, #ffffffd9, #ffffff45 48%, #ebe7f354);
   --input-glass-edge: #ffffffed;
   --input-glass-rim: #6960771c;
   --input-glass-shadow: #35264d14;
+}
+.input-submit-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 .dark .input-action-bar {
   --input-glass: linear-gradient(155deg, #ffffff20, #ffffff06 48%, #b5a0e512);
