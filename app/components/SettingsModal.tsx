@@ -17,9 +17,12 @@ import { Icon } from './Icons';
 import { ProviderLogo } from './ProviderLogo';
 import { Switch } from '@/components/ui/switch';
 import SpeechServices from './SpeechServices';
+import DictionarySettings from './DictionarySettings';
+import type { DictionarySettings as DictionarySettingsValue } from '../lib/dictionary';
 import { sanitizeSpeechSettings, type SpeechSettings } from '../lib/speechServices';
 
 interface SettingsPayload {
+  dictionarySettings: DictionarySettingsValue;
   services: ProviderProfile[];
   activeServiceId: string;
   activeModelId: string;
@@ -30,6 +33,7 @@ interface SettingsPayload {
 }
 
 interface SettingsModalProps {
+  dictionarySettings: DictionarySettingsValue;
   services: ProviderProfile[];
   activeServiceId: string;
   activeModelId: string;
@@ -67,6 +71,7 @@ function fromPreset(presetId: string): ProviderProfile | null {
 }
 
 export default function SettingsModal({
+  dictionarySettings: initialDictionarySettings,
   services: initialServices,
   activeServiceId: initialActiveServiceId,
   activeModelId: initialActiveModelId,
@@ -79,6 +84,7 @@ export default function SettingsModal({
   onModalClose
 }: SettingsModalProps) {
   const { t } = useLanguage();
+  const [dictionarySettings, setDictionarySettings] = useState(initialDictionarySettings);
   const [services, setServices] = useState<ProviderProfile[]>(initialServices);
   const [activeServiceId, setActiveServiceId] = useState(initialActiveServiceId);
   const [activeModelId, setActiveModelId] = useState(initialActiveModelId);
@@ -111,6 +117,7 @@ export default function SettingsModal({
   // 打开弹窗时重置本地编辑态：默认展开当前服务商
   useEffect(() => {
     if (!isModalOpen) return;
+    setDictionarySettings(initialDictionarySettings);
     setServices(initialServices);
     setActiveServiceId(initialActiveServiceId);
     setActiveModelId(initialActiveModelId);
@@ -216,6 +223,7 @@ export default function SettingsModal({
     const { service, model } = resolveModelSelection(valid, activeServiceId, activeModelId);
 
     onSaveSettings({
+      dictionarySettings,
       services: valid,
       activeServiceId: service?.id ?? '',
       activeModelId: model?.id ?? '',
@@ -574,6 +582,8 @@ export default function SettingsModal({
             </div>
           )}
         </div>
+
+        {isModalOpen && <DictionarySettings value={dictionarySettings} onChange={setDictionarySettings} />}
 
         {isModalOpen && <SpeechServices settings={speechSettings} onChange={setSpeechSettings} />}
 

@@ -7,11 +7,12 @@ import { TokenData } from '../services/api';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { Switch } from '@/components/ui/switch';
 import { groupPendingChars, groupReadingTokens } from '../utils/readingLayout';
-import { isPunctuationToken, type PhraseRange } from '../utils/phraseRange';
+import { getPhraseReading, getPhraseText, isPunctuationToken, type PhraseRange } from '../utils/phraseRange';
 import { usePhraseSelection } from '../hooks/usePhraseSelection';
 
 interface AnalysisResultProps {
   tokens: TokenData[];
+  readingGroups?: PhraseRange[];
   showFurigana: boolean;
   onShowFuriganaChange: (show: boolean) => void;
   showRomaji: boolean;
@@ -197,6 +198,7 @@ function PendingText({ text, offset }: { text: string; offset: number }) {
 
 export default function AnalysisResult({
   tokens,
+  readingGroups,
   showFurigana,
   onShowFuriganaChange,
   showRomaji,
@@ -228,6 +230,8 @@ export default function AnalysisResult({
   const legendGroups = [...POS_LEGEND_GROUPS, 'o' as const].filter((group) => presentPosGroups.has(group));
   // 拖动中显示预览选区，否则显示已选中的短语
   const highlightRange = selection.preview ?? selectedRange;
+  const units = readingGroups?.map(range => ({ index: range.start, range, token: range.start === range.end ? tokens[range.start] : { ...tokens[range.start], word: getPhraseText(tokens, range), furigana: getPhraseReading(tokens, range), romaji: tokens.slice(range.start, range.end + 1).map(t => t.romaji || '').join('') } }));
+  const displayGroups = units ? groupReadingTokens(units.map(u => u.token)).map(g => g.map(u => units[u.index])) : groupReadingTokens(tokens).map(g => g.map(u => ({ ...u, range: { start: u.index, end: u.index } })));
 
   return (
     <section className="analysis-card relative">
@@ -258,13 +262,13 @@ export default function AnalysisResult({
           data-selecting={selection.preview !== null || pickAnchor !== null}
           {...selection.containerProps}
         >
-          {groupReadingTokens(tokens).map((group) => {
+          {displayGroups.map((group) => {
             if (group[0].token.pos === '改行') {
               return <span key={group[0].index} className="reading-paragraph-break" />;
             }
             return (
               <span className="reading-word-group" key={group[0].index}>
-                {group.map(({ token, index }) => {
+                {group.map(({ token, index, range }) => {
                   const isPunct = isPunctuationToken(token);
                   const isActive = selectedIndex === index;
                   const inRange = !!highlightRange && index >= highlightRange.start && index <= highlightRange.end;
@@ -295,7 +299,7 @@ export default function AnalysisResult({
                           className="word-token"
                           aria-pressed={isActive || inRange}
                           onClick={() => {
-                            if (!selection.handleTokenClick(index)) onWordClick(token, index);
+                            if (!selection.handleTokenClick(index)) { if (range.start !== range.end && onRangeSelect) onRangeSelect(range.start, range.end); else onWordClick(token, index); }
                           }}
                         >
                           {token.word}

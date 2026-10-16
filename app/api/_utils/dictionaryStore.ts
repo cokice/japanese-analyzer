@@ -9,6 +9,7 @@ export class DictionaryUnavailableError extends Error { constructor() { super('è
 export class DictionaryStore {
   private cache = new Map<string, { data: Record<string, unknown>; bytes: number }>();
   private bytes = 0;
+  private pending = new Map<string, Promise<Record<string, unknown>>>();
   private manifest?: Promise<Manifest>;
   constructor(private directory = join(process.cwd(), 'data/dictionary'), private maxBytes = 32 * 1024 * 1024) {}
   async metadata() {
@@ -22,6 +23,13 @@ export class DictionaryStore {
     const name = `${kind}-${createHash('sha256').update(key).digest('hex').slice(0, 2)}.json.gz`;
     const cached = this.cache.get(name);
     if (cached) { this.cache.delete(name); this.cache.set(name, cached); return cached.data; }
+    const existing = this.pending.get(name);
+    if (existing) return existing;
+    const loading = this.readShard(name);
+    this.pending.set(name, loading);
+    try { return await loading; } finally { this.pending.delete(name); }
+  }
+  private async readShard(name: string): Promise<Record<string, unknown>> {
     try {
       const m = await this.metadata();
       const buffer = await readFile(join(this.directory, name));

@@ -7,9 +7,11 @@ export function validateDictionaryResult(value: unknown): DictionaryResult {
   const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every(x => typeof x === 'string');
   const sourceValid = (s: DictionaryResult['source']) => s && ['id','name','version','date','url','license','licenseUrl'].every(k => typeof s[k as keyof typeof s] === 'string') && /^https?:\/\//.test(s.url) && /^https?:\/\//.test(s.licenseUrl);
   if (!data || !sourceValid(data.source) || !Number.isInteger(data.total) || data.total < 0 || !Number.isInteger(data.offset) || data.offset < 0 || typeof data.hasMore !== 'boolean' || !Array.isArray(data.entries) || data.entries.length > 20) throw new Error('Invalid dictionary response');
+  if (data.tags !== undefined && (!data.tags || typeof data.tags !== 'object' || !Object.values(data.tags).every(v => typeof v === 'string'))) throw new Error('Invalid dictionary tags');
   for (const e of data.entries) {
     if (!e || typeof e.id !== 'string' || typeof e.common !== 'boolean' || !sourceValid(e.source) || !Array.isArray(e.spellings) || !e.spellings.every(s => typeof s.text === 'string' && typeof s.common === 'boolean' && strings(s.tags)) || !Array.isArray(e.readings) || !e.readings.every(r => typeof r.text === 'string' && typeof r.common === 'boolean' && strings(r.appliesTo) && strings(r.tags)) || !Array.isArray(e.senses) || e.senses.length > 200 || !e.senses.every(s => typeof s.id === 'string' && strings(s.pos) && strings(s.glosses) && strings(s.appliesToSpellings) && strings(s.appliesToReadings) && strings(s.tags) && strings(s.notes))) throw new Error('Invalid dictionary entry');
   }
+  if (new Set(data.entries.map(e => `${e.source.id}:${e.id}`)).size !== data.entries.length || data.entries.some(e => new Set(e.senses.map(s => s.id)).size !== e.senses.length)) throw new Error('Duplicate dictionary IDs');
   return data;
 }
 type Adapter = (query: DictionaryQuery, provider: DictionaryProvider, signal: AbortSignal) => Promise<DictionaryResult>;

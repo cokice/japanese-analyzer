@@ -8,7 +8,7 @@
     "build": "next build && node scripts/desktop/record-build.mjs",
     "start": "next start",
     "lint": "eslint .",
-    "test": "tsx tests/api.test.ts && tsx tests/i18n.test.ts && tsx tests/regressions.test.ts && tsx tests/speech.test.ts",
+    "test": "tsx tests/api.test.ts && tsx tests/i18n.test.ts && tsx tests/regressions.test.ts && tsx tests/speech.test.ts && tsx tests/learning.test.ts && tsx tests/learningHooks.test.tsx && node --test tests/dictionary-build.test.mjs",
     "tauri": "tauri",
     "desktop:dev": "node scripts/desktop/dev.mjs",
     "desktop:package-server": "node scripts/desktop/package-server.mjs",
@@ -17,7 +17,8 @@
     "dictionary:prepare": "node scripts/dictionary/prepare.mjs",
     "dictionary:check": "node scripts/dictionary/update.mjs --check",
     "predev": "npm run dictionary:prepare",
-    "prebuild": "npm run dictionary:prepare"
+    "prebuild": "npm run dictionary:prepare",
+    "dictionary:smoke": "node scripts/dictionary/smoke.mjs"
   },
   "desktop": {
     "nodeVersion": "22.23.3"
@@ -51,8 +52,10 @@
     "@types/node": "^20",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/react-test-renderer": "^19.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.26",
+    "react-test-renderer": "^19.2.3",
     "tsx": "^4.19.4",
     "typescript": "^5"
   }

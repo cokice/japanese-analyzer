@@ -102,7 +102,7 @@ export function useWordDetail({ userApiKey, endpoint, useStream = true }: UseWor
             originalWord: word, pos: correctedPos, furigana: correctedReading,
             romaji: getLocalRomaji(word, correctedReading, correctedPos),
             chineseTranslation: partialField(content, 'chineseTranslation') || t("加载中..."),
-            dictionaryForm: partialField(content, 'dictionaryForm'),
+            dictionaryForm: partialField(content, 'dictionaryForm', true),
             explanation: partialField(content, 'explanation'),
             conjugation: partialField(content, 'conjugation'),
             example: partialField(content, 'example'),

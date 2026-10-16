@@ -34,7 +34,7 @@ export function learningTool<T>(kind: StructuredOutputKind, prompt: string, inpu
       const body = requestBodyErrorResponse(error); if (body) return body;
       if (req.signal.aborted) return new Response(null, { status: 499 });
       const status = error instanceof ToolInputError ? 400 : error instanceof ProviderConfigError ? error.status : isUpstreamTimeoutError(error) ? 504 : 502;
-      return NextResponse.json({ error: { message: error instanceof Error ? error.message : '学习工具请求失败' } }, { status });
+      return NextResponse.json({ error: { message: error instanceof SyntaxError ? '学习工具返回了无效结果' : error instanceof Error ? error.message : '学习工具请求失败' } }, { status });
     }
   };
 }
