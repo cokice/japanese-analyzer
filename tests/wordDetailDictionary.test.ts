@@ -48,6 +48,12 @@ assert.throws(() => parseWordDetailResponseContent(JSON.stringify({ ...entry, ex
 const format = getStructuredResponseFormat({}, 'wordDetail') as {
   json_schema: { schema: { required: string[]; properties: Record<string, unknown> } };
 };
+const orderedFields = [
+  'chineseTranslation', 'dictionaryForm', 'explanation', 'conjugation',
+  'example', 'exampleTranslation', 'pos', 'furigana',
+];
+assert.deepStrictEqual(Object.keys(format.json_schema.schema.properties), orderedFields);
+assert.deepStrictEqual(format.json_schema.schema.required, orderedFields);
 for (const field of ['conjugation', 'example', 'exampleTranslation']) {
   assert.ok(format.json_schema.schema.required.includes(field));
   assert.ok(field in format.json_schema.schema.properties);

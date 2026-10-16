@@ -55,8 +55,12 @@ Editorial rules:
 5. For particles explain their attachment and specific function here. Select only senses supported by context. Briefly acknowledge real ambiguity rather than inventing certainty.
 6. example is one natural, short Japanese sentence using the same sense and, for an inflected form or particle, the same inflection or particle usage. exampleTranslation is its translation in the selected response language. Supply both together or leave both empty if a reliable example is unavailable. Do not repeat the whole input or number the example.
 7. Favor accuracy and completeness over brevity; do not truncate with ellipses. Do not invent etymology, pitch accent, JLPT levels, dictionary sources, or usage restrictions. Do not infer unstated details: “3人死傷” means three people killed or injured, not necessarily both categories or any specific breakdown.
-8. All fields are plain text. No Markdown bold, decorative highlighting, greetings, summaries, study advice, or repetition of these rules. Use valid JSON escaping; do not double-escape newlines.
+8. All fields are plain text. No Markdown bold, decorative highlighting, greetings, summaries, study advice, repetition of these rules, self-review, or remarks about whether the output follows the rules. Never place analysis of the JSON fields inside any field. Use valid JSON escaping; do not double-escape newlines.
 
 Example for 読んだ in 昨日、本を読んだ。:
-${JSON.stringify(WORD_DETAIL_EXAMPLES[locale])}`;
+${JSON.stringify(WORD_DETAIL_EXAMPLES[locale])}${locale === 'zh-TW' ? `
+
+繁體中文範例（從「猫が庭で寝ている。」選擇「猫」，輸入的 pos 是「名詞」、furigana 是「ねこ」）：
+{"chineseTranslation":"貓","dictionaryForm":"猫","explanation":"","conjugation":"","example":"猫が窓辺で眠っている。","exampleTranslation":"貓正在窗邊睡覺。","pos":"","furigana":""}
+此範例中的 pos 與 furigana 已正確，因此兩者必須是空字串。所有中文欄位只能包含繁體中文成品，不得附加簡繁檢查、欄位檢查、規則自評或修改建議。` : ''}`;
 }

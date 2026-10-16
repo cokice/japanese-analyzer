@@ -132,28 +132,24 @@ const analysisTokensSchema = {
   additionalProperties: false,
 } as const;
 
+const wordDetailFields = [
+  'chineseTranslation',
+  'dictionaryForm',
+  'explanation',
+  'conjugation',
+  'example',
+  'exampleTranslation',
+  'pos',
+  'furigana',
+] as const;
+
 const wordDetailSchema = {
   type: 'object',
-  properties: {
-    chineseTranslation: { type: 'string' },
-    pos: { type: 'string' },
-    furigana: { type: 'string' },
-    dictionaryForm: { type: 'string' },
-    explanation: { type: 'string' },
-    conjugation: { type: 'string' },
-    example: { type: 'string' },
-    exampleTranslation: { type: 'string' },
-  },
-  required: [
-    'chineseTranslation',
-    'pos',
-    'furigana',
-    'dictionaryForm',
-    'explanation',
-    'conjugation',
-    'example',
-    'exampleTranslation',
-  ],
+  // Keep both schema lists in the same order promised by the prompt. Although
+  // JSON object order is not semantic, structured-output models commonly emit
+  // properties in schema order and the UI progressively renders that stream.
+  properties: Object.fromEntries(wordDetailFields.map((field) => [field, { type: 'string' }])),
+  required: [...wordDetailFields],
   additionalProperties: false,
 } as const;
 
