@@ -423,6 +423,7 @@ body {
 }
 
 .nd-ghost-btn:hover:not(:disabled) { color: var(--primary); }
+.nd-ghost-btn:disabled { opacity: .4; cursor: not-allowed; }
 
 .nd-soft-btn {
   display: inline-flex;

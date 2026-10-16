@@ -1,5 +1,16 @@
 // Simplified Chinese source text is the stable message key.
 export const messages = {
+  "当前分词来自先前设置（{0}），点击重新解析可更新。": {"zh-TW": "目前分詞來自先前設定（{0}），點擊重新解析可更新。", "en": "This segmentation uses previous settings ({0}). Select Analyze again to update it.", "ko": "현재 분할은 이전 설정({0})의 결과입니다. 다시 분석하여 업데이트할 수 있습니다."},
+  "重新解析": {"zh-TW": "重新解析", "en": "Analyze again", "ko": "다시 분석"},
+  "已使用缓存": {"zh-TW": "已使用快取", "en": "Loaded from cache", "ko": "캐시에서 불러옴"},
+  "尚无可撤销的调整": {"zh-TW": "尚無可復原的調整", "en": "No adjustments to undo", "ko": "취소할 변경 사항이 없습니다"},
+  "撤销最近一次分词或阅读分组调整": {"zh-TW": "復原最近一次分詞或閱讀分組調整", "en": "Undo the last segmentation or reading group change", "ko": "마지막 분할 또는 읽기 그룹 변경 취소"},
+  "当前已经是初始分词": {"zh-TW": "目前已是初始分詞", "en": "Already using the original segmentation", "ko": "이미 원래 분할입니다"},
+  "恢复本次解析的初始分词并清除手动阅读分组": {"zh-TW": "還原本次解析的初始分詞並清除手動閱讀分組", "en": "Restore this analysis’s original segmentation and clear manual reading groups", "ko": "이 분석의 원래 분할을 복원하고 수동 읽기 그룹 지우기"},
+  "已撤销最近一次调整": {"zh-TW": "已復原最近一次調整", "en": "Last adjustment undone", "ko": "마지막 변경을 취소했습니다"},
+  "已恢复初始分词": {"zh-TW": "已還原初始分詞", "en": "Original segmentation restored", "ko": "원래 분할을 복원했습니다"},
+  "已应用分词调整": {"zh-TW": "已套用分詞調整", "en": "Segmentation change applied", "ko": "분할 변경을 적용했습니다"},
+  "分词：{0} 项": {"zh-TW": "分詞：{0} 項", "en": "Tokens: {0}", "ko": "분할: {0}개"},
   "历史记录": {"zh-TW": "歷史紀錄", "en": "History", "ko": "기록"},
   "清空历史记录": {"zh-TW": "清空歷史紀錄", "en": "Clear history", "ko": "기록 지우기"},
   "历史记录暂时无法保存到浏览器，刷新后可能丢失。": {"zh-TW": "歷史紀錄暫時無法儲存至瀏覽器，重新整理後可能遺失。", "en": "History cannot be saved to this browser right now and may be lost on refresh.", "ko": "현재 브라우저에 기록을 저장할 수 없어 새로고침하면 사라질 수 있습니다."},

@@ -5,6 +5,10 @@ export interface SourceRange { start: number; end: number; }
 export interface ReadingGroup extends SourceRange { suppressed?: boolean; }
 export interface EditSnapshot { tokens: TokenData[]; groups: ReadingGroup[]; }
 export interface EditState extends EditSnapshot { initial: TokenData[]; taskId: number; revision: number; history: EditSnapshot[]; }
+export function withEditHistory(state: EditState, tokens: TokenData[], groups: ReadingGroup[]): EditState {
+  if (JSON.stringify({ tokens, groups }) === JSON.stringify({ tokens: state.tokens, groups: state.groups })) return state;
+  return { ...state, tokens, groups, revision: state.revision + 1, history: [...state.history, { tokens: state.tokens, groups: state.groups }].slice(-20) };
+}
 export function tokenOffsets(tokens: readonly TokenData[]): SourceRange[] {
   let offset = 0; return tokens.map(t => { const start = offset; offset += t.word.length; return { start, end: offset }; });
 }
@@ -15,7 +19,7 @@ export function applyTokenEdit(state: EditState, range: PhraseRange, replacement
   const selected = state.tokens.slice(range.start, range.end + 1).map(t => t.word).join('');
   if (!replacements.length || replacements.some(t => !t.word) || replacements.map(t => t.word).join('') !== selected) throw new Error('候选分词未保留原文或指定边界');
   const affected = sourceRange(state.tokens, range);
-  return { ...state, tokens: [...state.tokens.slice(0, range.start), ...replacements, ...state.tokens.slice(range.end + 1)], groups: state.groups.filter(g => g.end <= affected.start || g.start >= affected.end), revision: state.revision + 1, history: [...state.history, { tokens: state.tokens, groups: state.groups }].slice(-20) };
+  return withEditHistory(state, [...state.tokens.slice(0, range.start), ...replacements, ...state.tokens.slice(range.end + 1)], state.groups.filter(g => g.end <= affected.start || g.start >= affected.end));
 }
 const AUXILIARIES = new Set(['いる','ある','いく','ゆく','くる','しまう','おく','みる','もらう','くれる','あげる','いただく','来る','行く','置く','見る']);
 export function buildReadingGroups(tokens: TokenData[], manual: ReadingGroup[]): PhraseRange[] {
