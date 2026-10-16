@@ -55,6 +55,13 @@ try {
   assert.ok(asset, 'Next page must reference a bundled static asset.');
   assert.equal((await fetch(new URL(asset.replaceAll('&amp;', '&'), base))).status, 200);
   assert.equal((await fetch(`${base}/logo/logo.png`)).status, 200);
+  for (const query of ['駅', '食べる']) {
+    const dictionary = await fetch(`${base}/api/dictionary/lookup`, { method: 'POST', headers: { Cookie: cookie.split(';')[0], 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) });
+    assert.equal(dictionary.status, 200);
+    const result = await dictionary.json();
+    assert.ok(result.entries.length > 0);
+    assert.equal(result.source.id, 'jmdict');
+  }
   console.log('Bundled server smoke passed: health, auth cookie, page, static files, public logo.');
 } finally {
   child.kill();

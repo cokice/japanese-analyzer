@@ -8,7 +8,7 @@ import { BaseUrlError, validateBaseUrl } from './validateBaseUrl';
 
 export type { ProviderCaps, ModelEndpoint } from '../../lib/aiModels';
 
-export type StructuredOutputKind = 'analysisTokens' | 'wordDetail' | 'phraseDetail' | 'dailySentence';
+export type StructuredOutputKind = 'analysisTokens' | 'wordDetail' | 'phraseDetail' | 'dailySentence' | 'resegment' | 'conjugation' | 'dictionaryTranslation';
 
 /** 解析后的上游调用配置：端点 + 密钥 + 能力位 */
 export interface ResolvedProviderConfig extends ModelEndpoint {
@@ -196,7 +196,19 @@ const dailySentenceSchema = {
   additionalProperties: false,
 } as const;
 
+const textSchema = { type: 'string' } as const;
+const objectSchema = (properties: Record<string, unknown>) => ({ type: 'object', properties, required: Object.keys(properties), additionalProperties: false });
+const arraySchema = (items: unknown) => ({ type: 'array', items });
+const toolSchemas = {
+  resegment: objectSchema({ candidates: arraySchema(objectSchema({ tokens: analysisTokensSchema.properties.tokens })) }),
+  conjugation: objectSchema({ analyses: arraySchema(objectSchema({ dictionaryForm: textSchema, steps: arraySchema(objectSchema({ form: textSchema, label: textSchema })), note: textSchema })), insufficient: { type: 'boolean' } }),
+  dictionaryTranslation: objectSchema({ translations: arraySchema(objectSchema({ id: textSchema, text: textSchema })) }),
+};
+
 const structuredOutputSchemas = {
+  resegment: { name: 'japanese_resegmentation', schema: toolSchemas.resegment },
+  conjugation: { name: 'japanese_conjugation', schema: toolSchemas.conjugation },
+  dictionaryTranslation: { name: 'dictionary_sense_translation', schema: toolSchemas.dictionaryTranslation },
   analysisTokens: {
     name: 'japanese_sentence_analysis',
     schema: analysisTokensSchema,

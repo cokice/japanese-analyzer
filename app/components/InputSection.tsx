@@ -30,6 +30,8 @@ import DailySentence from './DailySentence';
 import type { useAnalysisHistory } from '../hooks/useAnalysisHistory';
 
 interface InputSectionProps {
+  draft: string;
+  onDraftChange: (text: string) => void;
   history: ReturnType<typeof useAnalysisHistory>;
   onAnalyze: (text: string, usage?: AnalyzeUsageMetadata) => void;
   onCancelAnalyze: () => void;
@@ -98,6 +100,8 @@ const FIRST_VISIT_EXAMPLE_ENABLED = false;
 
 
 export default function InputSection({
+  draft: inputText,
+  onDraftChange: setInputText,
   history,
   onAnalyze,
   onCancelAnalyze,
@@ -123,7 +127,6 @@ export default function InputSection({
 }: InputSectionProps) {
   const { t, locale, errorText } = useLanguage();
   const ttsProvider = speechService.provider;
-  const [inputText, setInputText] = useState('');
   const isLoading = isAnalyzing;
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
@@ -242,7 +245,7 @@ export default function InputSection({
       setInputText(FIRST_VISIT_EXAMPLE);
       setShowFirstVisitExample(true);
     }
-  }, []);
+  }, [setInputText]);
 
   // 从本地存储加载TTS设置
   useEffect(() => {

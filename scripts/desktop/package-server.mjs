@@ -101,7 +101,7 @@ export async function packageServer() {
     }] });
     await writeFile(routesPath, JSON.stringify(routes));
     await cp(join(root, '.next/static'), join(destination, '.next/static'), { recursive: true });
-    for (const path of ['public', 'LICENSE', 'NOTICE', 'LICENSING.md', 'LICENSES']) {
+    for (const path of ['public', 'LICENSE', 'NOTICE', 'LICENSING.md', 'LICENSES', 'data/dictionary']) {
       await cp(join(root, path), join(destination, path), { recursive: true, filter: distributable });
     }
     const nodeName = process.platform === 'win32' ? 'node.exe' : 'node';

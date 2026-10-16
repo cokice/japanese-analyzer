@@ -2880,3 +2880,35 @@ body {
   .recent-item, .daily-go { transition: none; }
   .daily-sentence, .daily-skeleton { animation: none; }
 }
+
+/* Dictionary and learning tools share the existing paper/ink theme. */
+.learning-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.learning-fields { display: grid; gap: 14px; }
+.learning-input { display: block; width: 100%; padding: 10px 12px; margin-top: 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); font: inherit; }
+.learning-input:focus-visible, .boundary-editor button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.learning-detail { padding: 12px 20px 20px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.8; }
+.tool-note { color: var(--ink-3); font-size: 12px; overflow-wrap: anywhere; line-height: 1.7; }
+.dictionary-results { margin-top: 16px; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.dictionary-results summary, .dictionary-settings summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.dictionary-entry { border-bottom: 1px solid var(--line); padding: 14px 0; }
+.dictionary-entry h3 { margin: 0; font-size: 21px; font-weight: 600; }
+.dictionary-entry p { margin: 4px 0; }
+.dictionary-entry ol { padding-left: 23px; }
+.dictionary-entry li { padding: 5px 0; }
+.dictionary-entry small { color: var(--ink-3); }
+.dictionary-settings { padding: 20px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.reading-tools { padding: 6px 0 18px; }
+.boundary-editor { padding: 16px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 24px; }
+.boundary-editor button { border: 0; padding: 4px 6px; color: var(--ink-3); background: transparent; cursor: pointer; }
+.boundary-editor button[aria-pressed=true] { color: var(--primary); background: var(--primary-soft); border-radius: 5px; }
+.candidate-preview { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 12px; }
+.candidate-preview p { display: flex; flex-wrap: wrap; gap: 10px; }
+.candidate-preview p > span { display: inline-flex; flex-direction: column; padding: 6px; border: 1px solid var(--line); border-radius: 7px; }
+.candidate-preview small { font-size: 11px; color: var(--ink-3); }
+.conjugation-chain { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 0; list-style: none; }
+.conjugation-chain li { display: flex; flex-direction: column; }
+.conjugation-chain li + li::before { content: '→'; color: var(--ink-3); }
+.conjugation-chain small { color: var(--ink-3); }
+.share-control { position: relative; }
+.share-control > .nd-card { position: absolute; top: 100%; left: 0; width: min(340px, 80vw); z-index: 30; box-shadow: 0 12px 40px #0002; }
+.resegment-editor { scroll-margin-top: 20px; }

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!word || (!pos && !isPhrase) || !sentence) {
+    if (typeof word !== 'string' || !word.trim() || (kind !== 'lookup' && ((!pos && !isPhrase) || !sentence))) {
       return NextResponse.json(
         { error: { message: '缺少必要的参数' } },
         { status: 400 }
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const payload = buildCompletionPayload(providerConfig.caps, {
       model: providerConfig.model,
       messages: [
-        { role: "system", content: isPhrase ? getPhraseDetailSystemPrompt(locale) : getWordDetailSystemPrompt(locale) },
+        { role: "system", content: isPhrase ? getPhraseDetailSystemPrompt(locale) : getWordDetailSystemPrompt(locale) + (kind === 'lookup' ? '\nThis is a standalone lookup without sentence context. Find a reliable dictionary form. Do not invent a sentence-specific sense; acknowledge ambiguity. Return an empty explanation when context is insufficient.' : '') },
         {
           role: "user",
           content: JSON.stringify(isPhrase

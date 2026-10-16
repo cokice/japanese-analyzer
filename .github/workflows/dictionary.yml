@@ -1,0 +1,25 @@
+name: Dictionary update
+on:
+  schedule:
+    - cron: '20 8 * * 2'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: node scripts/dictionary/update.mjs
+      - run: node scripts/dictionary/prepare.mjs
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: maintenance/dictionary
+          commit-message: 'chore: update pinned JMdict snapshot'
+          title: 'chore: update pinned JMdict snapshot'
+          body: 'Updates the full English JMdict version and upstream SHA-256. Generated data is verified before proposing this change.'
+          add-paths: dictionary.lock.json

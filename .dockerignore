@@ -29,3 +29,6 @@ docker-compose*.yml
 README.md
 docs
 tests
+
+.dictionary-cache
+data/dictionary

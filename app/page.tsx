@@ -1,5 +1,14 @@
 'use client';
 
+import { useReadingPreferences } from './hooks/useReadingPreferences';
+import ShareControl from './components/ShareControl';
+import DictionaryLookup from './components/DictionaryLookup';
+import DictionaryPanel from './components/DictionaryPanel';
+import ResegmentEditor from './components/ResegmentEditor';
+import ConjugationPanel from './components/ConjugationPanel';
+import { useAnalysisEditing } from './hooks/useAnalysisEditing';
+import { buildReadingGroups } from './utils/analysisEditing';
+import { readDictionarySettings, DICTIONARY_SETTINGS_KEY, type DictionarySettings } from './lib/dictionary';
 import { browserStorage } from './utils/storage';
 import { loadSpeechSettings, SPEECH_PRESETS, SPEECH_SETTINGS_KEY, type SpeechSettings } from './lib/speechServices';
 
@@ -19,7 +28,7 @@ import { useWordDetail } from './hooks/useWordDetail';
 import { useAnalysisHistory } from './hooks/useAnalysisHistory';
 import { AnalyzeStreamParser } from './utils/analyzeStreamParser';
 import { selectWordDetailContext } from './utils/wordDetailContext';
-import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRange, type PhraseRange } from './utils/phraseRange';
+import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRange, isPunctuationToken, type PhraseRange } from './utils/phraseRange';
 import { createRequestMetrics, trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import { localizeError } from './i18n';
 import { InvalidResponseError } from './utils/requestErrors';
@@ -42,21 +51,28 @@ export default function Home() {
   const { t, locale } = useLanguage();
   const history = useAnalysisHistory();
   const [currentSentence, setCurrentSentence] = useState('');
-  const [analyzedTokens, setAnalyzedTokens] = useState<TokenData[]>([]);
+  const editing = useAnalysisEditing();
+  const analyzedTokens = editing.state.tokens;
+  const setAnalyzedTokens = editing.setTokens;
+  const [draft, setDraft] = useState('');
+  const [mode, setMode] = useState<'analyze' | 'dictionary'>('analyze');
+  const [dictionarySettings, setDictionarySettings] = useState<DictionarySettings>(() => readDictionarySettings(null));
+  const dictionaryProvider = dictionarySettings.providers.find(p => p.id === dictionarySettings.activeId) ?? dictionarySettings.providers[0];
+  const [editRange, setEditRange] = useState<{ range: PhraseRange; taskId: number; revision: number } | null>(null);
+  const handleDraftChange = useCallback((value: string) => { setDraft(value); setEditRange(null); }, []);
+  const readingGroups = useMemo(() => buildReadingGroups(analyzedTokens, editing.state.groups), [analyzedTokens, editing.state.groups]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
   const [useStream, setUseStream] = useState<boolean>(true);
 
   const [analysisSignal, setAnalysisSignal] = useState<AbortSignal>();
   const [translationTrigger, setTranslationTrigger] = useState(0);
-  const [showFurigana, setShowFurigana] = useState(true);
   // 解析开始后输入区收起，句子成为页面唯一主角；点「编辑原文」再展开
   const [isEditingInput, setIsEditingInput] = useState(true);
   // 圈选的多词短语（与单个选中的词互斥）
   const [selectedRange, setSelectedRange] = useState<PhraseRange | null>(null);
   // 圈选起点：长按或详情里点「选中多个词」后设置，再点一个词即选中这一段
   const [pickAnchor, setPickAnchor] = useState<number | null>(null);
-  const [showRomaji, setShowRomaji] = useState(false);
 
   // API设置相关状态
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -100,6 +116,13 @@ export default function Home() {
   const [authError, setAuthError] = useState('');
 
   const userApiKey = activeService?.apiKey || '';
+  const learningModel = useMemo(() => ({ endpoint, apiKey: userApiKey }), [endpoint, userApiKey]);
+  const { preferences, change: changePreference } = useReadingPreferences(text => { handleStartOver(); setDraft(text); setMode('analyze'); });
+  const { showFurigana, showRomaji, viewMode } = preferences;
+  const setShowFurigana = (value: boolean) => changePreference('showFurigana', value);
+  const setShowRomaji = (value: boolean) => changePreference('showRomaji', value);
+  const setViewMode = (value: 'lexical' | 'reading') => changePreference('viewMode', value);
+  useEffect(() => { setEditRange(null); }, [locale, endpoint, editing.state.taskId, editing.state.revision]);
 
   // 选中词汇（右侧详情面板 / 移动端模态）
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -212,6 +235,7 @@ export default function Home() {
 
   // 从本地存储加载用户API设置
   useEffect(() => {
+    setDictionarySettings(readDictionarySettings(browserStorage.getItem(DICTIONARY_SETTINGS_KEY)));
     const storedAISettings = loadAISettingsFromStorage(browserStorage);
     const storedUseStream = browserStorage.getItem('useStream');
 
@@ -242,6 +266,7 @@ export default function Home() {
 
   // 保存用户API设置
   const handleSaveSettings = (settings: {
+    dictionarySettings: DictionarySettings;
     services: ProviderProfile[];
     activeServiceId: string;
     activeModelId: string;
@@ -250,6 +275,8 @@ export default function Home() {
     thinkingEnabled: boolean;
     useStream: boolean;
   }) => {
+    setDictionarySettings(settings.dictionarySettings);
+    browserStorage.setItem(DICTIONARY_SETTINGS_KEY, JSON.stringify(settings.dictionarySettings));
     saveAISettingsToStorage(browserStorage, {
       services: settings.services,
       activeServiceId: settings.activeServiceId,
@@ -392,13 +419,12 @@ export default function Home() {
   const canMergePhrase = selectedRange !== null && wordDetail?.kind === 'phrase' && wordDetail.category === '単語';
   const handleMergePhrase = useCallback(() => {
     if (!selectedRange || !wordDetail) return;
-    setAnalyzedTokens((tokens) => mergePhraseTokens(tokens, selectedRange, {
-      pos: wordDetail.pos,
-      furigana: wordDetail.mergeReading || wordDetail.furigana,
-    }));
-    setSelectedIndex(selectedRange.start);
-    setSelectedRange(null);
-  }, [selectedRange, wordDetail]);
+    const replacements = mergePhraseTokens(analyzedTokens.slice(selectedRange.start, selectedRange.end + 1), { start: 0, end: selectedRange.end - selectedRange.start }, {
+      pos: wordDetail.pos, furigana: wordDetail.mergeReading || wordDetail.furigana,
+    });
+    editing.edit(selectedRange, replacements, editing.state.taskId, editing.state.revision);
+    handleCloseWordDetail();
+  }, [selectedRange, wordDetail, analyzedTokens, editing, handleCloseWordDetail]);
 
   const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
     if (!text.trim()) return;
@@ -425,6 +451,7 @@ export default function Home() {
     setIsAnalyzing(true);
     setIsEditingInput(false);
     setAnalysisError('');
+    setDraft(text);
     setCurrentSentence(text);
     setTranslationTrigger(Date.now());
     setAnalyzedTokens([]);
@@ -602,15 +629,23 @@ export default function Home() {
     setDeepseekReasoningDone(true);
     setDeepseekReasoningSummaryHistory([]);
     setAnalyzedTokens([]);
+    setDraft('');
     setCurrentSentence('');
     setAnalysisError('');
     setIsEditingInput(true);
   };
 
-  const hasWordDetail = (selectedIndex !== null || selectedRange !== null)
+  const hasWordDetail = mode === 'analyze' && (selectedIndex !== null || selectedRange !== null)
     && (isWordDetailLoading || isWordDetailStreaming || wordDetail !== null || !!wordDetailStreamError);
 
+  const detailRange = selectedRange ?? (selectedIndex === null ? null : { start: selectedIndex, end: selectedIndex });
+  const detailWord = detailRange ? getPhraseText(analyzedTokens, detailRange) : '';
+  const detailContext = detailRange ? selectWordDetailContext(currentSentence, analyzedTokens, detailRange.start) : '';
+  const detailReading = detailRange ? getPhraseReading(analyzedTokens, detailRange) : '';
+  const canEdit = !!detailRange && !isAnalyzing && [...detailWord].length <= 120;
+  const canGroup = !!detailRange && analyzedTokens.slice(detailRange.start, detailRange.end + 1).every(token => !isPunctuationToken(token) && !/\s/.test(token.word));
   const wordDetailPanel = (
+    <>
     <WordDetailPanel
       wordDetail={wordDetail}
       isLoading={isWordDetailLoading}
@@ -621,7 +656,17 @@ export default function Home() {
       onRefresh={handleRefreshWordDetail}
       onMerge={canMergePhrase ? handleMergePhrase : undefined}
       onSelectMore={selectedIndex !== null ? handleStartPick : undefined}
+      hideClose={!isDesktop}
     />
+    <div className="learning-detail">
+      <div className="learning-actions">
+        <button className="nd-soft-btn" disabled={!canEdit} onClick={() => { if (detailRange) { setEditRange({ range: detailRange, taskId: editing.state.taskId, revision: editing.state.revision }); handleCloseWordDetail(); } }}>{t('调整分词')}</button>
+        {selectedRange && <><button className="nd-ghost-btn" disabled={isAnalyzing || !canGroup} title={!canGroup ? t('阅读组不能跨标点或空白') : undefined} onClick={() => { editing.group(selectedRange); handleCloseWordDetail(); }}>{t('设为阅读组')}</button><button className="nd-ghost-btn" disabled={isAnalyzing || !canGroup} title={!canGroup ? t('阅读组不能跨标点或空白') : undefined} onClick={() => { editing.ungroup(selectedRange); handleCloseWordDetail(); }}>{t('取消阅读组')}</button></>}
+      </div>
+      <DictionaryPanel word={detailWord} lemma={wordDetail?.dictionaryForm} reading={detailReading} provider={dictionaryProvider} model={learningModel} />
+      <ConjugationPanel surface={detailWord} lemma={wordDetail?.dictionaryForm || ''} context={detailContext} model={learningModel} />
+    </div>
+    </>
   );
 
   // 如果需要认证但未认证，只显示登录界面
@@ -666,11 +711,19 @@ export default function Home() {
         >
           {/* 主列 */}
           <div className="app-column relative flex w-full min-w-0 max-w-[780px] flex-col gap-[22px]" data-home={isHome}>
+            <nav className="learning-actions" aria-label={t('功能模式')}>
+              <button className="display-chip" aria-pressed={mode === 'analyze'} onClick={() => { setMode('analyze'); handleCloseWordDetail(); }}>{t('句子解析')}</button>
+              <ShareControl text={draft} preferences={preferences} />
+              <button className="display-chip" aria-pressed={mode === 'dictionary'} disabled={isAnalyzing} onClick={() => { setMode('dictionary'); setEditRange(null); handleCloseWordDetail(); }}>{t('查词')}</button>
+            </nav>
+            {mode === 'dictionary' ? <DictionaryLookup draft={draft} onDraftChange={handleDraftChange} provider={dictionaryProvider} model={learningModel} /> : <>
             <InputSection
+              draft={draft}
+              onDraftChange={handleDraftChange}
               compact={isReading}
               showSuggestions={isHome}
               onNewSentence={handleStartOver}
-              onExpand={() => setIsEditingInput(true)}
+              onExpand={() => { setEditRange(null); setIsEditingInput(true); }}
               onCollapse={analyzedTokens.length > 0 ? () => setIsEditingInput(false) : undefined}
               history={history}
               onAnalyze={handleAnalyze}
@@ -733,10 +786,17 @@ export default function Home() {
 
             {(shouldShowAnalyzer() || currentSentence) && (
               <div className="reading-surface">
+                {shouldShowAnalyzer() && <div className="learning-actions reading-tools">
+                  <button className="display-chip" aria-pressed={viewMode === 'lexical'} onClick={() => setViewMode('lexical')}>{t('词法视图')}</button>
+                  <button className="display-chip" aria-pressed={viewMode === 'reading'} onClick={() => setViewMode('reading')}>{t('阅读视图')}</button>
+                  <button className="nd-ghost-btn" disabled={isAnalyzing || !editing.state.history.length} onClick={() => { editing.undo(); handleCloseWordDetail(); }}>{t('撤销')}</button>
+                  <button className="nd-ghost-btn" disabled={isAnalyzing || !editing.state.history.length} onClick={() => { editing.restore(); handleCloseWordDetail(); }}>{t('恢复初始分词')}</button>
+                </div>}
                 {(shouldShowAnalyzer() || pendingText) && (
                   <AnalysisResult
                     key={currentSentence}
                     tokens={analyzedTokens}
+                    readingGroups={viewMode === 'reading' && !isAnalyzing ? readingGroups : undefined}
                     pendingText={pendingText}
                     showFurigana={showFurigana}
                     onShowFuriganaChange={setShowFurigana}
@@ -764,6 +824,8 @@ export default function Home() {
                 )}
               </div>
             )}
+            {editRange && <ResegmentEditor key={`${editRange.taskId}:${editRange.revision}`} tokens={analyzedTokens.slice(editRange.range.start, editRange.range.end + 1)} context={selectWordDetailContext(currentSentence, analyzedTokens, editRange.range.start)} model={learningModel} onClose={() => setEditRange(null)} onApply={tokens => { editing.edit(editRange.range, tokens, editRange.taskId, editRange.revision); setEditRange(null); handleCloseWordDetail(); }} />}
+            </>}
           </div>
 
           {/* 侧栏：词汇详情（桌面端），未选词时收起不占位 */}
@@ -780,6 +842,7 @@ export default function Home() {
 
         {/* 设置模态框 */}
         <SettingsModal
+          dictionarySettings={dictionarySettings}
           services={services}
           activeServiceId={activeServiceId}
           activeModelId={activeModelId}
@@ -810,18 +873,7 @@ export default function Home() {
             >
               &times;
             </button>
-            <WordDetailPanel
-              wordDetail={wordDetail}
-              isLoading={isWordDetailLoading}
-              isStreamLoading={isWordDetailStreaming}
-              streamError={wordDetailStreamError}
-              streamContent={wordDetailStreamContent}
-              onClose={handleCloseWordDetail}
-              onRefresh={handleRefreshWordDetail}
-      onMerge={canMergePhrase ? handleMergePhrase : undefined}
-      onSelectMore={selectedIndex !== null ? handleStartPick : undefined}
-              hideClose
-            />
+            {wordDetailPanel}
           </div>
         </div>,
         document.body
