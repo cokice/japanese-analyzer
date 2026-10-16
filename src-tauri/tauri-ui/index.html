@@ -8,15 +8,46 @@
   <script src="./desktop.js" defer></script>
 </head>
 <body>
-  <main>
-    <img src="./logo.png" width="88" height="84" alt="Japanese Analyzer" />
-    <h1>日本語文章解析器</h1>
-    <p id="status" role="status" aria-live="polite">正在启动… / Starting…</p>
-    <div class="actions">
-      <button id="retry" hidden>重试 / Retry</button>
-      <button id="reassign-port" hidden>重新分配端口 / Reassign port</button>
+  <!-- 全屏磁性跟随光标（仅在 Ready 仪式感阶段激活） -->
+  <div id="ambient-cursor" class="ambient-cursor" aria-hidden="true">
+    <div class="cursor-ring"></div>
+    <div class="cursor-core"></div>
+  </div>
+
+  <main id="app">
+    <!-- 主角区：文句解构展示容器 -->
+    <section class="stage-container" id="stage-box" aria-live="polite">
+      <!-- 动态注音分词句子容器 -->
+      <div class="quote-wrapper" id="quote-wrapper"></div>
+      
+      <!-- 极细紫色进度底线 -->
+      <div class="progress-track" id="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+
+      <!-- 意境释义（带流式打字与呼吸光晕） -->
+      <div class="quote-translation" id="quote-translation"></div>
+
+      <!-- 状态与辅助提示（日常启动或加载中显示） -->
+      <p id="status" class="status-indicator" role="status"></p>
+
+      <!-- 首次启动：极简打字提示指示区（彻底无厚重按钮，零视觉负担） -->
+      <div class="zen-prompt-area" id="zen-prompt-area" hidden>
+        <div class="shortcut-tip">
+          <span class="shortcut-text" id="shortcut-text"></span>
+          <span class="shortcut-cursor" aria-hidden="true"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 异常与重试交互区（默认隐藏） -->
+    <div class="actions" id="error-actions">
+      <button id="retry" hidden></button>
+      <button id="reassign-port" hidden></button>
     </div>
     <p id="log" class="detail" hidden></p>
+
+    <!-- 桌面设置区（快捷键打开，默认隐藏） -->
     <section id="settings" hidden>
       <h2>桌面设置 / Desktop settings</h2>
       <p id="version"></p>
