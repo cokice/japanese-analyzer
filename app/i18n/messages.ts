@@ -456,4 +456,5 @@ export const messages = {
   "分享失败": {"zh-TW": "分享失敗", "en": "Sharing failed", "ko": "공유 실패"},
   "保存": {"zh-TW": "儲存", "en": "Save", "ko": "저장"},
   "AI 未找到可靠的原形": {"zh-TW":"AI 未找到可靠的原形","en":"AI could not find a reliable dictionary form","ko":"AI가 신뢰할 수 있는 기본형을 찾지 못했습니다"},
+  "阅读组不能跨标点或空白": {"zh-TW":"閱讀組不能跨標點或空白","en":"Reading groups cannot cross punctuation or whitespace","ko":"읽기 그룹은 문장 부호나 공백을 넘을 수 없습니다"},
 } as const;

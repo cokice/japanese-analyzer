@@ -32,8 +32,8 @@ async function main() {
   const originalCode = process.env.CODE;
   const originalBuiltin = dictionaryAdapters.builtin;
   try {
-    const indices: Record<string, string[]> = { '前': ['2','1'], 'まえ': ['1','2'], 'ぜん': ['2'] };
-    const entries: Record<string, DictionaryEntry> = { '1': word('1','前','まえ', true), '2': word('2','前','ぜん') };
+    const indices: Record<string, string[]> = { '前': ['2','1'], 'まえ': ['1','2'], 'ぜん': ['3','2'], '善': ['3'] };
+    const entries: Record<string, DictionaryEntry> = { '1': word('1','前','まえ', true), '2': word('2','前','ぜん'), '3': word('3','善','ぜん', true) };
     const bucket = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 2);
     await mkdir(directory, { recursive: true });
     const files: Record<string, string> = {};
@@ -45,10 +45,17 @@ async function main() {
     await writeFile(join(directory, 'manifest.json'), JSON.stringify({ formatVersion: 1, version: '1', source, files, tags: { n: 'noun' } }));
     const store = new DictionaryStore(directory);
     const found = await store.lookup({ query: '前' });
+    const initialCacheBytes = store.cachedBytes;
+    const concurrent = new DictionaryStore(directory);
+    await Promise.all(Array.from({ length: 8 }, () => concurrent.lookup({ query: '前' })));
+    assert.equal(concurrent.cachedBytes, initialCacheBytes, 'Concurrent shard loads share one cache entry and budget');
     assert.deepEqual(found.entries.map(e => e.id), ['1','2']);
+    assert.deepEqual((await store.lookup({ query: 'ぜん', dictionaryForm: '前' })).entries.map(e => e.id), ['1','2','3'], 'Dictionary-form spellings precede reading-only homophones');
+    assert.deepEqual((await store.lookup({ query: '善', dictionaryForm: '前' })).entries.map(e => e.id), ['3','1','2']);
     assert.deepEqual(found.entries[0].senses[0].appliesToReadings, ['まえ']);
     assert.equal((await store.lookup({ query: 'マエ' })).entries.length, 2);
     assert.equal((await store.lookup({ query: 'ない語' })).total, 0);
+    assert.equal((await store.lookup({ query: '__proto__' })).total, 0);
     assert.deepEqual((await store.lookup({ query: '前', offset: 20 })).entries, []);
     assert.ok(store.cachedBytes > 0 && store.cachedBytes <= 32 * 1024 * 1024);
     const noCache = new DictionaryStore(directory, 1); await noCache.lookup({ query: '前' }); assert.equal(noCache.cachedBytes, 0);

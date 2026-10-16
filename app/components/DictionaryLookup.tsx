@@ -10,6 +10,7 @@ import DictionaryPanel from './DictionaryPanel';
 export default function DictionaryLookup({ draft, onDraftChange, provider, model }: { draft: string; onDraftChange: (s: string) => void; provider: DictionaryProvider; model: LearningModel }) {
   const { t, locale, errorText } = useLanguage(); const [query, setQuery] = useState(''); const [lemma, setLemma] = useState('');
   const [canFindLemma, setCanFindLemma] = useState(false);
+  const [lookupId, setLookupId] = useState(0);
   const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const request = useRef(new LatestRequest());
   useEffect(() => { const manager = request.current; manager.cancel(); setLoading(false); setLemma(''); setError(''); return () => manager.cancel(); }, [locale, model.endpoint, model.apiKey, query, provider]);
   const findLemma = async () => {
@@ -21,11 +22,11 @@ export default function DictionaryLookup({ draft, onDraftChange, provider, model
     finally { if (ticket.isCurrent()) setLoading(false); }
   };
   return <section>
-    <form className="nd-card learning-actions" onSubmit={e => { e.preventDefault(); setCanFindLemma(false); setLemma(''); setQuery(draft.trim()); }}>
+    <form className="nd-card learning-actions" onSubmit={e => { e.preventDefault(); setLookupId(id => id + 1); setCanFindLemma(false); setLemma(''); setQuery(draft.trim()); }}>
       <label className="flex-1">{t('查词')}<input className="learning-input" lang="ja" value={draft} onChange={e => onDraftChange(e.target.value)} maxLength={240} /></label>
       <button className="nd-soft-btn" disabled={!draft.trim() || [...draft.trim()].length > 120}>{t('查询')}</button>
     </form>
-    {query && <><div className="learning-actions">{canFindLemma && <button className="nd-ghost-btn" disabled={loading} onClick={findLemma}>{t(loading ? '查找中…' : 'AI 查找原形')}</button>}{lemma && <span>{t('AI 推断原形')}：<span lang="ja">{lemma}</span></span>}</div><DictionaryPanel word={query} lemma={lemma} provider={provider} model={model} standalone onEmptyChange={setCanFindLemma} /></>}
+    {query && <><div className="learning-actions">{canFindLemma && <button className="nd-ghost-btn" disabled={loading} onClick={findLemma}>{t(loading ? '查找中…' : 'AI 查找原形')}</button>}{lemma && <span>{t('AI 推断原形')}：<span lang="ja">{lemma}</span></span>}</div><DictionaryPanel key={lookupId} word={query} lemma={lemma} provider={provider} model={model} standalone onEmptyChange={setCanFindLemma} /></>}
     {error && <p role="alert">{errorText(error)}</p>}
   </section>;
 }

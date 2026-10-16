@@ -55,13 +55,23 @@ async function main() {
     assert.deepEqual(editing.state.tokens, tokens);
     await act(async () => { editing.edit({ start: 0, end: 1 }, [{ word: '食べた', pos: '動詞' }], ticket.taskId, ticket.revision); });
     assert.deepEqual(editing.state.tokens, tokens, 'Candidate from an earlier revision is rejected');
+    for (let i = 0; i < 21; i++) {
+      const s = editing.state;
+      const next = s.tokens.length === 2 ? [{ word: '食べた', pos: '動詞' }] : tokens;
+      await act(async () => { editing.edit({ start: 0, end: s.tokens.length - 1 }, next, s.taskId, s.revision); });
+    }
+    assert.equal(editing.state.history.length, 20);
+    await act(async () => { editing.restore(); });
+    assert.deepEqual(editing.state.tokens, tokens);
+    assert.equal(editing.state.history.length, 0);
     await act(async () => { editing.setTokens([]); });
     assert.notEqual(editing.state.taskId, ticket.taskId);
     await act(async () => { renderer!.unmount(); }); renderer = undefined;
 
     const stored = new Map([[READING_PREFERENCES_KEY, JSON.stringify({ showFurigana: false, showRomaji: true, viewMode: 'reading' })]]);
     const writes: string[] = []; let sharedText = '';
-    const fakeWindow = { location: { hash: '' }, localStorage: { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { writes.push(value); stored.set(key, value); } } };
+    const listeners = new Map<string, () => void>();
+    const fakeWindow = { addEventListener: (name: string, listener: () => void) => listeners.set(name, listener), removeEventListener: (name: string) => listeners.delete(name), location: { hash: '' }, localStorage: { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { writes.push(value); stored.set(key, value); } } };
     Object.defineProperty(globalThis, 'window', { configurable: true, value: fakeWindow });
     let prefs!: ReturnType<typeof useReadingPreferences>;
     function PreferencesHarness() { prefs = useReadingPreferences(text => { sharedText = text; }); return null; }
@@ -77,6 +87,10 @@ async function main() {
     await act(async () => { prefs.change('showRomaji', true); });
     assert.equal(writes.length, 1, 'Shared options and edits are session-only');
     assert.equal(pending.length, 5, 'Opening shared text does not start an analysis request');
+    fakeWindow.location.hash = new URL(makeShareLink('https://example.com', '別の原文', shared)).hash;
+    await act(async () => { listeners.get('hashchange')?.(); });
+    assert.equal(sharedText, '別の原文', 'A shared fragment also works within an already open app');
+    assert.equal(writes.length, 1);
     console.log('Learning hooks passed: late responses, lemma enrichment/failure, provider cancellation, edit revisions, preferences hydration and shared-session isolation.');
   } finally {
     if (renderer) await act(async () => { renderer!.unmount(); });

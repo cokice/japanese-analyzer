@@ -7,28 +7,30 @@ import { postLearning, type LearningModel } from '../services/learning';
 import { validateTranslations, type SenseTranslation } from '../lib/learningTools';
 import { LatestRequest } from '../utils/latestRequest';
 
+const translationCache = new Map<string, SenseTranslation>();
+
 function Entry({ entry, tags, model }: { entry: DictionaryEntry; tags?: Record<string, string>; model: LearningModel }) {
   const { t, locale, errorText } = useLanguage();
   const [count, setCount] = useState(5);
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false); const [error, setError] = useState('');
-  const request = useRef(new LatestRequest()); const cache = useRef(new Map<string, SenseTranslation>());
+  const request = useRef(new LatestRequest());
   useEffect(() => { const manager = request.current; manager.cancel(); setLoading(false); setTranslations({}); setError(''); return () => manager.cancel(); }, [entry.id, entry.source.version, entry.source.id, locale, model.endpoint, model.apiKey]);
   const translate = async () => {
     const senses = entry.senses.slice(0, Math.min(count, 10)).map(s => ({ id: s.id, text: s.glosses.join('; ') }));
     const key = JSON.stringify([entry.source.id, entry.source.version, entry.id, senses, locale, model.endpoint, model.apiKey]);
-    const cached = cache.current.get(key);
+    const cached = translationCache.get(key);
     if (cached) { setTranslations(Object.fromEntries(cached.translations.map(s => [s.id, s.text]))); return; }
     const ticket = request.current.start(); setLoading(true); setError('');
     try {
       const value = validateTranslations(await postLearning('/api/dictionary/translate', { senses }, ticket.signal, model), senses);
       if (!ticket.isCurrent()) return;
-      cache.current.set(key, value); if (cache.current.size > 40) cache.current.delete(cache.current.keys().next().value!);
+      translationCache.set(key, value); if (translationCache.size > 40) translationCache.delete(translationCache.keys().next().value!);
       setTranslations(Object.fromEntries(value.translations.map(s => [s.id, s.text])));
     } catch (e) { if (ticket.isCurrent()) setError(e instanceof Error ? e.message : '学习工具请求失败'); }
     finally { if (ticket.isCurrent()) setLoading(false); }
   };
-  const label = (values: string[]) => values.map(v => tags?.[v] || v).join(' · ');
+  const label = (values: string[]) => values.map(v => typeof tags?.[v] === 'string' ? tags[v] : v).join(' · ');
   return <article className="dictionary-entry">
     <h3 lang="ja">{entry.spellings.map(s => s.text).join('・') || entry.readings[0]?.text}</h3>
     <p lang="ja">{entry.readings.map(r => `${r.text}${r.appliesTo.includes('*') ? '' : ` (${r.appliesTo.join('・')})`}`).join('・')}</p>

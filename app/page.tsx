@@ -28,7 +28,7 @@ import { useWordDetail } from './hooks/useWordDetail';
 import { useAnalysisHistory } from './hooks/useAnalysisHistory';
 import { AnalyzeStreamParser } from './utils/analyzeStreamParser';
 import { selectWordDetailContext } from './utils/wordDetailContext';
-import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRange, type PhraseRange } from './utils/phraseRange';
+import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRange, isPunctuationToken, type PhraseRange } from './utils/phraseRange';
 import { createRequestMetrics, trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import { localizeError } from './i18n';
 import { InvalidResponseError } from './utils/requestErrors';
@@ -58,11 +58,6 @@ export default function Home() {
   const [mode, setMode] = useState<'analyze' | 'dictionary'>('analyze');
   const [dictionarySettings, setDictionarySettings] = useState<DictionarySettings>(() => readDictionarySettings(null));
   const dictionaryProvider = dictionarySettings.providers.find(p => p.id === dictionarySettings.activeId) ?? dictionarySettings.providers[0];
-  const { preferences, change: changePreference } = useReadingPreferences(setDraft);
-  const { showFurigana, showRomaji, viewMode } = preferences;
-  const setShowFurigana = (value: boolean) => changePreference('showFurigana', value);
-  const setShowRomaji = (value: boolean) => changePreference('showRomaji', value);
-  const setViewMode = (value: 'lexical' | 'reading') => changePreference('viewMode', value);
   const [editRange, setEditRange] = useState<{ range: PhraseRange; taskId: number; revision: number } | null>(null);
   const handleDraftChange = useCallback((value: string) => { setDraft(value); setEditRange(null); }, []);
   const readingGroups = useMemo(() => buildReadingGroups(analyzedTokens, editing.state.groups), [analyzedTokens, editing.state.groups]);
@@ -122,6 +117,11 @@ export default function Home() {
 
   const userApiKey = activeService?.apiKey || '';
   const learningModel = useMemo(() => ({ endpoint, apiKey: userApiKey }), [endpoint, userApiKey]);
+  const { preferences, change: changePreference } = useReadingPreferences(text => { handleStartOver(); setDraft(text); setMode('analyze'); });
+  const { showFurigana, showRomaji, viewMode } = preferences;
+  const setShowFurigana = (value: boolean) => changePreference('showFurigana', value);
+  const setShowRomaji = (value: boolean) => changePreference('showRomaji', value);
+  const setViewMode = (value: 'lexical' | 'reading') => changePreference('viewMode', value);
   useEffect(() => { setEditRange(null); }, [locale, endpoint, editing.state.taskId, editing.state.revision]);
 
   // 选中词汇（右侧详情面板 / 移动端模态）
@@ -643,6 +643,7 @@ export default function Home() {
   const detailContext = detailRange ? selectWordDetailContext(currentSentence, analyzedTokens, detailRange.start) : '';
   const detailReading = detailRange ? getPhraseReading(analyzedTokens, detailRange) : '';
   const canEdit = !!detailRange && !isAnalyzing && [...detailWord].length <= 120;
+  const canGroup = !!detailRange && analyzedTokens.slice(detailRange.start, detailRange.end + 1).every(token => !isPunctuationToken(token) && !/\s/.test(token.word));
   const wordDetailPanel = (
     <>
     <WordDetailPanel
@@ -660,7 +661,7 @@ export default function Home() {
     <div className="learning-detail">
       <div className="learning-actions">
         <button className="nd-soft-btn" disabled={!canEdit} onClick={() => { if (detailRange) { setEditRange({ range: detailRange, taskId: editing.state.taskId, revision: editing.state.revision }); handleCloseWordDetail(); } }}>{t('调整分词')}</button>
-        {selectedRange && <><button className="nd-ghost-btn" disabled={isAnalyzing} onClick={() => { editing.group(selectedRange); handleCloseWordDetail(); }}>{t('设为阅读组')}</button><button className="nd-ghost-btn" disabled={isAnalyzing} onClick={() => { editing.ungroup(selectedRange); handleCloseWordDetail(); }}>{t('取消阅读组')}</button></>}
+        {selectedRange && <><button className="nd-ghost-btn" disabled={isAnalyzing || !canGroup} title={!canGroup ? t('阅读组不能跨标点或空白') : undefined} onClick={() => { editing.group(selectedRange); handleCloseWordDetail(); }}>{t('设为阅读组')}</button><button className="nd-ghost-btn" disabled={isAnalyzing || !canGroup} title={!canGroup ? t('阅读组不能跨标点或空白') : undefined} onClick={() => { editing.ungroup(selectedRange); handleCloseWordDetail(); }}>{t('取消阅读组')}</button></>}
       </div>
       <DictionaryPanel word={detailWord} lemma={wordDetail?.dictionaryForm} reading={detailReading} provider={dictionaryProvider} model={learningModel} />
       <ConjugationPanel surface={detailWord} lemma={wordDetail?.dictionaryForm || ''} context={detailContext} model={learningModel} />

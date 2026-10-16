@@ -50,7 +50,8 @@ export class DictionaryStore {
     const keys = [...new Set([query.query, query.dictionaryForm, query.reading].filter((k): k is string => !!k).map(normalizeDictionaryKey))];
     const ranks = new Map<string, number>();
     for (const [rank, key] of keys.entries()) {
-      const ids = (await this.shard('index', key))[key] as string[] | undefined;
+      const index = await this.shard('index', key);
+      const ids = Object.hasOwn(index, key) ? index[key] as string[] : undefined;
       for (const id of ids ?? []) if (!ranks.has(id)) ranks.set(id, rank);
     }
     const entries: DictionaryEntry[] = [];
@@ -59,7 +60,12 @@ export class DictionaryStore {
       if (!entry) throw new DictionaryUnavailableError();
       entries.push({ ...entry, source: m.source });
     }
-    entries.sort((a, b) => ranks.get(a.id)! - ranks.get(b.id)! || Number(b.common) - Number(a.common) || a.id.localeCompare(b.id));
+    const surface = normalizeDictionaryKey(query.query);
+    const lemma = query.dictionaryForm ? normalizeDictionaryKey(query.dictionaryForm) : '';
+    const headMatches = (entry: DictionaryEntry, key: string) => entry.spellings.some(s => normalizeDictionaryKey(s.text) === key)
+      || !entry.spellings.length && entry.readings.some(r => normalizeDictionaryKey(r.text) === key);
+    const rank = (entry: DictionaryEntry) => headMatches(entry, surface) ? 0 : lemma && headMatches(entry, lemma) ? 1 : 2;
+    entries.sort((a, b) => rank(a) - rank(b) || Number(b.common) - Number(a.common) || a.id.localeCompare(b.id));
     const offset = query.offset ?? 0;
     return { entries: entries.slice(offset, offset + 20), total: entries.length, offset, hasMore: entries.length > offset + 20, source: m.source, tags: m.tags };
   }
