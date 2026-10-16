@@ -48,7 +48,7 @@ export interface WordDetail {
   mergeReading?: string;
 }
 
-export type WordDetailKind = 'word' | 'phrase';
+export type WordDetailKind = 'word' | 'phrase' | 'lookup';
 
 /** 短语类别（与短语提示词约定的日文标签一致） */
 export const PHRASE_CATEGORIES: readonly string[] = ['単語', '文法形式', '慣用表現', '連語'];
