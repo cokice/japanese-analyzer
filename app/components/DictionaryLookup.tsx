@@ -7,7 +7,7 @@ import { getWordDetails, type TokenData } from '../services/api';
 import type { LearningModel } from '../services/learning';
 import { LatestRequest } from '../utils/latestRequest';
 import { collectSentenceVocabulary, vocabularyContext, type SentenceVocabularyItem } from '../utils/sentenceVocabulary';
-import { getPosGroup, POS_GROUP_LABELS } from '../utils/helpers';
+import { getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS } from '../utils/helpers';
 import DictionaryPanel from './DictionaryPanel';
 import ExternalDictionaryLookup from './ExternalDictionaryLookup';
 import { credentialScope } from '../utils/sentenceCache';
@@ -115,10 +115,11 @@ export default function DictionaryLookup({ draft, onDraftChange, provider, model
               aria-label={t('查询词语：{0}，{1}，{2}，出现 {3} 次', item.token.word, item.token.furigana || item.token.word, t(POS_GROUP_LABELS[getPosGroup(item.token.pos)]), item.occurrences.length)}
               disabled={!canQuery(item.token.word)} title={!canQuery(item.token.word) ? t('词语超过 120 个字符，请手动缩短后查询') : undefined}
               onClick={() => setSelection({ scope, kind: 'sentence', key: item.key })}>
-              <span className="vocabulary-word-main"><span lang="ja" className="vocabulary-word-text">{item.token.word}</span>
-                {item.token.furigana && item.token.furigana !== item.token.word && <span lang="ja" className="vocabulary-word-reading">{item.token.furigana}</span>}
+              <span className="vocabulary-word-main">
+                <span lang="ja" className="vocabulary-word-reading">{item.token.furigana && item.token.furigana !== item.token.word ? item.token.furigana : '\u00a0'}</span>
+                <span lang="ja" className="vocabulary-word-text">{item.token.word}{item.occurrences.length > 1 && <span className="vocabulary-count">×{item.occurrences.length}</span>}</span>
               </span>
-              <span className="vocabulary-word-meta"><small>{t(POS_GROUP_LABELS[getPosGroup(item.token.pos)])}</small>{item.occurrences.length > 1 && <span className="vocabulary-count">×{item.occurrences.length}</span>}</span>
+              <span className="vocabulary-word-meta"><span className="vocabulary-pos-dot" aria-hidden="true" style={{ backgroundColor: POS_GROUP_COLORS[getPosGroup(item.token.pos)] }} /><small>{t(POS_GROUP_LABELS[getPosGroup(item.token.pos)])}</small></span>
             </button>)}</div>
           </div>)}
         </div>
