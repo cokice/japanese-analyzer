@@ -4,9 +4,8 @@ import { analysisCache, sentenceCacheKey } from './utils/sentenceCache';
 import { useReadingPreferences } from './hooks/useReadingPreferences';
 import ShareControl from './components/ShareControl';
 import DictionaryLookup from './components/DictionaryLookup';
-import DictionaryPanel from './components/DictionaryPanel';
+import WordLearningTools from './components/WordLearningTools';
 import ResegmentEditor from './components/ResegmentEditor';
-import ConjugationPanel from './components/ConjugationPanel';
 import { useAnalysisEditing } from './hooks/useAnalysisEditing';
 import { buildReadingGroups } from './utils/analysisEditing';
 import { vocabularyKey } from './utils/sentenceVocabulary';
@@ -733,8 +732,7 @@ export default function Home() {
         <button className="nd-soft-btn" disabled={!canEdit} onClick={() => { if (detailRange) { setEditRange({ range: detailRange, taskId: editing.state.taskId, revision: editing.state.revision }); handleCloseWordDetail(); } }}>{t('调整分词')}</button>
         {selectedRange && <><button className="nd-ghost-btn" disabled={isAnalyzing || !canGroup} title={!canGroup ? t('阅读组不能跨标点或空白') : undefined} onClick={() => { editing.group(selectedRange); handleCloseWordDetail(); }}>{t('设为阅读组')}</button><button className="nd-ghost-btn" disabled={isAnalyzing || !canGroup} title={!canGroup ? t('阅读组不能跨标点或空白') : undefined} onClick={() => { editing.ungroup(selectedRange); handleCloseWordDetail(); }}>{t('取消阅读组')}</button></>}
       </div>
-      <DictionaryPanel word={detailWord} lemma={wordDetail?.dictionaryForm} reading={detailReading} provider={dictionaryProvider} model={learningModel} />
-      <ConjugationPanel surface={detailWord} lemma={wordDetail?.dictionaryForm || ''} context={detailContext} model={learningModel} />
+      <WordLearningTools word={detailWord} lemma={wordDetail?.dictionaryForm} reading={detailReading} context={detailContext} tokens={detailRange ? analyzedTokens.slice(detailRange.start, detailRange.end + 1) : []} selectionKind={selectedRange || wordDetail?.kind === 'phrase' ? 'phrase' : 'word'} provider={dictionaryProvider} model={learningModel} />
     </div>
     </>
   );

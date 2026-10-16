@@ -16,6 +16,14 @@ export interface DictionaryResult { entries: DictionaryEntry[]; total: number; o
 export const BUILTIN_DICTIONARY: DictionaryProvider = { id: 'builtin', name: 'JMdict', adapter: 'builtin' };
 export const DICTIONARY_SETTINGS_KEY = 'japaneseAnalyzer:dictionary:v1';
 export const normalizeDictionaryKey = (value: string) => toHiragana(value).trim();
+export type DictionaryMatch = 'surface' | 'lemma' | 'reading' | 'other';
+export function dictionaryMatch(entry: DictionaryEntry, word: string, lemma = '', reading = ''): DictionaryMatch {
+  const matches = (key: string) => !!key && [...entry.spellings, ...entry.readings].some(value => normalizeDictionaryKey(value.text) === normalizeDictionaryKey(key));
+  if (matches(word)) return 'surface';
+  if (matches(lemma)) return 'lemma';
+  if (reading && entry.readings.some(value => normalizeDictionaryKey(value.text) === normalizeDictionaryKey(reading))) return 'reading';
+  return 'other';
+}
 export function readDictionarySettings(raw: string | null): DictionarySettings {
   try {
     const data = JSON.parse(raw || '{}');
