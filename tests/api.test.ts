@@ -137,9 +137,11 @@ assert.strictEqual(getTtsModelName('edge'), 'edge-tts');
 assert.strictEqual(getTtsModelName('gemini'), 'gemini-3.1-flash-tts-preview');
 assert.deepStrictEqual(
   PRESETS.map((preset) => preset.id),
-  ['deepseek', 'openai', 'openrouter', 'qwen', 'moonshot', 'zhipu', 'siliconflow', 'volcengine', 'gemini', 'groq', 'mistral']
+  ['minimax', 'deepseek', 'openai', 'openrouter', 'qwen', 'moonshot', 'zhipu', 'siliconflow', 'volcengine', 'gemini', 'groq', 'mistral']
 );
 assert.ok(PRESETS.some((preset) => preset.id === 'deepseek' && preset.models[0]?.caps?.thinking === true));
+assert.equal(buildCompletionPayload({}, { model: 'MiniMax-M2.7' }).reasoning_split, true);
+assert.equal(buildCompletionPayload({}, { model: 'openai/gpt-4o-mini' }).reasoning_split, undefined);
 for (const preset of PRESETS) {
   assert.ok(PROVIDER_ICONS[preset.id], `预设 ${preset.id} 缺少对应的本地 logo`);
   assert.strictEqual(PROVIDER_ICONS[preset.id], `/icons/providers/${preset.id}.svg`);

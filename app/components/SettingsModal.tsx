@@ -6,20 +6,25 @@ import {
   PRESETS,
   createCustomModelId,
   createCustomProfileId,
+  resolveModelSelection,
+  sanitizeProfiles,
   type ModelConfig,
   type ProviderProfile,
 } from '../lib/aiModels';
 import ModelConfigDialog from './ModelConfigDialog';
-import ProviderConfigDialog, { type TestResult } from './ProviderConfigDialog';
+import ProviderConfigDialog from './ProviderConfigDialog';
 import { Icon } from './Icons';
 import { ProviderLogo } from './ProviderLogo';
 import { Switch } from '@/components/ui/switch';
+import SpeechServices from './SpeechServices';
+import { sanitizeSpeechSettings, type SpeechSettings } from '../lib/speechServices';
 
 interface SettingsPayload {
   services: ProviderProfile[];
   activeServiceId: string;
   activeModelId: string;
   geminiApiKey: string;
+  speechSettings: SpeechSettings;
   thinkingEnabled: boolean;
   useStream: boolean;
 }
@@ -29,6 +34,7 @@ interface SettingsModalProps {
   activeServiceId: string;
   activeModelId: string;
   geminiApiKey: string;
+  speechSettings: SpeechSettings;
   thinkingEnabled: boolean;
   useStream: boolean;
   onSaveSettings: (settings: SettingsPayload) => void;
@@ -55,7 +61,7 @@ function fromPreset(presetId: string): ProviderProfile | null {
     name: preset.name,
     baseUrl: preset.baseUrl,
     apiKey: '',
-    jsonSchema: true,
+    jsonSchema: preset.jsonSchema !== false,
     models: preset.models.map((m) => ({ ...m, id: createCustomModelId(), caps: m.caps ? { ...m.caps } : undefined })),
   };
 }
@@ -65,45 +71,40 @@ export default function SettingsModal({
   activeServiceId: initialActiveServiceId,
   activeModelId: initialActiveModelId,
   geminiApiKey,
+  speechSettings: initialSpeechSettings,
   thinkingEnabled: initialThinkingEnabled,
   useStream,
   onSaveSettings,
   isModalOpen,
   onModalClose
 }: SettingsModalProps) {
-  const { t, errorText } = useLanguage();
+  const { t } = useLanguage();
   const [services, setServices] = useState<ProviderProfile[]>(initialServices);
   const [activeServiceId, setActiveServiceId] = useState(initialActiveServiceId);
   const [activeModelId, setActiveModelId] = useState(initialActiveModelId);
   const [collapsedServiceIds, setCollapsedServiceIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [geminiKey, setGeminiKey] = useState(geminiApiKey);
+  const [speechSettings, setSpeechSettings] = useState(initialSpeechSettings);
   const [thinkingEnabled, setThinkingEnabled] = useState(initialThinkingEnabled);
   const [streamEnabled, setStreamEnabled] = useState(useStream);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
-  const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [defaultMenuOpen, setDefaultMenuOpen] = useState(false);
-  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [editingService, setEditingService] = useState<ProviderProfile | null>(null);
   const [editingServiceMode, setEditingServiceMode] = useState<'create' | 'edit'>('edit');
-  const [editingModel, setEditingModel] = useState<{ serviceId: string; modelId: string } | null>(null);
+  const [editingModel, setEditingModel] = useState<{ serviceId: string; model: ModelConfig; isNew: boolean } | null>(null);
   const [menuServiceId, setMenuServiceId] = useState<string | null>(null);
   const defaultMenuRef = useRef<HTMLDivElement | null>(null);
   const rowMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const activeService = useMemo(
-    () => services.find((s) => s.id === activeServiceId) ?? services[0] ?? null,
-    [services, activeServiceId]
+  const { service: activeService, model: activeModel } = useMemo(
+    () => resolveModelSelection(services, activeServiceId, activeModelId),
+    [services, activeServiceId, activeModelId]
   );
-  const activeModel = useMemo(
-    () => activeService?.models.find((m) => m.id === activeModelId) ?? activeService?.models[0] ?? null,
-    [activeService, activeModelId]
-  );
-  const editingService = editingServiceId ? services.find((s) => s.id === editingServiceId) ?? null : null;
   const editingModelItem = useMemo(() => {
     if (!editingModel) return null;
     const service = services.find((s) => s.id === editingModel.serviceId);
-    const model = service?.models.find((m) => m.id === editingModel.modelId);
+    const model = editingModel.model;
     return service && model ? { service, model } : null;
   }, [services, editingModel]);
 
@@ -116,14 +117,13 @@ export default function SettingsModal({
     const first = initialServices.find((s) => s.id === initialActiveServiceId) ?? initialServices[0] ?? null;
     setCollapsedServiceIds(initialServices.filter((s) => first && s.id !== first.id).map((s) => s.id));
     setSearchQuery('');
-    setGeminiKey(geminiApiKey);
+    setSpeechSettings(initialSpeechSettings);
     setThinkingEnabled(initialThinkingEnabled);
     setStreamEnabled(useStream);
     setStatus('');
     setError('');
-    setTestResults({});
     setDefaultMenuOpen(false);
-    setEditingServiceId(null);
+    setEditingService(null);
     setEditingModel(null);
     setMenuServiceId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,8 +176,7 @@ export default function SettingsModal({
   };
 
   const addService = (service: ProviderProfile, mode: 'create' | 'edit') => {
-    setServices((list) => [service, ...list]);
-    setEditingServiceId(service.id);
+    setEditingService(service);
     setEditingServiceMode(mode);
     setError('');
   };
@@ -198,8 +197,7 @@ export default function SettingsModal({
     const target = services.find((s) => s.id === serviceId);
     if (!target) return;
     const model = { id: createCustomModelId(), name: '', model: '' };
-    updateService(serviceId, { models: [...target.models, model] });
-    setEditingModel({ serviceId, modelId: model.id });
+    setEditingModel({ serviceId, model, isNew: true });
     setError('');
   };
 
@@ -213,59 +211,16 @@ export default function SettingsModal({
     setCollapsedServiceIds((ids) => ids.includes(serviceId) ? ids.filter((id) => id !== serviceId) : [...ids, serviceId]);
   };
 
-  const handleTestConnection = async (service: ProviderProfile) => {
-    if (!service.baseUrl.trim() || !service.models.some((m) => m.model.trim())) {
-      setTestResults((map) => ({ ...map, [service.id]: { state: 'error', message: t('请先填写基础地址和至少一个模型') } }));
-      return;
-    }
-    setTestResults((map) => ({ ...map, [service.id]: { state: 'loading', message: '' } }));
-    try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${service.apiKey.trim()}`,
-        },
-        body: JSON.stringify({
-          prompt: 'ping',
-          stream: false,
-          baseUrl: service.baseUrl,
-          model: service.models.find((m) => m.model.trim())?.model,
-          caps: { jsonSchema: service.jsonSchema !== false },
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (response.ok) {
-        setTestResults((map) => ({ ...map, [service.id]: { state: 'ok', message: t('连接成功') } }));
-      } else {
-        const raw = typeof data?.error?.message === 'string' ? data.error.message : `HTTP ${response.status}`;
-        setTestResults((map) => ({ ...map, [service.id]: { state: 'error', message: errorText(raw) } }));
-      }
-    } catch {
-      setTestResults((map) => ({ ...map, [service.id]: { state: 'error', message: t('无法连接到服务器，请检查网络') } }));
-    }
-  };
-
   const handleSaveSettings = () => {
-    // 去掉没有 baseUrl / 没有有效模型的无效配置
-    const valid = services
-      .map((s) => ({ ...s, models: s.models.filter((m) => m.model.trim()) }))
-      .filter((s) => s.baseUrl.trim() && s.models.length > 0);
-    let nextServiceId = activeServiceId;
-    let nextModelId = activeModelId;
-    if (!valid.some((s) => s.id === nextServiceId)) {
-      const first = valid[0];
-      nextServiceId = first?.id ?? '';
-      nextModelId = first?.models[0]?.id ?? '';
-    } else if (!valid.find((s) => s.id === nextServiceId)?.models.some((m) => m.id === nextModelId)) {
-      nextModelId = valid.find((s) => s.id === nextServiceId)?.models[0]?.id ?? '';
-    }
+    const valid = sanitizeProfiles(services);
+    const { service, model } = resolveModelSelection(valid, activeServiceId, activeModelId);
 
     onSaveSettings({
       services: valid,
-      activeServiceId: nextServiceId,
-      activeModelId: nextModelId,
-      geminiApiKey: geminiKey.trim(),
+      activeServiceId: service?.id ?? '',
+      activeModelId: model?.id ?? '',
+      geminiApiKey: speechSettings.services.find((item) => item.id === 'gemini')?.apiKey ?? geminiApiKey,
+      speechSettings: sanitizeSpeechSettings(speechSettings)!,
       thinkingEnabled,
       useStream: streamEnabled,
     });
@@ -294,7 +249,7 @@ export default function SettingsModal({
     const existing = services.find((s) => s.name.trim().toLowerCase() === (PRESETS.find((p) => p.id === presetId)?.name ?? '').toLowerCase());
     if (existing) {
       setCollapsedServiceIds((ids) => ids.filter((id) => id !== existing.id));
-      setEditingServiceId(existing.id);
+      setEditingService(existing);
       setEditingServiceMode('edit');
       return;
     }
@@ -302,6 +257,7 @@ export default function SettingsModal({
     if (service) addService(service, 'create');
   };
 
+  const selectableServices = services.filter((service) => service.models.length > 0);
   const defaultLabel = activeService && activeModel
     ? `${activeService.name || activeService.id} · ${activeModel.name || activeModel.model}`
     : t('未配置模型');
@@ -327,9 +283,9 @@ export default function SettingsModal({
         {/* 工具栏：标题 + 搜索 + 新增服务商 */}
         <div className="settings-toolbar">
           <div className="min-w-0">
-            <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>{t('模型与 API')}</h3>
+            <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>{t('模型与语音')}</h3>
             <p className="m-0 text-sm leading-6" style={{ color: 'var(--ink-3)' }}>
-              {t('配置自己的模型服务（兼容 OpenAI）与 API 密钥。')}
+              {t('配置解析、翻译与朗读服务。')}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -367,7 +323,7 @@ export default function SettingsModal({
                 aria-label={`${preset.name}${exists ? ` · ${t('已添加')}` : ''}`}
                 onClick={() => handlePresetClick(preset.id)}
               >
-                <ProviderLogo profile={{ id: preset.id, name: preset.name, baseUrl: preset.baseUrl, apiKey: '', models: [] }} className="h-5 w-5" />
+                <ProviderLogo profile={{ id: preset.id, name: preset.name }} className="h-5 w-5" />
                 <span>{preset.name}</span>
               </button>
             );
@@ -385,7 +341,8 @@ export default function SettingsModal({
               type="button"
               className="nd-soft-btn settings-row-trigger"
               aria-haspopup="menu"
-              aria-expanded={defaultMenuOpen}
+              aria-expanded={defaultMenuOpen && selectableServices.length > 0}
+              disabled={selectableServices.length === 0}
               onClick={() => setDefaultMenuOpen((v) => !v)}
             >
               <span className="min-w-0 truncate">{defaultLabel}</span>
@@ -393,9 +350,9 @@ export default function SettingsModal({
                 {Icon.chev}
               </span>
             </button>
-            {defaultMenuOpen && (
+            {defaultMenuOpen && selectableServices.length > 0 && (
               <div className="settings-row-menu" role="menu" aria-label={t('默认模型')}>
-                {services.map((service) => (
+                {selectableServices.map((service) => (
                   <div key={service.id} className="model-switch-group">
                     <div className="model-switch-group-label">
                       <ProviderLogo profile={service} className="h-3.5 w-3.5" />
@@ -466,7 +423,7 @@ export default function SettingsModal({
                         <button
                           type="button"
                           className="nd-ghost-btn"
-                          onClick={() => { setEditingServiceId(service.id); setEditingServiceMode('edit'); }}
+                          onClick={() => { setEditingService(service); setEditingServiceMode('edit'); }}
                         >
                           {Icon.pencil}<span>{t('编辑配置')}</span>
                         </button>
@@ -527,7 +484,7 @@ export default function SettingsModal({
                                 <button
                                   type="button"
                                   className="nd-ghost-btn shrink-0"
-                                  onClick={() => setEditingModel({ serviceId: service.id, modelId: model.id })}
+                                  onClick={() => { setMenuServiceId(null); setEditingModel({ serviceId: service.id, model, isNew: false }); }}
                                 >
                                   {Icon.pencil}<span>{t('模型设置')}</span>
                                 </button>
@@ -618,21 +575,7 @@ export default function SettingsModal({
           )}
         </div>
 
-        <div className="settings-group" role="group" aria-label={t('语音')}>
-          <p className="settings-group-label">{t('语音')}</p>
-          <div>
-            <label htmlFor="geminiTtsKeyInput" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-              {t('Gemini TTS API 密钥（可选）')}
-            </label>
-            <input
-              id="geminiTtsKeyInput"
-              type="password"
-              className="nd-input"
-              value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-            />
-          </div>
-        </div>
+        {isModalOpen && <SpeechServices settings={speechSettings} onChange={setSpeechSettings} />}
 
         <div className="settings-actions">
           <button
@@ -662,23 +605,39 @@ export default function SettingsModal({
         </p>
       </div>
 
-      {editingService && (
+      {isModalOpen && editingService && (
         <ProviderConfigDialog
+          key={editingService.id}
           service={editingService}
           mode={editingServiceMode}
-          testResult={testResults[editingService.id]}
-          onTestConnection={handleTestConnection}
-          onSave={(id, patch) => updateService(id, patch)}
-          onClose={() => { setEditingServiceId(null); setEditingServiceMode('edit'); }}
+          onSave={(id, patch) => {
+            if (editingServiceMode === 'create') {
+              setServices((list) => [{ ...editingService, ...patch }, ...list]);
+              setCollapsedServiceIds((ids) => ids.filter((value) => value !== id));
+              setSearchQuery('');
+            } else updateService(id, patch);
+          }}
+          onClose={() => { setEditingService(null); setEditingServiceMode('edit'); }}
         />
       )}
 
-      {editingModelItem && (
+      {isModalOpen && editingModelItem && (
         <ModelConfigDialog
+          key={`${editingModelItem.service.id}:${editingModelItem.model.id}`}
           serviceId={editingModelItem.service.id}
           serviceName={editingModelItem.service.name || editingModelItem.service.id}
           model={editingModelItem.model}
-          onSave={(serviceId, modelId, patch) => updateModel(serviceId, modelId, patch)}
+          onSave={(serviceId, modelId, patch) => {
+            if (editingModel?.isNew) {
+              updateService(serviceId, { models: [...editingModelItem.service.models, { ...editingModelItem.model, ...patch }] });
+              setCollapsedServiceIds((ids) => ids.filter((id) => id !== serviceId));
+              setSearchQuery('');
+            } else updateModel(serviceId, modelId, patch);
+          }}
+          onDelete={editingModel?.isNew ? undefined : () => {
+            removeModel(editingModelItem.service.id, editingModelItem.model.id);
+            setEditingModel(null);
+          }}
           onClose={() => setEditingModel(null)}
         />
       )}

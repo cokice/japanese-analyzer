@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { ProviderProfile } from '../services/api';
 import { Icon } from './Icons';
 import { ProviderLogo } from './ProviderLogo';
+import AnchoredPopover from './AnchoredPopover';
 
 interface ModelSwitcherProps {
   services: ProviderProfile[];
@@ -19,33 +20,12 @@ export default function ModelSwitcher({ services, activeServiceId, activeModelId
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
+  const selectableServices = services.filter((service) => service.models.length > 0);
   const activeService = services.find((s) => s.id === activeServiceId) ?? services[0] ?? null;
   const activeModel = activeService?.models.find((m) => m.id === activeModelId) ?? activeService?.models[0] ?? null;
 
-  useEffect(() => {
-    if (!open) return;
-    const handlePointerDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setExpandedServiceId(null);
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        setExpandedServiceId(null);
-      }
-    };
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [open]);
-
   const toggle = () => {
-    if (!activeService) return;
+    if (!selectableServices.length || !activeService) return;
     if (open) {
       setOpen(false);
       setExpandedServiceId(null);
@@ -76,18 +56,18 @@ export default function ModelSwitcher({ services, activeServiceId, activeModelId
         aria-label={activeService ? `${t('切换模型')}：${currentLabel}` : t('未配置模型')}
         aria-haspopup="menu"
         aria-expanded={open}
-        disabled={!activeService}
+        disabled={selectableServices.length === 0}
         onClick={toggle}
       >
         <ProviderLogo profile={activeService} className="h-[18px] w-[18px]" />
       </button>
-      {open && activeService && (
-        <div className="model-switcher-menu" role="menu" aria-label={t('切换模型')}>
+      {open && activeService && selectableServices.length > 0 && (
+        <AnchoredPopover anchorRef={rootRef} onClose={() => setOpen(false)} className="model-switcher-menu" role="menu" label={t('切换模型')}>
           <div className="model-switcher-menu-header">
             <ProviderLogo profile={activeService} className="h-4 w-4" />
             <span className="min-w-0 truncate">{currentLabel}</span>
           </div>
-          {services.map((service) => {
+          {selectableServices.map((service) => {
             const expanded = expandedServiceId === service.id;
             return (
               <div key={service.id} className="model-switcher-group">
@@ -129,7 +109,7 @@ export default function ModelSwitcher({ services, activeServiceId, activeModelId
               </div>
             );
           })}
-        </div>
+        </AnchoredPopover>
       )}
     </div>
   );

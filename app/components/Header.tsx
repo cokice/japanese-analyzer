@@ -23,6 +23,7 @@ export default function Header({ services, activeServiceId, activeModelId, onSel
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
+  const selectableServices = services.filter((service) => service.models.length > 0);
   const activeService = services.find((service) => service.id === activeServiceId) ?? services[0] ?? null;
   const activeModel = activeService?.models.find((model) => model.id === activeModelId) ?? activeService?.models[0] ?? null;
 
@@ -76,16 +77,16 @@ export default function Header({ services, activeServiceId, activeModelId, onSel
             aria-label={activeService ? t("切换模型") : t("未配置模型")}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
-            disabled={!activeService}
+            disabled={selectableServices.length === 0}
             onClick={() => setMenuOpen((open) => !open)}
           >
             <ProviderLogo profile={activeService} className="h-4 w-4 sm:h-5 sm:w-5" />
             <span>{activeService?.name || t("未配置模型")}</span>
             {activeModel && <span className="provider-indicator-model">{activeModel.name}</span>}
           </button>
-          {menuOpen && activeService && (
+          {menuOpen && activeService && selectableServices.length > 0 && (
             <div className="model-switch-menu" role="menu" aria-label={t("切换模型")}>
-              {services.map((service) => (
+              {selectableServices.map((service) => (
                 <div key={service.id} className="model-switch-group">
                   <div className="model-switch-group-label">
                     <ProviderLogo profile={service} className="h-3.5 w-3.5" />

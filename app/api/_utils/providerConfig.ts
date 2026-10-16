@@ -250,12 +250,17 @@ export function buildCompletionPayload(
   const responseFormat = options.structuredOutput
     ? { response_format: getStructuredResponseFormat(caps, options.structuredOutput) }
     : {};
+  // MiniMax otherwise places <think> blocks in content, corrupting JSON analysis
+  // and translations. Its OpenAI-compatible API can return reasoning separately.
+  const reasoningFormat = typeof payload.model === 'string' && /(?:^|\/)MiniMax-M[23]/i.test(payload.model)
+    ? { reasoning_split: true } : {};
 
   if (caps.thinking === true) {
     const thinkingEnabled = options.enableThinking === true;
     return {
       ...payload,
       ...responseFormat,
+      ...reasoningFormat,
       thinking: { type: thinkingEnabled ? 'enabled' : 'disabled' },
       // reasoning_effort 的合法取值因厂商而异，只发送用户为该服务声明的值，
       // 未声明时省略、由服务商使用自身默认值。
@@ -268,5 +273,6 @@ export function buildCompletionPayload(
   return {
     ...payload,
     ...responseFormat,
+    ...reasoningFormat,
   };
 }

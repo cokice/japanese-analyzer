@@ -1476,7 +1476,7 @@ input, textarea {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--bg);
-  overflow: hidden;
+  overflow: visible;
 }
 .provider-group-header {
   display: flex;
@@ -1521,6 +1521,23 @@ input, textarea {
 }
 .provider-danger {
   color: var(--pos-p);
+}
+.speech-services-heading, .speech-service-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.speech-service-row { border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.speech-service-row input[type="radio"] {
+  appearance: auto !important;
+  -webkit-appearance: auto !important;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--primary);
 }
 .provider-danger:hover:not(:disabled) {
   color: var(--pos-p);
@@ -1607,11 +1624,13 @@ input, textarea {
   width: min(440px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   color: var(--ink);
   animation: fadeInModal 0.2s;
 }
 .settings-config-dialog .settings-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
@@ -2064,7 +2083,7 @@ body {
   outline: 2px solid var(--primary);
   outline-offset: 3px;
 }
-.input-voice-menu { left: -48px; width: 280px; max-width: calc(100vw - 64px); }
+.input-voice-menu { width: 280px; background: var(--bg-2); border: 1px solid var(--line); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18); }
 @media (hover: hover) {
   .input-action-bar > .input-tools > .input-tool-button:hover:not(:disabled) {
     background: var(--input-glass);

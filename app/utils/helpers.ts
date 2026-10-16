@@ -129,12 +129,12 @@ export async function getJapaneseTtsAudioUrl(
   text: string, 
   apiKey?: string, 
   provider: TTSProvider = 'edge',
-  options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number; signal?: AbortSignal } = {}
+  options: import('../services/api').SpeechRequestOptions = {}
 ): Promise<string> {
   const { audio, mimeType } = await synthesizeSpeech(text, provider, options, apiKey);
-  return provider === 'edge' ? 
-    createPlayableUrlFromAudio(audio, mimeType) : 
-    createPlayableUrlFromPcm(audio, mimeType);
+  return /^audio\/(?:l16|pcm)(?:;|$)/i.test(mimeType)
+    ? createPlayableUrlFromPcm(audio, mimeType)
+    : createPlayableUrlFromAudio(audio, mimeType);
 }
 
 // 将 Base64 音频数据转换为可播放的 URL (Edge TTS用)

@@ -6,6 +6,8 @@ import { WordDetail } from '../services/api';
 import { getPosGroup, normalizePosBase, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
 import { trackTtsUsage } from '../utils/analytics';
 import { Icon, I } from './Icons';
+import { loadSpeechSettings } from '../lib/speechServices';
+import { browserStorage } from '../utils/storage';
 
 interface WordDetailPanelProps {
   wordDetail: WordDetail | null;
@@ -137,17 +139,19 @@ export default function WordDetailPanel({
     };
     speechCleanup.current = cleanup;
     try {
-      url = await getJapaneseTtsAudioUrl(word, undefined, 'edge', { gender: 'female', signal: controller.signal });
+      const settings = loadSpeechSettings(browserStorage);
+      const service = settings.services.find((item) => item.id === settings.activeId) ?? settings.services[0];
+      url = await getJapaneseTtsAudioUrl(word, service.apiKey, service.provider, { gender: (browserStorage.getItem('ttsGender') === 'male' ? 'male' : 'female'), rate: Number(browserStorage.getItem('ttsRate')) || 0, baseUrl: service.baseUrl || undefined, model: service.model, voice: service.voice, speed: service.speed, signal: controller.signal });
       if (controller.signal.aborted) { URL.revokeObjectURL(url); return; }
       audio = new Audio(url);
       audio.onended = cleanup;
       audio.onerror = cleanup;
       await audio.play();
-      trackTtsUsage('edge');
+      trackTtsUsage(service.provider, service.model);
     } catch (error) {
       if (controller.signal.aborted) return;
       cleanup();
-      console.error('Edge TTS 朗读失败，回退到系统朗读:', error);
+      console.error('TTS 朗读失败，回退到系统朗读:', error);
       speakJapanese(word);
       speechCleanup.current = () => window.speechSynthesis?.cancel();
     }

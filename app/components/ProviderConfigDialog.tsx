@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import SettingsConfigLayer from './SettingsConfigLayer';
+
+import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import type { ProviderProfile } from '../lib/aiModels';
+import { createCustomModelId, type ProviderProfile } from '../lib/aiModels';
+import { testProviderConnection } from '../lib/providerConnection';
 import { Icon } from './Icons';
 import { Switch } from '@/components/ui/switch';
 
@@ -18,19 +21,27 @@ interface ProviderConfigDialogProps {
   service: ProviderProfile;
   /** 新增时标题显示「服务商配置」，编辑时显示「编辑服务商」 */
   mode: 'create' | 'edit';
-  /** 父级维护的测试结果（按 service.id 索引） */
-  testResult?: TestResult;
-  onTestConnection: (service: ProviderProfile) => void;
   onSave: (serviceId: string, patch: Partial<ProviderProfile>) => void;
   onClose: () => void;
 }
 
-export default function ProviderConfigDialog({ service, mode, testResult, onTestConnection, onSave, onClose }: ProviderConfigDialogProps) {
-  const { t } = useLanguage();
+export default function ProviderConfigDialog({ service, mode, onSave, onClose }: ProviderConfigDialogProps) {
+  const { t, locale, errorText } = useLanguage();
   const [name, setName] = useState(service.name);
   const [baseUrl, setBaseUrl] = useState(service.baseUrl);
   const [apiKey, setApiKey] = useState(service.apiKey);
   const [jsonSchema, setJsonSchema] = useState(service.jsonSchema !== false);
+  const [testModel, setTestModel] = useState(service.models.find((model) => model.model.trim())?.model ?? '');
+  const [testResult, setTestResult] = useState<TestResult>();
+  const testController = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    setTestResult(undefined);
+    return () => {
+      testController.current?.abort();
+      testController.current = null;
+    };
+  }, [baseUrl, apiKey, testModel, jsonSchema, locale]);
 
   // 打开的是另一个服务商时同步表单
   useEffect(() => {
@@ -50,12 +61,35 @@ export default function ProviderConfigDialog({ service, mode, testResult, onTest
   }, [onClose]);
 
   const handleSave = () => {
-    onSave(service.id, { name: name.trim(), baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), jsonSchema });
+    const models = service.models.filter((model) => model.model.trim());
+    const modelName = testModel.trim();
+    if (modelName && !models.some((model) => model.model === modelName)) {
+      models.push({ id: createCustomModelId(), name: modelName, model: modelName });
+    }
+    onSave(service.id, { name: name.trim(), baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), jsonSchema, models });
     onClose();
   };
 
+  const handleTest = async () => {
+    testController.current?.abort();
+    const controller = new AbortController();
+    testController.current = controller;
+    setTestResult({ state: 'loading', message: '' });
+    try {
+      await testProviderConnection({ ...service, baseUrl, apiKey }, testModel, locale, controller.signal);
+      if (!controller.signal.aborted) setTestResult({ state: 'ok', message: t('连接成功') });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      const message = error instanceof Error && error.name === 'TimeoutError'
+        ? t('连接测试超时，请检查地址或稍后重试')
+        : error instanceof TypeError ? t('无法连接到服务器，请检查网络')
+        : errorText(error instanceof Error ? error.message : t('无法连接到服务器，请检查网络'));
+      setTestResult({ state: 'error', message });
+    }
+  };
+
   return (
-    <div
+    <SettingsConfigLayer><div
       className="settings-config-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -112,6 +146,27 @@ export default function ProviderConfigDialog({ service, mode, testResult, onTest
               onChange={(e) => setApiKey(e.target.value)}
             />
           </div>
+          <div>
+            <label htmlFor="providerCfgTestModel" className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+              {t('测试模型')}
+            </label>
+            <input
+              id="providerCfgTestModel"
+              className="nd-input"
+              list="providerCfgModels"
+              placeholder="deepseek-chat"
+              value={testModel}
+              onChange={(e) => setTestModel(e.target.value)}
+              aria-describedby="providerCfgTestHint"
+            />
+            <datalist id="providerCfgModels">
+              {service.models.filter((model) => model.model.trim()).map((model) => <option key={model.id} value={model.model} />)}
+            </datalist>
+            <p id="providerCfgTestHint" className="m-0 mt-1 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
+              {t('选择已有模型或输入模型名称；新模型会在保存时添加。')}
+              {t('测试会发送一条简短消息，可能产生少量费用。')}
+            </p>
+          </div>
           <div className="settings-option-row" style={{ borderTop: '1px solid var(--line)', padding: '12px 0' }}>
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -129,29 +184,32 @@ export default function ProviderConfigDialog({ service, mode, testResult, onTest
             <button
               type="button"
               className="nd-soft-btn"
-              disabled={testResult?.state === 'loading'}
-              onClick={() => onTestConnection({ ...service, name: name.trim(), baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), jsonSchema })}
+              disabled={testResult?.state === 'loading' || !baseUrl.trim() || !apiKey.trim() || !testModel.trim()}
+              onClick={handleTest}
             >
               {testResult?.state === 'loading' ? t('测试中…') : t('测试连接')}
             </button>
             {testResult?.state === 'ok' && (
-              <span className="text-xs" style={{ color: 'var(--primary)' }}>{testResult.message}</span>
+              <span role="status" className="text-xs" style={{ color: 'var(--primary)' }}>{testResult.message}</span>
             )}
             {testResult?.state === 'error' && (
-              <span className="text-xs" style={{ color: 'var(--pos-p)' }}>{testResult.message}</span>
+              <span role="alert" className="text-xs" style={{ color: 'var(--pos-p)' }}>{testResult.message}</span>
             )}
           </div>
+          {(!baseUrl.trim() || !apiKey.trim() || !testModel.trim()) && (
+            <p className="m-0 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>{t('填写基础地址、API 密钥和模型后即可测试。')}</p>
+          )}
         </div>
 
         <div className="settings-actions">
           <button type="button" className="nd-ghost-btn" onClick={onClose}>
             {t('取消')}
           </button>
-          <button type="button" className="nd-primary-btn" onClick={handleSave}>
+          <button type="button" className="nd-primary-btn" onClick={handleSave} disabled={!baseUrl.trim()}>
             {t('保存')}
           </button>
         </div>
       </div>
-    </div>
+    </div></SettingsConfigLayer>
   );
 }

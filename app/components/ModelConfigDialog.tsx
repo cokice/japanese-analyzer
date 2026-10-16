@@ -1,5 +1,7 @@
 'use client';
 
+import SettingsConfigLayer from './SettingsConfigLayer';
+
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { ModelCaps, ModelConfig } from '../lib/aiModels';
@@ -13,10 +15,11 @@ interface ModelConfigDialogProps {
   /** 正在编辑的模型 */
   model: ModelConfig;
   onSave: (serviceId: string, modelId: string, patch: Partial<ModelConfig>) => void;
+  onDelete?: () => void;
   onClose: () => void;
 }
 
-export default function ModelConfigDialog({ serviceId, serviceName, model, onSave, onClose }: ModelConfigDialogProps) {
+export default function ModelConfigDialog({ serviceId, serviceName, model, onSave, onDelete, onClose }: ModelConfigDialogProps) {
   const { t } = useLanguage();
   const [modelName, setModelName] = useState(model.model);
   const [thinking, setThinking] = useState(model.caps?.thinking === true);
@@ -41,7 +44,7 @@ export default function ModelConfigDialog({ serviceId, serviceName, model, onSav
   const handleSave = () => {
     const trimmed = modelName.trim();
     const caps: ModelCaps = { thinking };
-    if (trimmed) {
+    if (thinking && trimmed) {
       const effort = reasoningEffort.trim();
       if (effort) caps.reasoningEffort = effort;
     }
@@ -50,7 +53,7 @@ export default function ModelConfigDialog({ serviceId, serviceName, model, onSav
   };
 
   return (
-    <div
+    <SettingsConfigLayer><div
       className="settings-config-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -115,6 +118,11 @@ export default function ModelConfigDialog({ serviceId, serviceName, model, onSav
         </div>
 
         <div className="settings-actions">
+          {onDelete && (
+            <button type="button" className="nd-ghost-btn provider-danger" style={{ marginRight: 'auto' }} onClick={onDelete}>
+              {t('删除此模型')}
+            </button>
+          )}
           <button type="button" className="nd-ghost-btn" onClick={onClose}>
             {t('取消')}
           </button>
@@ -123,6 +131,6 @@ export default function ModelConfigDialog({ serviceId, serviceName, model, onSav
           </button>
         </div>
       </div>
-    </div>
+    </div></SettingsConfigLayer>
   );
 }
