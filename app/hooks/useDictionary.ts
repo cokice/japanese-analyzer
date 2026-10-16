@@ -13,12 +13,12 @@ export function useDictionary(word: string, lemma: string, reading: string, prov
   const resultRef = useRef<DictionaryResult | null>(null);
   const queuedLemma = useRef(lemma); queuedLemma.current = lemma;
   const generation = useRef(0);
-  const load = useCallback(async (q: string, offset = 0, supplement = false) => {
+  const load = useCallback(async (q: string, offset = 0, supplement = false, force = false) => {
     if (!q.trim()) return;
     seen.current.add(q);
     const ticket = request.current.start(); setLoading(true); setError('');
     try {
-      const data = await queryDictionary({ query: word, dictionaryForm: supplement ? q : lemma || undefined, reading: reading || undefined, offset }, provider, ticket.signal);
+      const data = await queryDictionary({ query: word, dictionaryForm: supplement ? q : lemma || undefined, reading: reading || undefined, offset }, provider, ticket.signal, false, force);
       if (!ticket.isCurrent()) return;
       const previous = resultRef.current;
       const sameSource = previous?.source.id === data.source.id && previous.source.version === data.source.version;
@@ -52,5 +52,5 @@ export function useDictionary(word: string, lemma: string, reading: string, prov
   useEffect(() => {
     if (word && lemma && !loading && resultRef.current && !seen.current.has(lemma)) void loadRef.current(lemma, 0, true);
   }, [lemma, word, loading]);
-  return { result, loading, error, retry: () => load(word), more: () => load(word, (result?.offset ?? 0) + 20) };
+  return { result, loading, error, retry: () => load(word, 0, false, true), more: () => load(word, (result?.offset ?? 0) + 20) };
 }

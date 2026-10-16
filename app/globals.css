@@ -2897,6 +2897,37 @@ body {
 .dictionary-entry ol { padding-left: 23px; }
 .dictionary-entry li { padding: 5px 0; }
 .dictionary-entry small { color: var(--ink-3); }
+.dictionary-lookup { min-width: 0; }
+.sentence-dictionary-layout { display: grid; gap: 18px; margin-top: 18px; align-items: start; }
+.sentence-vocabulary { min-width: 0; padding: 18px; }
+.sentence-vocabulary h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.vocabulary-sort { gap: 6px; margin: 12px 0; }
+.vocabulary-source { color: var(--ink-3); font-size: 12px; margin-bottom: 14px; }
+.vocabulary-source summary { cursor: pointer; }
+.vocabulary-source p { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow-y: auto; }
+.vocabulary-list { max-height: 340px; overflow-y: auto; padding: 3px; }
+.vocabulary-group + .vocabulary-group { margin-top: 14px; }
+.vocabulary-group h3 { margin: 0 0 8px; color: var(--ink-2); font-size: 12px; font-weight: 600; }
+.vocabulary-words { display: flex; flex-wrap: wrap; gap: 8px; align-items: start; }
+.vocabulary-word { display: flex; flex-direction: column; align-items: center; gap: 2px; max-width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 9px; background: transparent; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; }
+.vocabulary-word[aria-pressed=true] { background: var(--primary-soft); outline: 1px solid var(--primary); }
+.vocabulary-word:hover:not(:disabled) { background: var(--primary-soft); }
+.vocabulary-word:disabled { opacity: .45; cursor: not-allowed; }
+.vocabulary-word:focus-visible, .vocabulary-result-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.vocabulary-word-reading, .vocabulary-word small { font-size: 10px; color: var(--ink-3); line-height: 1.4; }
+.vocabulary-word-text { font-size: 17px; }
+.vocabulary-count { margin-left: 5px; font-size: 11px; color: var(--ink-3); }
+.vocabulary-result-link { display: inline-block; margin-top: 14px; color: var(--primary); font-size: 12px; }
+.sentence-dictionary-detail { min-width: 0; scroll-margin-top: 20px; }
+.vocabulary-context { padding: 14px 18px; }
+.vocabulary-context p { margin: 0 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.9; }
+.vocabulary-context mark { color: var(--primary); background: var(--primary-soft); border-radius: 3px; padding: 1px 3px; }
+.dictionary-lemma-actions:not(:empty) { padding-top: 12px; }
+@media (min-width: 1024px) {
+  .sentence-dictionary-layout { grid-template-columns: minmax(210px, .8fr) minmax(0, 1.2fr); }
+  .sentence-vocabulary { position: sticky; top: 20px; }
+  .vocabulary-list { max-height: 55vh; }
+}
 .dictionary-settings { padding: 20px 0; border-top: 1px solid var(--line); font-size: 13px; }
 .reading-tools { padding: 6px 0 18px; }
 .boundary-editor { padding: 16px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 24px; }
