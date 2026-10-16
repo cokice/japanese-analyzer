@@ -3,8 +3,9 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { queryDictionary } from '../services/learning';
 import type { DictionaryProvider, DictionaryResult } from '../lib/dictionary';
 import { LatestRequest } from '../utils/latestRequest';
+import { getClientLocale, type Locale } from '../i18n';
 
-export function useDictionary(word: string, lemma: string, reading: string, provider: DictionaryProvider) {
+export function useDictionary(word: string, lemma: string, reading: string, provider: DictionaryProvider, locale: Locale = getClientLocale()) {
   const [result, setResult] = useState<DictionaryResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -48,7 +49,7 @@ export function useDictionary(word: string, lemma: string, reading: string, prov
       });
     }
     return () => manager.cancel();
-  }, [word, reading, provider]);
+  }, [word, reading, provider, locale]);
   useEffect(() => {
     if (word && lemma && !loading && resultRef.current && !seen.current.has(lemma)) void loadRef.current(lemma, 0, true);
   }, [lemma, word, loading]);

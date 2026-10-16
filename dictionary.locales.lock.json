@@ -1,0 +1,22 @@
+{
+  "formatVersion": 1,
+  "converterVersion": 3,
+  "sources": {
+    "zh": {
+      "version": "v2026.08.11-zh.4",
+      "date": "2026-09-27",
+      "upstreamDate": "2026-08-11",
+      "url": "https://github.com/greyindex/jitendex-yomitan-zh/releases/download/v2026.08.11-zh.4/jitendex-yomitan-zh-full-review-dedup-20260927.zip",
+      "sha256": "9872fc32d05e3f7ea9b5b70a253610e49d99b6eef7db519b96faad1bbec2b678"
+    },
+    "ko": {
+      "version": "kaikki-ko-20261015",
+      "date": "2026-10-15",
+      "upstreamDate": "2026-10-01",
+      "url": "https://kaikki.org/dictionary/downloads/ko/ko-extract.jsonl.gz",
+      "rawSha256": "c2d53d790a7a3457861efb8155214c8aecd4518d9b76771cac4cf3266fb34d13",
+      "snapshot": "scripts/dictionary/sources/ko-ja.jsonl.gz",
+      "sha256": "a9f96ae8731f5f64938b053d851232af358629e7a79e8430fce7c7bd7cb8ec08"
+    }
+  }
+}

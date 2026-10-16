@@ -31,5 +31,26 @@ try {
     assert.equal(data.entries[0].source.id, 'jmdict');
     measurements.push({ query, total: data.total, duration_ms: Math.round(performance.now() - start) });
   }
+  for (const [locale, expected] of [['zh-CN', '火车站'], ['zh-TW', '火車站'], ['ko', '역']]) {
+    const start = performance.now();
+    const response = await fetch(`${base}/api/dictionary/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-App-Locale': locale }, body: JSON.stringify({ query: '駅' }) });
+    const data = await response.json();
+    assert.equal(response.status, 200); assert.equal(data.localizationStatus.status, 'ready');
+    assert.match(JSON.stringify(data.entries[0].localizations), new RegExp(expected));
+    assert.ok(data.entries[0].senses.length, 'English original remains available');
+    measurements.push({ locale, duration_ms: Math.round(performance.now() - start), bytes: JSON.stringify(data).length });
+  }
+  const complex = await (await fetch(`${base}/api/dictionary/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-App-Locale': 'zh-CN' }, body: JSON.stringify({ query: 'に' }) })).json();
+  assert.equal(complex.localizationStatus.status, 'ready');
+  // Probe both rasterized glyphs and original illustrations from the manifest.
+  const { readFile } = await import('node:fs/promises');
+  const manifest = JSON.parse(await readFile(resolve(directory, 'data/dictionary/locales/manifest.json'), 'utf8'));
+  for (const extension of ['png', 'avif']) {
+    const path = Object.keys(manifest.assets).find(name => name.endsWith(`.${extension}`)); assert.ok(path);
+    const id = manifest.assets[path]; const response = await fetch(`${base}/api/dictionary/assets/${id}`);
+    assert.equal(response.status, 200); assert.equal(response.headers.get('content-type'), `image/${extension}`);
+    const { createHash } = await import('node:crypto');
+    assert.equal(createHash('sha256').update(new Uint8Array(await response.arrayBuffer())).digest('hex'), id);
+  }
   console.log(JSON.stringify({ standalone: directory, measurements }));
 } finally { child.kill(); await exited; }

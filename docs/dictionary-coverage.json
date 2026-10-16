@@ -1,0 +1,16 @@
+{
+  "englishVersion": "3.6.2+20261005200550",
+  "chineseRows": 435448,
+  "nonpositiveIds": 138529,
+  "incompatibleRows": 10037,
+  "matchedChineseEntries": 210936,
+  "koreanRows": 13633,
+  "koreanMatchedEntries": 8548,
+  "koreanAmbiguousOrMissing": 2954,
+  "assets": 249,
+  "maxEntryBytes": 81622,
+  "maxShardBytes": 1077919,
+  "compressedBytes": 57254658,
+  "converterVersion": 3,
+  "unknownNodes": 0
+}

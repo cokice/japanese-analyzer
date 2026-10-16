@@ -10,7 +10,11 @@ export function validateDictionaryResult(value: unknown): DictionaryResult {
   if (data.tags !== undefined && (!data.tags || typeof data.tags !== 'object' || !Object.values(data.tags).every(v => typeof v === 'string'))) throw new Error('Invalid dictionary tags');
   for (const e of data.entries) {
     if (!e || typeof e.id !== 'string' || typeof e.common !== 'boolean' || !sourceValid(e.source) || !Array.isArray(e.spellings) || !e.spellings.every(s => typeof s.text === 'string' && typeof s.common === 'boolean' && strings(s.tags)) || !Array.isArray(e.readings) || !e.readings.every(r => typeof r.text === 'string' && typeof r.common === 'boolean' && strings(r.appliesTo) && strings(r.tags)) || !Array.isArray(e.senses) || e.senses.length > 200 || !e.senses.every(s => typeof s.id === 'string' && strings(s.pos) && strings(s.glosses) && strings(s.appliesToSpellings) && strings(s.appliesToReadings) && strings(s.tags) && strings(s.notes))) throw new Error('Invalid dictionary entry');
+    // HTTP v1 has no trusted JMdict identity or localization schema. Never
+    // accept unvalidated rich content or join its numeric IDs to builtin data.
+    delete e.localizations;
   }
+  delete data.localizationStatus; delete data.datasets;
   if (new Set(data.entries.map(e => `${e.source.id}:${e.id}`)).size !== data.entries.length || data.entries.some(e => new Set(e.senses.map(s => s.id)).size !== e.senses.length)) throw new Error('Duplicate dictionary IDs');
   return data;
 }

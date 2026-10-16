@@ -14,12 +14,19 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+      - run: npm ci
       - run: node scripts/dictionary/update.mjs
-      - run: node scripts/dictionary/prepare.mjs
+      - run: node scripts/dictionary/update-locales.mjs
+      - run: npm run dictionary:prepare
+      - run: cp data/dictionary/locales/report.json docs/dictionary-coverage.json
       - uses: peter-evans/create-pull-request@v7
         with:
           branch: maintenance/dictionary
-          commit-message: 'chore: update pinned JMdict snapshot'
-          title: 'chore: update pinned JMdict snapshot'
-          body: 'Updates the full English JMdict version and upstream SHA-256. Generated data is verified before proposing this change.'
-          add-paths: dictionary.lock.json
+          commit-message: 'chore: update pinned multilingual dictionaries'
+          title: 'chore: update pinned multilingual dictionaries'
+          body: 'Updates pinned English, Chinese and Korean sources and their checksums. Review the coverage report and source dates. Generated data is verified before proposing this change.'
+          add-paths: |
+            dictionary.lock.json
+            dictionary.locales.lock.json
+            scripts/dictionary/sources/ko-ja.jsonl.gz
+            docs/dictionary-coverage.json
