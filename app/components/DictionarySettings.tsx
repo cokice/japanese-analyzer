@@ -10,6 +10,7 @@ export default function DictionarySettings({ value, onChange }: { value: Setting
   const [name, setName] = useState(''); const [url, setUrl] = useState(''); const [key, setKey] = useState('');
   const [status, setStatus] = useState(''); const [loading, setLoading] = useState(false);
   const [metadata, setMetadata] = useState(''); const request = useRef(new LatestRequest());
+  useEffect(() => { request.current.cancel(); setLoading(false); setStatus(''); }, [url, key]);
   useEffect(() => { const manager = request.current; const controller = new AbortController(); void queryDictionary({ query: '駅' }, value.providers[0], controller.signal).then(r => setMetadata(`${r.source.name} · ${r.source.date} · ${r.source.version}`)).catch(() => setMetadata(t('词典数据不可用，请重新准备词典数据'))); return () => { controller.abort(); manager.cancel(); }; }, [value.providers, t]);
   const validUrl = () => { try { const u = new URL(url); return /^https?:$/.test(u.protocol) && !u.username && !u.password && !u.search && !u.hash; } catch { return false; } };
   const test = async () => {

@@ -48,9 +48,10 @@ function Entry({ entry, tags, model }: { entry: DictionaryEntry; tags?: Record<s
     <p className="tool-note"><a href={entry.source.url} target="_blank" rel="noreferrer">{entry.source.name}</a> · {entry.source.date} · <a href={entry.source.licenseUrl} target="_blank" rel="noreferrer">{entry.source.license}</a></p>
   </article>;
 }
-export default function DictionaryPanel({ word, lemma = '', reading = '', provider, model, standalone = false }: { word: string; lemma?: string; reading?: string; provider: DictionaryProvider; model: LearningModel; standalone?: boolean }) {
+export default function DictionaryPanel({ word, lemma = '', reading = '', provider, model, standalone = false, onEmptyChange }: { word: string; lemma?: string; reading?: string; provider: DictionaryProvider; model: LearningModel; standalone?: boolean; onEmptyChange?: (empty: boolean) => void }) {
   const { t, errorText } = useLanguage();
   const { result, loading, error, retry, more } = useDictionary(word, lemma, reading, provider);
+  useEffect(() => { onEmptyChange?.(!!result && !result.entries.length && !loading && !error); }, [result, loading, error, onEmptyChange]);
   const links = externalDictionaryLinks(word, lemma);
   if (!word) return null;
   const content = <>

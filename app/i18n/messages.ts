@@ -455,4 +455,5 @@ export const messages = {
   "请手动复制": {"zh-TW": "請手動複製", "en": "Please copy manually", "ko": "직접 복사해 주세요"},
   "分享失败": {"zh-TW": "分享失敗", "en": "Sharing failed", "ko": "공유 실패"},
   "保存": {"zh-TW": "儲存", "en": "Save", "ko": "저장"},
+  "AI 未找到可靠的原形": {"zh-TW":"AI 未找到可靠的原形","en":"AI could not find a reliable dictionary form","ko":"AI가 신뢰할 수 있는 기본형을 찾지 못했습니다"},
 } as const;
