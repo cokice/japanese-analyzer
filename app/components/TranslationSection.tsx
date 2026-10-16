@@ -1,8 +1,8 @@
 'use client';
 
 import { useLanguage } from '../contexts/LanguageContext';
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { translateText, streamTranslateText } from '../services/api';
+import { useState, useEffect, useMemo } from 'react';
+import { useSentenceTranslation } from '../hooks/useSentenceTranslation';
 import type { EndpointPayload } from '../services/api';
 import ThinkingIndicator from './ThinkingIndicator';
 import { Icon } from './Icons';
@@ -27,10 +27,10 @@ export default function TranslationSection({
   trigger,
   analysisSignal
 }: TranslationSectionProps) {
-  const { t, errorText } = useLanguage();
-  const requestRef = useRef<AbortController | null>(null);
-  const [translation, setTranslation] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
+  const { t, locale, errorText } = useLanguage();
+  const { translation, error, isLoading, fromCache, translate } = useSentenceTranslation({
+    text: japaneseText, endpoint, apiKey: userApiKey, locale, useStream, trigger, analysisSignal,
+  });
   const [isVisible, setIsVisible] = useState(true);
   const [copied, setCopied] = useState(false);
   const [canAnimateTranslation, setCanAnimateTranslation] = useState(false);
@@ -38,35 +38,6 @@ export default function TranslationSection({
   useEffect(() => {
     import('flowtoken').catch(() => {});
   }, []);
-
-  const handleTranslate = useCallback(async () => {
-    if (!japaneseText) return;
-    requestRef.current?.abort();
-    const controller = new AbortController();
-    requestRef.current = controller;
-    const signal = analysisSignal && !analysisSignal.aborted
-      ? AbortSignal.any([controller.signal, analysisSignal]) : controller.signal;
-    const isCurrent = () => requestRef.current === controller && !signal.aborted;
-    setIsLoading(true); setIsVisible(true); setCanAnimateTranslation(false); setTranslation('');
-    try {
-      if (useStream) {
-        await streamTranslateText(japaneseText, (chunk) => {
-          if (isCurrent()) setTranslation(chunk);
-        }, (error) => {
-          if (isCurrent()) setTranslation(t("翻译时发生错误: {0}。", errorText(error.message)));
-        }, userApiKey, endpoint, signal);
-      } else {
-        const text = await translateText(japaneseText, userApiKey, endpoint, signal);
-        if (isCurrent()) setTranslation(text);
-      }
-    } catch (error) {
-      if (isCurrent()) setTranslation(t("翻译时发生错误: {0}。", error instanceof Error ? errorText(error.message) : t("未知错误")));
-    } finally {
-      if (requestRef.current === controller) {
-        setIsLoading(false); requestRef.current = null;
-      }
-    }
-  }, [japaneseText, userApiKey, endpoint, useStream, analysisSignal, t, errorText]);
 
   const handleCopy = () => {
     if (!translation) return;
@@ -84,11 +55,6 @@ export default function TranslationSection({
   }, [translation]);
 
   useEffect(() => {
-    if (trigger && japaneseText) void handleTranslate();
-    return () => { requestRef.current?.abort(); requestRef.current = null; };
-  }, [trigger, japaneseText, handleTranslate]);
-
-  useEffect(() => {
     if (!translation) {
       setCanAnimateTranslation(false);
       return;
@@ -104,7 +70,7 @@ export default function TranslationSection({
       <button
         id="translateSentenceButton"
         className="nd-ghost-btn"
-        onClick={handleTranslate}
+        onClick={() => { setIsVisible(true); setCanAnimateTranslation(false); void translate(true); }}
         disabled={isLoading}
       >
         {Icon.refresh}
@@ -166,6 +132,8 @@ export default function TranslationSection({
         </AutoAnimateHeight>
       </div>
 
+      {error && <p role="alert">{t("翻译时发生错误: {0}。", errorText(error))}</p>}
+      {fromCache && <p className="tool-note">{t('已使用缓存')}</p>}
       {actions}
     </section>
   );

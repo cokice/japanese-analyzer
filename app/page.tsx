@@ -1,5 +1,6 @@
 'use client';
 
+import { analysisCache, sentenceCacheKey } from './utils/sentenceCache';
 import { useReadingPreferences } from './hooks/useReadingPreferences';
 import ShareControl from './components/ShareControl';
 import DictionaryLookup from './components/DictionaryLookup';
@@ -54,6 +55,7 @@ export default function Home() {
   const editing = useAnalysisEditing();
   const analyzedTokens = editing.state.tokens;
   const setAnalyzedTokens = editing.setTokens;
+  const startAnalysisTask = editing.startTask;
   const [draft, setDraft] = useState('');
   const [mode, setMode] = useState<'analyze' | 'dictionary'>('analyze');
   const [dictionarySettings, setDictionarySettings] = useState<DictionarySettings>(() => readDictionarySettings(null));
@@ -63,6 +65,10 @@ export default function Home() {
   const readingGroups = useMemo(() => buildReadingGroups(analyzedTokens, editing.state.groups), [analyzedTokens, editing.state.groups]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
+  const [analysisFromCache, setAnalysisFromCache] = useState(false);
+  const [analysisSource, setAnalysisSource] = useState({ key: '', model: '' });
+  const [editNotice, setEditNotice] = useState('');
+  const activeAnalysisKeyRef = useRef('');
   const [useStream, setUseStream] = useState<boolean>(true);
 
   const [analysisSignal, setAnalysisSignal] = useState<AbortSignal>();
@@ -116,6 +122,7 @@ export default function Home() {
   const [authError, setAuthError] = useState('');
 
   const userApiKey = activeService?.apiKey || '';
+  const analysisConfigKey = sentenceCacheKey('', endpoint, locale, userApiKey, thinkingEnabled);
   const learningModel = useMemo(() => ({ endpoint, apiKey: userApiKey }), [endpoint, userApiKey]);
   const { preferences, change: changePreference } = useReadingPreferences(text => { handleStartOver(); setDraft(text); setMode('analyze'); });
   const { showFurigana, showRomaji, viewMode } = preferences;
@@ -152,7 +159,20 @@ export default function Home() {
     setHasDeepseekReasoning(false);
     setDeepseekReasoningDone(true);
     setDeepseekReasoningSummaryHistory([]);
-  }, [locale, reasoningTextStore]);
+  }, [analysisConfigKey, reasoningTextStore]);
+
+  useEffect(() => {
+    if (!currentSentence || !activeModel) return;
+    const key = sentenceCacheKey(currentSentence, endpoint, locale, userApiKey, thinkingEnabled);
+    if (activeAnalysisKeyRef.current === key) return;
+    const cached = analysisCache.get(key);
+    if (!cached) return;
+    activeAnalysisKeyRef.current = key;
+    startAnalysisTask(cached);
+    setAnalysisSource({ key, model: endpoint.model });
+    setAnalysisFromCache(true);
+    setEditNotice('');
+  }, [analysisConfigKey, currentSentence, activeModel, endpoint, locale, userApiKey, thinkingEnabled, startAnalysisTask]);
 
   // 侧栏在 lg(1024px) 以上显示，以下使用模态
   useEffect(() => {
@@ -426,7 +446,7 @@ export default function Home() {
     handleCloseWordDetail();
   }, [selectedRange, wordDetail, analyzedTokens, editing, handleCloseWordDetail]);
 
-  const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
+  const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata, force = false) => {
     if (!text.trim()) return;
 
     if (!activeService || !activeModel) {
@@ -435,6 +455,32 @@ export default function Home() {
       return;
     }
 
+    const cacheKey = sentenceCacheKey(text, endpoint, locale, userApiKey, thinkingEnabled);
+    const cached = force ? undefined : analysisCache.get(cacheKey);
+    if (cached) {
+      analysisAbortControllerRef.current?.abort('cache-hit');
+      analysisAbortControllerRef.current = null;
+      resetAnalysisState();
+      handleCloseWordDetail();
+      setEditRange(null);
+      setIsAnalyzing(false);
+      setIsEditingInput(false);
+      setAnalysisError('');
+      setDraft(text);
+      setCurrentSentence(text);
+      setTranslationTrigger(value => value + 1);
+      if (activeAnalysisKeyRef.current !== cacheKey || !analyzedTokens.length) startAnalysisTask(cached);
+      activeAnalysisKeyRef.current = cacheKey;
+      setAnalysisSource({ key: cacheKey, model: endpoint.model });
+      setAnalysisFromCache(true);
+      setEditNotice('');
+      history.record(text);
+      return;
+    }
+    activeAnalysisKeyRef.current = cacheKey;
+    setAnalysisSource({ key: cacheKey, model: endpoint.model });
+    setAnalysisFromCache(false);
+    setEditNotice('');
     analysisAbortControllerRef.current?.abort('superseded');
     const analysisAbortController = new AbortController();
     analysisAbortControllerRef.current = analysisAbortController;
@@ -453,7 +499,7 @@ export default function Home() {
     setAnalysisError('');
     setDraft(text);
     setCurrentSentence(text);
-    setTranslationTrigger(Date.now());
+    setTranslationTrigger(value => value + 1);
     setAnalyzedTokens([]);
     const deepseekThinkingActive = !!activeModel?.caps?.thinking && thinkingEnabled;
     reasoningTextStore.reset();
@@ -538,6 +584,7 @@ export default function Home() {
                 const tokens = parseAnalyzeResponseContent(chunk);
                 metrics.firstResult();
                 setAnalyzedTokens(tokens);
+                if (tokens.map(token => token.word).join('') === text) analysisCache.set(cacheKey, tokens);
                 metrics.succeed();
                 history.record(text);
               } catch (error) {
@@ -572,6 +619,7 @@ export default function Home() {
         if (!isCurrentAnalysis()) return;
         metrics.firstResult();
         setAnalyzedTokens(tokens);
+        if (tokens.map(token => token.word).join('') === text) analysisCache.set(cacheKey, tokens);
         metrics.succeed();
         history.record(text);
         finishReasoningStatus(t("已深度思考"));
@@ -631,6 +679,10 @@ export default function Home() {
     setAnalyzedTokens([]);
     setDraft('');
     setCurrentSentence('');
+    activeAnalysisKeyRef.current = '';
+    setAnalysisSource({ key: '', model: '' });
+    setAnalysisFromCache(false);
+    setEditNotice('');
     setAnalysisError('');
     setIsEditingInput(true);
   };
@@ -644,6 +696,7 @@ export default function Home() {
   const detailReading = detailRange ? getPhraseReading(analyzedTokens, detailRange) : '';
   const canEdit = !!detailRange && !isAnalyzing && [...detailWord].length <= 120;
   const canGroup = !!detailRange && analyzedTokens.slice(detailRange.start, detailRange.end + 1).every(token => !isPunctuationToken(token) && !/\s/.test(token.word));
+  const analysisUsesPreviousSettings = analysisSource.key !== sentenceCacheKey(currentSentence, endpoint, locale, userApiKey, thinkingEnabled);
   const wordDetailPanel = (
     <>
     <WordDetailPanel
@@ -716,7 +769,9 @@ export default function Home() {
               <ShareControl text={draft} preferences={preferences} />
               <button className="display-chip" aria-pressed={mode === 'dictionary'} disabled={isAnalyzing} onClick={() => { setMode('dictionary'); setEditRange(null); handleCloseWordDetail(); }}>{t('查词')}</button>
             </nav>
-            {mode === 'dictionary' ? <DictionaryLookup draft={draft} onDraftChange={handleDraftChange} provider={dictionaryProvider} model={learningModel} /> : <>
+            {mode === 'dictionary' && <DictionaryLookup draft={draft} onDraftChange={handleDraftChange} provider={dictionaryProvider} model={learningModel} />}
+            {/* Keep completed output and pending translation mounted when visiting dictionary mode. */}
+            <div className={mode === 'analyze' ? 'flex flex-col gap-[22px]' : 'hidden'}>
             <InputSection
               draft={draft}
               onDraftChange={handleDraftChange}
@@ -789,9 +844,12 @@ export default function Home() {
                 {shouldShowAnalyzer() && <div className="learning-actions reading-tools">
                   <button className="display-chip" aria-pressed={viewMode === 'lexical'} onClick={() => setViewMode('lexical')}>{t('词法视图')}</button>
                   <button className="display-chip" aria-pressed={viewMode === 'reading'} onClick={() => setViewMode('reading')}>{t('阅读视图')}</button>
-                  <button className="nd-ghost-btn" disabled={isAnalyzing || !editing.state.history.length} onClick={() => { editing.undo(); handleCloseWordDetail(); }}>{t('撤销')}</button>
-                  <button className="nd-ghost-btn" disabled={isAnalyzing || !editing.state.history.length} onClick={() => { editing.restore(); handleCloseWordDetail(); }}>{t('恢复初始分词')}</button>
+                  <button className="nd-ghost-btn" disabled={isAnalyzing} onClick={() => void handleAnalyze(currentSentence, undefined, true)}>{t('重新解析')}</button>
+                  <button className="nd-ghost-btn" disabled={isAnalyzing || !editing.state.history.length} title={!editing.state.history.length ? t('尚无可撤销的调整') : t('撤销最近一次分词或阅读分组调整')} onClick={() => { editing.undo(); handleCloseWordDetail(); setEditNotice('已撤销最近一次调整'); }}>{t('撤销')}</button>
+                  <button className="nd-ghost-btn" disabled={isAnalyzing || !editing.canRestore} title={!editing.canRestore ? t('当前已经是初始分词') : t('恢复本次解析的初始分词并清除手动阅读分组')} onClick={() => { editing.restore(); handleCloseWordDetail(); setEditNotice('已恢复初始分词'); }}>{t('恢复初始分词')}</button>
                 </div>}
+                {shouldShowAnalyzer() && <p className="tool-note" role="status">{t('分词：{0} 项', analyzedTokens.length)}{editNotice ? ` · ${t(editNotice)}` : ''}{analysisFromCache ? ` · ${t('已使用缓存')}` : ''}</p>}
+                {shouldShowAnalyzer() && analysisUsesPreviousSettings && <p className="tool-note">{t('当前分词来自先前设置（{0}），点击重新解析可更新。', analysisSource.model)}</p>}
                 {(shouldShowAnalyzer() || pendingText) && (
                   <AnalysisResult
                     key={currentSentence}
@@ -824,8 +882,8 @@ export default function Home() {
                 )}
               </div>
             )}
-            {editRange && <ResegmentEditor key={`${editRange.taskId}:${editRange.revision}`} tokens={analyzedTokens.slice(editRange.range.start, editRange.range.end + 1)} context={selectWordDetailContext(currentSentence, analyzedTokens, editRange.range.start)} model={learningModel} onClose={() => setEditRange(null)} onApply={tokens => { editing.edit(editRange.range, tokens, editRange.taskId, editRange.revision); setEditRange(null); handleCloseWordDetail(); }} />}
-            </>}
+            {editRange && <ResegmentEditor key={`${editRange.taskId}:${editRange.revision}`} tokens={analyzedTokens.slice(editRange.range.start, editRange.range.end + 1)} context={selectWordDetailContext(currentSentence, analyzedTokens, editRange.range.start)} model={learningModel} onClose={() => setEditRange(null)} onApply={tokens => { editing.edit(editRange.range, tokens, editRange.taskId, editRange.revision); setEditNotice('已应用分词调整'); setEditRange(null); handleCloseWordDetail(); }} />}
+            </div>
           </div>
 
           {/* 侧栏：词汇详情（桌面端），未选词时收起不占位 */}
