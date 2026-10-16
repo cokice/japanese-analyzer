@@ -1,5 +1,16 @@
 // Simplified Chinese source text is the stable message key.
 export const messages = {
+  "原形匹配": {"zh-TW": "原形匹配", "en": "Dictionary-form match", "ko": "기본형 일치"},
+  "读音匹配": {"zh-TW": "讀音匹配", "en": "Reading match", "ko": "읽기 일치"},
+  "其他匹配": {"zh-TW": "其他匹配", "en": "Other match", "ko": "기타 일치"},
+  "同音及其他匹配（{0}）": {"zh-TW": "同音及其他匹配（{0}）", "en": "Same-reading and other matches ({0})", "ko": "동음 및 기타 일치 항목 ({0})"},
+  "这些词条来自读音等扩展检索，不代表当前选词的含义。": {"zh-TW": "這些詞條來自讀音等擴展檢索，不代表目前選詞的含義。", "en": "These entries come from reading or other expanded matches. They may refer to different words.", "ko": "읽기 등 확장 검색으로 찾은 항목입니다. 현재 선택한 단어와 뜻이 다를 수 있습니다."},
+  "没有本词或原形的精确匹配，请展开其他匹配核对。": {"zh-TW": "沒有本詞或原形的精確匹配，請展開其他匹配核對。", "en": "No exact word or dictionary-form match. Expand the other matches to check them.", "ko": "단어나 기본형의 정확한 일치 항목이 없습니다. 다른 일치 항목을 펼쳐 확인하세요."},
+  "词形变化": {"zh-TW": "詞形變化", "en": "Word form changes", "ko": "단어 활용"},
+  "原形 → 句中形式": {"zh-TW": "原形 → 句中形式", "en": "Base → sentence form", "ko": "기본형 → 문장 속 형태"},
+  "说明原形如何变成句中形式，以及否定、过去等变化带来的含义。": {"zh-TW": "說明原形如何變成句中形式，以及否定、過去等變化帶來的含義。", "en": "See how the base form becomes the form in this sentence, and what changes such as negation or past tense mean.", "ko": "기본형이 문장 속 형태로 바뀌는 과정과 부정·과거 등의 의미를 설명합니다."},
+  "例如：食べる → 食べた（过去）。": {"zh-TW": "例如：食べる → 食べた（過去）。", "en": "Example: 食べる → 食べた (past).", "ko": "예: 食べる → 食べた (과거)."},
+  "查看变化过程": {"zh-TW": "查看變化過程", "en": "Explain the changes", "ko": "활용 과정 보기"},
   "本句词汇": {"zh-TW": "本句詞彙", "en": "Words in this sentence", "ko": "이 문장의 단어"},
   "{0} 个词语": {"zh-TW": "{0} 個詞語", "en": "{0} word(s)", "ko": "단어 {0}개"},
   "点击词语查看词典，重复词已合并。": {"zh-TW": "點擊詞語查看詞典，重複詞已合併。", "en": "Select a word to look it up. Repeated words are grouped.", "ko": "단어를 선택하면 사전을 조회합니다. 반복된 단어는 묶어 표시합니다."},

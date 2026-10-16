@@ -7,8 +7,9 @@ import { getWordDetails, type TokenData } from '../services/api';
 import type { LearningModel } from '../services/learning';
 import { LatestRequest } from '../utils/latestRequest';
 import { collectSentenceVocabulary, vocabularyContext, type SentenceVocabularyItem } from '../utils/sentenceVocabulary';
-import { getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS } from '../utils/helpers';
+import { getPosGroup, POS_GROUP_LABELS } from '../utils/helpers';
 import DictionaryPanel from './DictionaryPanel';
+import ExternalDictionaryLookup from './ExternalDictionaryLookup';
 import { credentialScope } from '../utils/sentenceCache';
 
 interface Props {
@@ -113,11 +114,11 @@ export default function DictionaryLookup({ draft, onDraftChange, provider, model
               aria-pressed={selectedItem?.key === item.key}
               aria-label={t('查询词语：{0}，{1}，{2}，出现 {3} 次', item.token.word, item.token.furigana || item.token.word, t(POS_GROUP_LABELS[getPosGroup(item.token.pos)]), item.occurrences.length)}
               disabled={!canQuery(item.token.word)} title={!canQuery(item.token.word) ? t('词语超过 120 个字符，请手动缩短后查询') : undefined}
-              onClick={() => setSelection({ scope, kind: 'sentence', key: item.key })}
-              style={{ borderBottomColor: POS_GROUP_COLORS[getPosGroup(item.token.pos)] }}>
-              <span lang="ja" className="vocabulary-word-reading">{item.token.furigana && item.token.furigana !== item.token.word ? item.token.furigana : '\u00a0'}</span>
-              <span lang="ja" className="vocabulary-word-text">{item.token.word}{item.occurrences.length > 1 && <span className="vocabulary-count">×{item.occurrences.length}</span>}</span>
-              <small>{t(POS_GROUP_LABELS[getPosGroup(item.token.pos)])}</small>
+              onClick={() => setSelection({ scope, kind: 'sentence', key: item.key })}>
+              <span className="vocabulary-word-main"><span lang="ja" className="vocabulary-word-text">{item.token.word}</span>
+                {item.token.furigana && item.token.furigana !== item.token.word && <span lang="ja" className="vocabulary-word-reading">{item.token.furigana}</span>}
+              </span>
+              <span className="vocabulary-word-meta"><small>{t(POS_GROUP_LABELS[getPosGroup(item.token.pos)])}</small>{item.occurrences.length > 1 && <span className="vocabulary-count">×{item.occurrences.length}</span>}</span>
             </button>)}</div>
           </div>)}
         </div>
@@ -128,16 +129,17 @@ export default function DictionaryLookup({ draft, onDraftChange, provider, model
       <section id="dictionary-lookup-result" className="sentence-dictionary-detail" aria-label={t('词典查询结果')}>
         {context && selectedItem && <div className="vocabulary-context nd-card">
           <p lang="ja">{context.before}<mark>{context.word}</mark>{context.after}</p>
-          <div className="learning-actions"><span className="tool-note" role="status">{t('第 {0}/{1} 次出现', occurrenceIndex + 1, selectedItem.occurrences.length)}</span>
-            {selectedItem.occurrences.length > 1 && <button className="nd-ghost-btn" onClick={() => setOccurrence({ identity, index: occurrenceIndex + 1 })}>{t('下一处')}</button>}
-          </div>
+          {selectedItem.occurrences.length > 1 && <div className="learning-actions"><span className="tool-note" role="status">{t('第 {0}/{1} 次出现', occurrenceIndex + 1, selectedItem.occurrences.length)}</span>
+            <button className="nd-ghost-btn" onClick={() => setOccurrence({ identity, index: occurrenceIndex + 1 })}>{t('下一处')}</button>
+          </div>}
         </div>}
         {active && query && <>
           <div className="learning-actions dictionary-lemma-actions">
             {emptyFor === identity && <button className="nd-ghost-btn" disabled={loading || !model.endpoint.model} onClick={findLemma}>{t(loading ? '查找中…' : 'AI 查找原形')}</button>}
-            {lemma && <span>{t('AI 推断原形')}：<span lang="ja">{lemma}</span></span>}
+            {lemma && lemma !== query && <span>{t('AI 推断原形')}：<span lang="ja">{lemma}</span></span>}
           </div>
           <DictionaryPanel key={identity} word={query} lemma={lemma} reading={reading} provider={provider} model={model} standalone onEmptyChange={onEmptyChange} />
+          <ExternalDictionaryLookup key={`external:${identity}`} word={query} lemma={lemma} />
         </>}
         {error && <p role="alert">{errorText(error)}</p>}
       </section>

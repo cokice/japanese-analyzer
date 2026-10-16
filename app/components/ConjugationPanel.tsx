@@ -19,8 +19,12 @@ export default function ConjugationPanel({ surface, lemma, context, model }: { s
     catch (e) { if (ticket.isCurrent()) setError(e instanceof Error ? e.message : '学习工具请求失败'); }
     finally { if (ticket.isCurrent()) setLoading(false); }
   };
-  return <section className="learning-detail"><button className="nd-ghost-btn" disabled={loading} onClick={load}>{t(loading ? '加载中…' : '展开活用过程')}</button>
-    {result && <div><small>{t('AI 生成')}</small>{result.insufficient && <p>{t('信息不足，请选择完整的活用表达。')}</p>}{result.analyses.map((a, i) => <div key={i}><ol className="conjugation-chain">{a.steps.map((s, j) => <li key={j}><span lang="ja">{s.form}</span><small>{s.label}</small></li>)}</ol><p>{a.note}</p></div>)}</div>}
+  return <details className="detail-disclosure conjugation-tool"><summary>{t('词形变化')}<span className="disclosure-hint">{t('原形 → 句中形式')}</span></summary>
+    <p className="tool-note">{t('说明原形如何变成句中形式，以及否定、过去等变化带来的含义。')}</p>
+    <p className="conjugation-example">{t('例如：食べる → 食べた（过去）。')}</p>
+    <small className="tool-note">{t('AI 生成')}</small>
+    {!result && <div className="learning-actions"><button className="nd-ghost-btn" disabled={loading} onClick={load}>{t(loading ? '加载中…' : '查看变化过程')}</button></div>}
+    {result && <div>{result.insufficient && <p>{t('信息不足，请选择完整的活用表达。')}</p>}{result.analyses.map((a, i) => <div key={i}><ol className="conjugation-chain">{a.steps.map((s, j) => <li key={j}><span lang="ja">{s.form}</span><small>{s.label}</small></li>)}</ol><p>{a.note}</p></div>)}</div>}
     {error && <p role="alert">{errorText(error)}</p>}
-  </section>;
+  </details>;
 }
