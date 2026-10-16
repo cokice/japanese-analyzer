@@ -32,9 +32,12 @@ export class ResultCache<T> {
 
 // Opaque session-only credential scopes keep keys out of cache identifiers and diagnostics.
 const credentialScopes = new Map<string, number>();
-export function sentenceCacheKey(text: string, endpoint: EndpointPayload, locale: Locale, apiKey = '', thinking = false): string {
+export function credentialScope(apiKey = ''): number {
   if (!credentialScopes.has(apiKey)) credentialScopes.set(apiKey, credentialScopes.size + 1);
-  return JSON.stringify([1, text, endpoint.baseUrl, endpoint.model, endpoint.caps ?? {}, locale, credentialScopes.get(apiKey), thinking]);
+  return credentialScopes.get(apiKey)!;
+}
+export function sentenceCacheKey(text: string, endpoint: EndpointPayload, locale: Locale, apiKey = '', thinking = false): string {
+  return JSON.stringify([1, text, endpoint.baseUrl, endpoint.model, endpoint.caps ?? {}, locale, credentialScope(apiKey), thinking]);
 }
 
 export const analysisCache = new ResultCache<TokenData[]>();

@@ -1,0 +1,142 @@
+import React from 'react';
+import assert from 'node:assert/strict';
+import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
+import { collectSentenceVocabulary, vocabularyContext, vocabularyKey } from '../app/utils/sentenceVocabulary';
+import DictionaryLookup from '../app/components/DictionaryLookup';
+import { LanguageProvider } from '../app/contexts/LanguageContext';
+import { BUILTIN_DICTIONARY, type DictionaryProvider, type DictionaryResult } from '../app/lib/dictionary';
+import { queryDictionary } from '../app/services/learning';
+import type { TokenData } from '../app/services/api';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+const tick = () => new Promise<void>(resolve => setImmediate(resolve));
+const model = { endpoint: { baseUrl: '', model: '' } };
+const station = { word: '駅', pos: '名詞', furigana: 'えき' };
+const tokens: TokenData[] = [station, { word: 'の', pos: '助詞' }, station, { word: '。', pos: '記号' }];
+const sentence = '駅の駅。';
+const source = { id: 'vocabulary-test', name: 'test', version: '1', date: '2026-10-16', url: 'https://example.com', license: 'CC BY-SA 4.0', licenseUrl: 'https://example.com/license' };
+const response = (id: string): DictionaryResult => ({ entries: id ? [{ id, common: true, spellings: [{ text: id, common: true, tags: [] }], readings: [{ text: 'えき', common: true, appliesTo: ['*'], tags: [] }], senses: [{ id: `${id}:0`, pos: [], glosses: ['meaning'], appliesToSpellings: ['*'], appliesToReadings: ['*'], tags: [], notes: [] }], source }] : [], total: id ? 1 : 0, offset: 0, hasMore: false, source });
+const textOf = (node: ReactTestInstance | string): string => typeof node === 'string' ? node : node.children.map(textOf).join('');
+
+async function main() {
+  const list = collectSentenceVocabulary(sentence, tokens);
+  assert.deepEqual(list.map(item => item.token.word), ['駅', 'の']);
+  assert.deepEqual(list[0].occurrences.map(item => item.start), [0, 2]);
+  assert.equal(vocabularyContext(sentence, list[0].occurrences[1]).word, '駅');
+  assert.equal(vocabularyContext(sentence, list[0].occurrences[1]).before, '駅の');
+  assert.equal(tokens.length, 4, 'Building vocabulary never edits source tokens');
+  assert.deepEqual(collectSentenceVocabulary(sentence, tokens.slice(0, -1)), [], 'Partial analysis is not presented as a complete word list');
+  const homographs = [{ word: '生', pos: '名詞', furigana: 'なま' }, { word: '生', pos: '名詞', furigana: 'せい' }, { word: '生', pos: '接頭辞', furigana: 'なま' }];
+  assert.equal(collectSentenceVocabulary('生生生', homographs).length, 3);
+  const unicode = [{ word: '𠮷', pos: '名詞' }, { word: ' ', pos: '記号' }, { word: '\n', pos: '改行' }, { word: '猫', pos: '名詞' }];
+  const unicodeList = collectSentenceVocabulary('𠮷 \n猫', unicode);
+  assert.equal(unicodeList[1].occurrences[0].start, 4);
+  assert.equal(vocabularyContext('𠮷 \n猫', unicodeList[1].occurrences[0]).before, '𠮷 \n');
+  const eaten = { word: '食べた', pos: '動詞' };
+  assert.equal(collectSentenceVocabulary('食べた', [eaten], { [vocabularyKey(eaten)]: '食べる' })[0].lemma, '食べる');
+
+  const originalFetch = globalThis.fetch;
+  const originalDateNow = Date.now;
+  const descriptors = new Map(['window', 'document', 'localStorage', 'React'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  let renderer: ReactTestRenderer | undefined;
+  const storage = { getItem: () => null, setItem: () => {} };
+  Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { addEventListener() {}, removeEventListener() {}, localStorage: storage } });
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { documentElement: { lang: 'zh-CN' }, querySelector: () => null, title: '' } });
+  const pending: { path: string; body: Record<string, unknown>; signal: AbortSignal; resolve: (result: Response) => void }[] = [];
+  let draftWrites = 0;
+  const props = { draft: '', onDraftChange: () => { draftWrites++; }, provider: BUILTIN_DICTIONARY, model, sentence, tokens, active: true, analysisId: 1 };
+  const view = (changes: Partial<React.ComponentProps<typeof DictionaryLookup>> = {}) => <LanguageProvider><DictionaryLookup {...props} {...changes} /></LanguageProvider>;
+  const wordButtons = () => renderer!.root.findAll(node => node.type === 'button' && node.props.className === 'vocabulary-word');
+  const button = (text: string) => renderer!.root.findAllByType('button').find(node => textOf(node) === text)!;
+  try {
+    globalThis.fetch = async (path, init) => new Promise<Response>(resolve => pending.push({ path: String(path), body: JSON.parse(String(init?.body)), signal: init!.signal!, resolve }));
+    await act(async () => { renderer = create(view({ active: false })); });
+    assert.equal(pending.length, 0, 'Hidden dictionary mode never starts lookups');
+    await act(async () => { renderer!.update(view()); });
+    assert.equal(pending.length, 1, 'Only the selected word is loaded, not every word');
+    assert.equal(pending[0].body.query, '駅'); assert.equal(pending[0].body.reading, 'えき');
+    assert.equal(wordButtons().length, 2); assert.match(wordButtons()[0].props['aria-label'], /出现 2 次/);
+    await act(async () => { pending[0].resolve(Response.json(response('駅'))); await tick(); });
+    await act(async () => { button('下一处').props.onClick(); });
+    assert.match(textOf(renderer!.root), /第 2\/2 次出现/);
+    assert.equal(pending.length, 1, 'Occurrence navigation does not query again');
+    await act(async () => { button('按词性分组').props.onClick(); });
+    assert.equal(pending.length, 1, 'Sorting is local');
+    await act(async () => { wordButtons()[1].props.onClick(); });
+    assert.equal(pending[1].body.query, 'の');
+    assert.equal(draftWrites, 0, 'Clicking sentence vocabulary cannot replace the sentence draft');
+    await act(async () => { renderer!.update(view({ tokens: [{ word: '駅の', pos: '名詞' }, station, { word: '。', pos: '記号' }] })); });
+    assert.equal(pending[1].signal.aborted, true);
+    assert.equal(pending[2].body.query, '駅の');
+    await act(async () => { pending[1].resolve(Response.json(response('stale'))); await tick(); });
+    assert.doesNotMatch(textOf(renderer!.root), /stale/);
+    await act(async () => { pending[2].resolve(Response.json(response('駅の'))); await tick(); });
+    await act(async () => { renderer!.update(view()); });
+    assert.equal(pending.length, 3, 'Undo reuses a previously loaded word');
+    assert.equal(wordButtons().length, 2);
+    await act(async () => { renderer!.update(view({ active: false })); });
+    await act(async () => { renderer!.update(view()); });
+    assert.equal(pending.length, 3, 'Mode navigation reuses the word cache');
+    await act(async () => { renderer!.update(view({ model: { endpoint: { model: 'other', baseUrl: 'https://model.example' } } })); });
+    assert.equal(pending.length, 3, 'Model switching cannot cause dictionary or AI requests');
+    await act(async () => { renderer!.update(view({ draft: '別' })); });
+    await act(async () => { renderer!.root.findByType('form').props.onSubmit({ preventDefault() {} }); });
+    assert.equal(pending[3].body.query, '別');
+    await act(async () => { pending[3].resolve(Response.json(response('別'))); await tick(); });
+    assert.ok(wordButtons().every(node => !node.props['aria-pressed']), 'Manual search has no false sentence selection');
+    await act(async () => { renderer!.update(view({ analysisId: 2 })); });
+    assert.equal(pending.length, 4, 'A new analysis selects its first word and reuses dictionary data');
+    assert.equal(wordButtons()[0].props['aria-pressed'], true);
+    await act(async () => { renderer!.update(view({ sentence: '食べた', tokens: [eaten], analysisId: 3, dictionaryForms: { [vocabularyKey(eaten)]: '食べる' } })); });
+    await act(async () => { pending[4].resolve(Response.json(response(''))); await tick(); });
+    assert.equal(pending[5].body.dictionaryForm, '食べる', 'Previously known lemmas supplement dictionary lookup without AI');
+    await act(async () => { pending[5].resolve(Response.json(response('食べる'))); await tick(); });
+    assert.ok(pending.every(request => request.path === '/api/dictionary/lookup'), 'No vocabulary interaction automatically invokes a model');
+    await act(async () => { renderer!.unmount(); }); renderer = undefined;
+
+    // Exercise the shared query cache independently of React state.
+    let requests = 0;
+    let fail = false; let fallback = false;
+    globalThis.fetch = async () => {
+      requests++;
+      if (fail) return Response.json({ error: { message: 'offline' } }, { status: 503 });
+      return Response.json({ ...response('cached'), ...(fallback ? { fallback: 'timeout' } : {}) });
+    };
+    const signal = new AbortController().signal;
+    const query = { query: 'cache-isolation' };
+    const provider: DictionaryProvider = { id: 'service', name: 'service', adapter: 'http-v1', lookupUrl: 'https://dict.example', apiKey: 'one' };
+    await queryDictionary(query, provider, signal); await queryDictionary(query, provider, signal);
+    assert.equal(requests, 1);
+    await queryDictionary(query, { ...provider, apiKey: 'two' }, signal);
+    assert.equal(requests, 2, 'Dictionary credentials have separate cache scopes');
+    await queryDictionary(query, provider, signal, false, true);
+    assert.equal(requests, 3, 'Explicit retry bypasses cache');
+    await queryDictionary(query, provider, signal, true);
+    assert.equal(requests, 4, 'Connection tests always hit the service');
+    Date.now = () => originalDateNow() + 3 * 60_000;
+    await queryDictionary(query, provider, signal);
+    assert.equal(requests, 5, 'Expired external results are refreshed');
+    Date.now = originalDateNow;
+    fallback = true;
+    await queryDictionary({ query: 'fallback' }, provider, signal); await queryDictionary({ query: 'fallback' }, provider, signal);
+    assert.equal(requests, 7, 'Fallback results do not hide a recovering provider');
+    fallback = false; fail = true;
+    await assert.rejects(queryDictionary({ query: 'failure' }, provider, signal));
+    await assert.rejects(queryDictionary({ query: 'failure' }, provider, signal));
+    assert.equal(requests, 9, 'Failures are not cached');
+    fail = false;
+    const cancelled = new AbortController(); cancelled.abort();
+    await assert.rejects(queryDictionary(query, provider, cancelled.signal));
+    assert.equal(requests, 9, 'Already cancelled requests cannot consume even a cached result');
+    console.log('Sentence vocabulary passed: source fidelity, homographs, occurrences, editing sync, mode cache, known lemmas and no automatic AI.');
+  } finally {
+    if (renderer) await act(async () => { renderer!.unmount(); });
+    globalThis.fetch = originalFetch; Date.now = originalDateNow;
+    for (const [key, descriptor] of descriptors) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key);
+    }
+  }
+}
+void main().catch(error => { console.error(error); process.exitCode = 1; });

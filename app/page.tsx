@@ -9,6 +9,7 @@ import ResegmentEditor from './components/ResegmentEditor';
 import ConjugationPanel from './components/ConjugationPanel';
 import { useAnalysisEditing } from './hooks/useAnalysisEditing';
 import { buildReadingGroups } from './utils/analysisEditing';
+import { vocabularyKey } from './utils/sentenceVocabulary';
 import { readDictionarySettings, DICTIONARY_SETTINGS_KEY, type DictionarySettings } from './lib/dictionary';
 import { browserStorage } from './utils/storage';
 import { loadSpeechSettings, SPEECH_PRESETS, SPEECH_SETTINGS_KEY, type SpeechSettings } from './lib/speechServices';
@@ -57,6 +58,8 @@ export default function Home() {
   const setAnalyzedTokens = editing.setTokens;
   const startAnalysisTask = editing.startTask;
   const [draft, setDraft] = useState('');
+  const [dictionaryDraft, setDictionaryDraft] = useState('');
+  const [knownDictionaryForms, setKnownDictionaryForms] = useState<{ taskId: number; forms: Record<string, string> }>({ taskId: -1, forms: {} });
   const [mode, setMode] = useState<'analyze' | 'dictionary'>('analyze');
   const [dictionarySettings, setDictionarySettings] = useState<DictionarySettings>(() => readDictionarySettings(null));
   const dictionaryProvider = dictionarySettings.providers.find(p => p.id === dictionarySettings.activeId) ?? dictionarySettings.providers[0];
@@ -143,6 +146,19 @@ export default function Home() {
     fetchWordDetails,
     clearWordDetail,
   } = useWordDetail({ userApiKey, endpoint, useStream });
+
+  useEffect(() => {
+    if (selectedIndex === null || isWordDetailLoading || isWordDetailStreaming || wordDetailStreamError || wordDetail?.kind === 'phrase' || !wordDetail?.dictionaryForm) return;
+    const token = analyzedTokens[selectedIndex];
+    if (!token || wordDetail.originalWord !== token.word) return;
+    const key = vocabularyKey(token);
+    const lemma = wordDetail.dictionaryForm;
+    if (Array.from(lemma).length > 120) return;
+    setKnownDictionaryForms(previous => {
+      const forms = previous.taskId === editing.state.taskId ? previous.forms : {};
+      return forms[key] === lemma ? previous : { taskId: editing.state.taskId, forms: { ...forms, [key]: lemma } };
+    });
+  }, [selectedIndex, analyzedTokens, wordDetail, isWordDetailLoading, isWordDetailStreaming, wordDetailStreamError, editing.state.taskId]);
 
   useEffect(() => {
     analysisAbortControllerRef.current?.abort('language-change');
@@ -678,6 +694,7 @@ export default function Home() {
     setDeepseekReasoningSummaryHistory([]);
     setAnalyzedTokens([]);
     setDraft('');
+    setDictionaryDraft('');
     setCurrentSentence('');
     activeAnalysisKeyRef.current = '';
     setAnalysisSource({ key: '', model: '' });
@@ -767,9 +784,11 @@ export default function Home() {
             <nav className="learning-actions" aria-label={t('功能模式')}>
               <button className="display-chip" aria-pressed={mode === 'analyze'} onClick={() => { setMode('analyze'); handleCloseWordDetail(); }}>{t('句子解析')}</button>
               <ShareControl text={draft} preferences={preferences} />
-              <button className="display-chip" aria-pressed={mode === 'dictionary'} disabled={isAnalyzing} onClick={() => { setMode('dictionary'); setEditRange(null); handleCloseWordDetail(); }}>{t('查词')}</button>
+              <button className="display-chip" aria-pressed={mode === 'dictionary'} disabled={isAnalyzing} onClick={() => { if (!currentSentence && !dictionaryDraft) setDictionaryDraft(draft); setMode('dictionary'); setEditRange(null); handleCloseWordDetail(); }}>{t('查词')}</button>
             </nav>
-            {mode === 'dictionary' && <DictionaryLookup draft={draft} onDraftChange={handleDraftChange} provider={dictionaryProvider} model={learningModel} />}
+            <div className={mode === 'dictionary' ? undefined : 'hidden'}>
+              <DictionaryLookup draft={dictionaryDraft} onDraftChange={setDictionaryDraft} provider={dictionaryProvider} model={learningModel} active={mode === 'dictionary'} sentence={currentSentence} tokens={isAnalyzing ? [] : analyzedTokens} analysisId={editing.state.taskId} dictionaryForms={knownDictionaryForms.taskId === editing.state.taskId ? knownDictionaryForms.forms : undefined} />
+            </div>
             {/* Keep completed output and pending translation mounted when visiting dictionary mode. */}
             <div className={mode === 'analyze' ? 'flex flex-col gap-[22px]' : 'hidden'}>
             <InputSection
