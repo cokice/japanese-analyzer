@@ -42,27 +42,6 @@ function DetailSection({ label, children }: { label: string; children: React.Rea
   );
 }
 
-export function WordDetailPlaceholder() {
-  const { t } = useLanguage();
-  return (
-    <section className="word-detail-panel-empty">
-      <div
-        className="word-detail-placeholder-icon grid h-12 w-12 place-items-center rounded-full"
-        style={{ background: 'var(--bg)', color: 'var(--ink-3)' }}
-      >
-        {Icon.book}
-      </div>
-      <p className="m-0 text-sm leading-7">
-        <span className="font-medium" style={{ color: 'var(--ink-2)' }}>{t("点击带下划线的词汇")}</span>
-        <br />
-        <span className="text-xs" style={{ color: 'var(--ink-3)' }}>
-          {t("这里会显示读音、释义和用法")}
-        </span>
-      </p>
-    </section>
-  );
-}
-
 function renderHighlightedText(text: string) {
   const nodes: React.ReactNode[] = [];
   // 只有显式的 Markdown 加粗才强调；引号和括号保留为正常正文。
