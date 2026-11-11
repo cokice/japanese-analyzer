@@ -1,3 +1,4 @@
+import { reserveServerKeyRequest } from './serverKeyRateLimit';
 import { NextRequest } from 'next/server';
 import {
   DEFAULT_AI_PROVIDER,
@@ -73,9 +74,13 @@ export function resolveProviderConfig(
     throw new ProviderConfigError('客户端不再支持自定义 API URL，请在服务器环境变量中配置上游端点。');
   }
 
+  const userKey = getBearerToken(req);
+  const apiKey = userKey || getDefaultApiKey(provider);
+  if (apiKey && !userKey) reserveServerKeyRequest(req);
+
   return {
     provider,
-    apiKey: getBearerToken(req) || getDefaultApiKey(provider),
+    apiKey,
     apiUrl: getDefaultApiUrl(provider),
     model: customModel ? normalizeAIModel(provider, customModel) : getModelName(provider),
   };

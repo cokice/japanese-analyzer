@@ -94,8 +94,11 @@ npm run dev
 | `DEEPSEEK_API_KEY` | 推奨。デフォルトの解析・翻訳・画像認識 |
 | `GEMINI_API_KEY` | 任意。Gemini テキストモデル・画像認識・Gemini TTS |
 | `DEEPSEEK_API_URL` / `GEMINI_API_URL` | 任意。OpenAI 互換エンドポイント。空欄なら公式のもの |
+| `SERVER_KEY_RATE_LIMIT` / `SERVER_KEY_RATE_WINDOW_SECONDS` | 共有サーバーキーは IP ごとに 600 秒あたり 30 回まで。個人キーは対象外です。 |
 | `CODE` | 任意。アクセス用パスワード。空欄ならパスワードなし |
 | `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 任意。両方設定すると Umami 解析が有効になります |
+
+カウンターはプロセス内のため、Vercel などのステートレス・複数インスタンス環境では信頼できません。共有ストレージを使うゲートウェイ制限を設定してください。信頼するプロキシで X-Forwarded-For を上書きしてください。有効な IP がない場合は共通枠を使用します。
 
 キーはサーバー側だけで使われ、ブラウザには送られません。「今日の一文」はサーバーのキーで生成し、未設定の場合は内蔵の例文を表示します。
 

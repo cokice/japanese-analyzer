@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { runServerKeyRateLimitTests } from './serverKeyRateLimit.test';
 import { runRequestValidationTests } from './requestValidation.test';
 import './analysisHistory.test';
 import './dailySentence.test';
@@ -956,6 +957,7 @@ Promise.all([
   runOpenAIContentStreamTests(),
   runReasoningSummaryControllerTests(),
 ])
+  .then(runServerKeyRateLimitTests)
   .then(runRequestValidationTests)
   .then(runLocalOutputTests)
   .then(runRequestMetricsTests)
