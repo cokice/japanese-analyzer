@@ -89,6 +89,8 @@ export default function Home() {
   // 选中词汇（右侧详情面板 / 移动端模态）
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [isDesktop, setIsDesktop] = useState(true);
+  const [railTab, setRailTab] = useState<'detail' | 'assistant'>('detail');
+  const [assistantHost, setAssistantHost] = useState<HTMLDivElement | null>(null);
   const {
     wordDetail,
     isLoading: isWordDetailLoading,
@@ -258,6 +260,7 @@ export default function Home() {
 
   // 点击词汇 → 查询详情
   const handleWordClick = useCallback((token: TokenData, index: number) => {
+    setRailTab('detail');
     if (selectedIndex === index) {
       handleCloseWordDetail();
       return;
@@ -281,6 +284,7 @@ export default function Home() {
 
   // 圈选多个词：拖动 / Shift 点击 / 手机长按后再点
   const handleRangeSelect = useCallback((a: number, b: number) => {
+    setRailTab('detail');
     // 不论用哪种方式完成圈选，都退出「再点一个词」的状态
     setPickAnchor(null);
     const range = normalizePhraseRange(analyzedTokens, a, b);
@@ -700,7 +704,16 @@ export default function Home() {
           {/* 侧栏：桌面阅读态预留位置 */}
           <aside className="detail-rail sticky top-4 hidden self-start lg:block">
             <div className="detail-rail-inner">
-              {isDesktop && hasWordDetail && wordDetailPanel}
+              {isDesktop && isReading && (
+                <div className="rail-tabs" role="tablist" aria-label={t("侧栏")}>
+                  <button id="detail-tab" role="tab" type="button" aria-selected={railTab === 'detail'} aria-controls="definition-panel" tabIndex={railTab === 'detail' ? 0 : -1} onClick={() => setRailTab('detail')} onKeyDown={(event) => { if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { setRailTab('assistant'); document.getElementById('assistant-tab')?.focus(); } }}>{t("释义")}</button>
+                  <button id="assistant-tab" role="tab" type="button" aria-selected={railTab === 'assistant'} aria-controls="assistant-panel" tabIndex={railTab === 'assistant' ? 0 : -1} onClick={() => setRailTab('assistant')} onKeyDown={(event) => { if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { setRailTab('detail'); document.getElementById('detail-tab')?.focus(); } }}>{t("助手")}</button>
+                </div>
+              )}
+              <div id="definition-panel" role="tabpanel" aria-labelledby="detail-tab" hidden={railTab !== 'detail'}>
+                {isDesktop && hasWordDetail ? wordDetailPanel : isDesktop && isReading ? <p className="rail-placeholder">{t("选一个词查看释义")}</p> : null}
+              </div>
+              <div id="assistant-panel" role="tabpanel" aria-labelledby="assistant-tab" ref={setAssistantHost} hidden={railTab !== 'assistant'} />
             </div>
           </aside>
         </main>
@@ -756,6 +769,9 @@ export default function Home() {
       {/* AI聊天助手 */}
       <AIChat
         hidden={isSettingsModalOpen}
+        embeddedTarget={isDesktop && isReading ? assistantHost : null}
+        embeddedActive={railTab === 'assistant'}
+        onEmbeddedClose={() => setRailTab('detail')}
         userApiKey={userApiKey}
         aiProvider={aiProvider}
         aiModel={aiModel}

@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useRef, useState } from 'react';
 import { AssistantModalPrimitive, TextMessagePartProvider } from '@assistant-ui/react';
@@ -22,13 +23,16 @@ interface ChatMessage {
 
 interface AIChatProps {
   hidden?: boolean;
+  embeddedTarget?: HTMLElement | null;
+  embeddedActive?: boolean;
+  onEmbeddedClose?: () => void;
   userApiKey?: string;
   aiProvider: AIProvider;
   aiModel: AIModelName;
   currentSentence?: string;
 }
 
-export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentence, hidden = false }: AIChatProps) {
+export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentence, hidden = false, embeddedTarget, embeddedActive, onEmbeddedClose }: AIChatProps) {
   const { t, locale, errorText } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -83,7 +87,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
   }, [messages]);
 
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
+    if ((isOpen || (embeddedTarget && embeddedActive)) && messages.length === 0) {
       const welcomeContent = currentSentence
         ? "可以问我这句话的语法和用法。"
         : "想了解哪个词，或哪一句日语？";
@@ -95,7 +99,11 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
         content: welcomeContent
       }]);
     }
-  }, [isOpen, messages.length, currentSentence, t]);
+  }, [isOpen, messages.length, currentSentence, t, embeddedTarget, embeddedActive]);
+
+  useEffect(() => {
+    if (embeddedTarget && embeddedActive) inputRef.current?.focus({ preventScroll: true });
+  }, [embeddedTarget, embeddedActive]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -219,6 +227,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
   };
 
   const closeChat = () => {
+    if (embeddedTarget) onEmbeddedClose?.();
     setIsOpen(false);
     setIsExpanded(false);
   };
@@ -237,6 +246,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
             {currentSentence ? t("结合当前句子回答") : t("语法、词汇和学习问题")}
           </p>
         </div>
+        {!embeddedTarget && (
         <button
           onClick={expanded ? () => {
             setIsExpanded(false);
@@ -248,6 +258,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
         >
           {expanded ? Icon.compress : Icon.expand}
         </button>
+        )}
         <button
           onClick={closeChat}
           className="dictionary-icon-btn"
@@ -319,6 +330,9 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
   );
 
   if (hidden) return null;
+  if (embeddedTarget) return createPortal(
+    <div className="embedded-chat-panel">{renderChatPanel(false)}</div>, embeddedTarget
+  );
   if (isMobile) return (
     <>
       <ModalDialog open={isOpen || isExpanded} onClose={closeChat} className="chat-expanded-panel mobile-chat-panel" aria-label={t("AI 日语助手")}>
