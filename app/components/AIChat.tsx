@@ -31,6 +31,14 @@ interface AIChatProps {
 export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentence, hidden = false }: AIChatProps) {
   const { t, locale, errorText } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 639px)');
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -234,7 +242,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
             setIsExpanded(false);
             setIsOpen(true);
           } : openExpanded}
-          className="dictionary-icon-btn"
+          className="dictionary-icon-btn chat-expand-button"
           title={expanded ? t("收缩窗口") : t("展开窗口")}
           type="button"
         >
@@ -286,6 +294,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
         <div className="chat-composer-field flex items-end gap-2">
           <textarea
             ref={inputRef}
+            data-autofocus
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -310,6 +319,16 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
   );
 
   if (hidden) return null;
+  if (isMobile) return (
+    <>
+      <ModalDialog open={isOpen || isExpanded} onClose={closeChat} className="chat-expanded-panel mobile-chat-panel" aria-label={t("AI 日语助手")}>
+        {renderChatPanel(true)}
+      </ModalDialog>
+      {!isOpen && !isExpanded && (
+        <button className="nd-fab" type="button" aria-label={t("打开 AI 日语助手")} onClick={() => setIsOpen(true)}>{Icon.chat}</button>
+      )}
+    </>
+  );
 
   return (
     <>
