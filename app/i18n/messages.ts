@@ -89,8 +89,6 @@ export const messages = {
   "语音选择": {"zh-TW": "選擇聲音", "en": "Voice", "ko": "음성 선택"},
   "语音风格": {"zh-TW": "朗讀風格", "en": "Speaking style", "ko": "읽기 스타일"},
   "清空内容": {"zh-TW": "清除內容", "en": "Clear text", "ko": "내용 지우기"},
-  "正在准备朗读…": {"zh-TW": "正在準備朗讀…", "en": "Preparing audio…", "ko": "음성을 준비하는 중…"},
-  "预计需要": {"zh-TW": "預計需要", "en": "Estimated time:", "ko": "예상 소요 시간:"},
   "访问验证": {"zh-TW": "存取驗證", "en": "Access verification", "ko": "접속 인증"},
   "请输入访问密码以继续使用": {"zh-TW": "請輸入存取密碼以繼續使用", "en": "Enter the access password to continue", "ko": "계속하려면 접속 비밀번호를 입력해 주세요"},
   "请输入访问密码": {"zh-TW": "請輸入存取密碼", "en": "Enter access password", "ko": "접속 비밀번호를 입력하세요"},
