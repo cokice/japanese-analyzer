@@ -18,18 +18,20 @@
   --primary-soft: #f0ecfa;
   --danger: #a52a35;
   --danger-soft: #fae9eb;
-  /* 词性颜色 */
-  --pos-n: #4f75be;      /* 名词 blue */
-  --pos-v: #388774;      /* 动词 green */
-  --pos-adj: #d97706;    /* 形容词 amber */
-  --pos-adjv: #e11d48;   /* 形容动词 rose */
-  --pos-adv: #0d9488;    /* 副词 teal */
-  --pos-adn: #7c3aed;    /* 连体词 violet */
-  --pos-conj: #dc2626;   /* 接续词 red */
-  --pos-int: #65a30d;    /* 感动词 lime */
-  --pos-p: #bb7049;      /* 助词 orange */
-  --pos-aux: #a260a8;    /* 助动词 fuchsia */
-  --pos-o: #6b7280;      /* 其他 gray */
+  --pos-stroke: 2px;
+  --pos-stroke-thin: 1px;
+  /* 词性颜色：两两 CIEDE2000 ≥ 15 */
+  --pos-n: #3768ba;
+  --pos-v: #267c4a;
+  --pos-adj: #a88818;
+  --pos-adjv: #981828;
+  --pos-adv: #1898a8;
+  --pos-adn: #7818b8;
+  --pos-conj: #b87888;
+  --pos-int: #684818;
+  --pos-p: #f85818;
+  --pos-aux: #f818e8;
+  --pos-o: #64646d;
 
   /* 兼容旧变量 */
   --background: var(--bg);
@@ -92,16 +94,18 @@
   --danger: #ffadb5;
   --danger-soft: #452c32;
   --selection-ink: #c6b5ff;
-  --pos-n: #7e9ed7;
-  --pos-v: #72b6a2;
-  --pos-adj: #c9a369;
-  --pos-adjv: #d18a9b;
-  --pos-adv: #6db6b0;
-  --pos-adn: #b697d5;
-  --pos-conj: #d48c87;
-  --pos-int: #a1b86f;
-  --pos-p: #d39a78;
-  --pos-aux: #bf90c3;
+  --pos-n: #79a8f0;
+  --pos-v: #77c48f;
+  --pos-adj: #f8b818;
+  --pos-adjv: #f85848;
+  --pos-adv: #18e8f8;
+  --pos-adn: #f838e8;
+  --pos-conj: #989848;
+  --pos-int: #c8e828;
+  --pos-p: #e8d8b8;
+  --pos-aux: #f8a8b8;
+
+  --pos-o: #acacb7;
 
   --background: var(--bg);
   --foreground: var(--ink);
@@ -2516,3 +2520,6 @@ body {
 .error-notice { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4); border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); border-radius: var(--r-lg); background: var(--danger-soft); color: var(--danger); font-size: var(--text-base); line-height: 1.7; }
 .error-notice-message { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .error-notice .nd-ghost-btn { flex-shrink: 0; color: var(--danger); }
+
+.pos-underline.pos-group-p { background: none; border-bottom: var(--pos-stroke) dashed var(--pos-p); }
+.pos-underline.pos-group-aux { background: none; border-bottom: var(--pos-stroke-thin) dotted var(--pos-aux); }

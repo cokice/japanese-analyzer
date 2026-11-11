@@ -297,6 +297,7 @@ export default function AnalysisResult({
                         <button
                           type="button"
                           className="word-token"
+                          title={t(POS_GROUP_LABELS[getPosGroup(token.pos)])}
                           aria-pressed={isActive || inRange}
                           onClick={() => {
                             if (!selection.handleTokenClick(index)) onWordClick(token, index);
