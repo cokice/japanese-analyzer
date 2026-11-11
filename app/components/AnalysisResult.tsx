@@ -6,7 +6,7 @@ import { getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEN
 import { TokenData } from '../services/api';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { Switch } from '@/components/ui/switch';
-import { groupPendingChars, groupReadingTokens } from '../utils/readingLayout';
+import { getReadingDensity, groupPendingChars, groupReadingTokens } from '../utils/readingLayout';
 import { isPunctuationToken, type PhraseRange } from '../utils/phraseRange';
 import { usePhraseSelection } from '../hooks/usePhraseSelection';
 
@@ -253,6 +253,7 @@ export default function AnalysisResult({
           role="region"
           aria-label={t("日文解析正文")}
           tabIndex={0}
+          data-density={getReadingDensity(analyzedLength + Array.from(pendingText).length)}
           data-furigana={showFurigana}
           data-romaji={showRomaji}
           data-selecting={selection.preview !== null || pickAnchor !== null}
@@ -280,6 +281,7 @@ export default function AnalysisResult({
                     <span
                       key={index}
                       data-token-index={index}
+                      data-has-furigana={hasFurigana}
                       className={`word-unit-wrapper ${isPunct ? 'is-punct' : ''} ${isActive ? 'active-unit' : ''}${rangeClass}${pickAnchor === index ? ' range-anchor' : ''}`}
                     >
                       {!isPunct && (
