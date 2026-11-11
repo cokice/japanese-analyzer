@@ -2505,3 +2505,6 @@ body {
   .reading-surface #analyzedSentenceOutput[data-density="medium"] { --reading-size: var(--text-lg); }
   .reading-surface #analyzedSentenceOutput[data-density="long"] { --reading-size: var(--text-reading-small); }
 }
+
+.reading-word-group { flex-wrap: wrap; width: max-content; }
+.reading-attachment { display: inline-flex; align-items: flex-end; max-width: 100%; min-width: 0; }
