@@ -2,11 +2,12 @@ import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { NextRequest, NextResponse } from 'next/server';
 import { createUpstreamSignal, isUpstreamTimeoutError } from '../_utils/requestTimeout';
 import { requireApiSession } from '../_utils/sessionAuth';
+import { GEMINI_TTS_MODEL_NAME } from '../../lib/tts';
 
 // API配置
-const GEMINI_TTS_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent';
+const GEMINI_TTS_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL_NAME}:generateContent`;
 const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
-const MODEL_NAME = 'gemini-3.1-flash-tts-preview';
+const MODEL_NAME = GEMINI_TTS_MODEL_NAME;
 
 // Edge TTS 声音配置
 const EDGE_VOICES = {
@@ -24,9 +25,9 @@ export async function POST(req: NextRequest) {
     const authError = requireApiSession(req);
     if (authError) return authError;
 
-    const { text, provider = 'edge', gender = 'female', voice = 'Kore', model = MODEL_NAME, rate = 0, pitch = 0 } = await readJsonBody(req);
+    const { text, provider = 'edge', gender = 'female', voice = 'Kore', model = MODEL_NAME, rate = 0, pitch = 0, style = '' } = await readJsonBody(req);
 
-    if (!text) {
+    if (typeof text !== 'string' || !text.trim()) {
       return NextResponse.json(
         { error: { message: '缺少必要的文本内容' } },
         { status: 400 }
@@ -118,8 +119,15 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      if (typeof style !== 'string') {
+        return NextResponse.json(
+          { error: { message: '不支持的Gemini朗读风格' } },
+          { status: 400 }
+        );
+      }
+
       const payload = {
-        contents: [{ parts: [{ text }] }],
+        contents: [{ parts: [{ text, ...(style.trim() ? { speech_metadata: { style: style.trim() } } : {}) }] }],
         generationConfig: {
           responseModalities: ['AUDIO'],
           speechConfig: {
@@ -149,7 +157,11 @@ export async function POST(req: NextRequest) {
       }
 
       const result = await response.json();
-      const inlineData = result.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+      const inlineData = result.candidates?.[0]?.content?.parts?.find(
+        (part: { inlineData?: { data?: string; mimeType?: string } }) =>
+          typeof part.inlineData?.data === 'string' && part.inlineData.data.length > 0 &&
+          typeof part.inlineData.mimeType === 'string' && part.inlineData.mimeType.startsWith('audio/')
+      )?.inlineData;
       if (!inlineData) {
         return NextResponse.json(
           { error: { message: '无有效音频数据' } },

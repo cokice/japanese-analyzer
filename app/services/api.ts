@@ -1,4 +1,5 @@
 import { createTranslator, getClientLocale } from '../i18n';
+import { GEMINI_TTS_MODEL_NAME } from '../lib/tts';
 // API与分析相关的服务函数
 import {
   DEFAULT_AI_PROVIDER,
@@ -106,7 +107,6 @@ const ANALYSIS_CHUNK_CONCURRENCY = 3;
 
 // 默认API地址 - 使用本地API路由
 export const DEFAULT_API_URL = "/api";
-const GEMINI_TTS_MODEL_NAME = 'gemini-3.1-flash-tts-preview';
 const EDGE_TTS_MODEL_NAME = 'edge-tts';
 const EDGE_TTS_URL = 'https://api.howen.ink/api/tts';
 const EDGE_TTS_VOICES = {
@@ -1461,10 +1461,10 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 export async function synthesizeSpeech(
   text: string,
   provider: TTSProvider = 'edge',
-  options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number; signal?: AbortSignal } = {},
+  options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number; style?: string; signal?: AbortSignal } = {},
   userApiKey?: string
 ): Promise<{ audio: string; mimeType: string }> {
-  const { gender = 'female', voice = 'Kore', rate = 0, pitch = 0 } = options;
+  const { gender = 'female', voice = 'Kore', rate = 0, pitch = 0, style = '' } = options;
 
   if (provider === 'edge') {
     const response = await fetch(EDGE_TTS_URL, {
@@ -1511,7 +1511,8 @@ export async function synthesizeSpeech(
       gender,
       voice,
       rate,
-      pitch
+      pitch,
+      style
     })
   });
 

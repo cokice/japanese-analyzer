@@ -34,7 +34,6 @@ export const Icon = {
   x: <I><path d="M6 6l12 12M18 6L6 18" /></I>,
   xSm: <I w={16}><path d="M6 6l12 12M18 6L6 18" /></I>,
   search: <I><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></I>,
-  book: <I><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 1 2-2h12" /></I>,
   translate: <I><path d="M4 5h7" /><path d="M8 3v2" /><path d="M5 9c1.6 3.3 4.4 5.7 8 7" /><path d="M12 9c-.8 1.8-2.2 3.4-4.2 4.9" /><path d="M14 21l1.1-3M21 21l-1.1-3M15.7 16h3.6M16.9 12h1.2L22 21" /></I>,
   globe: <I><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a14 14 0 0 1 0 18" /><path d="M12 3a14 14 0 0 0 0 18" /></I>,
   moon: <I><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z" /></I>,
