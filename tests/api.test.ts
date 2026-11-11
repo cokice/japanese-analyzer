@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { runRequestValidationTests } from './requestValidation.test';
 import './analysisHistory.test';
 import './dailySentence.test';
 import './phraseRange.test';
@@ -955,6 +956,7 @@ Promise.all([
   runOpenAIContentStreamTests(),
   runReasoningSummaryControllerTests(),
 ])
+  .then(runRequestValidationTests)
   .then(runLocalOutputTests)
   .then(runRequestMetricsTests)
   .then(runOpenAIProxyErrorBodyTests)
