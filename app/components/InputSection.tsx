@@ -586,10 +586,11 @@ export default function InputSection({
   };
   const showInputShimmer = !reduceMotion && isLoading && inputText.trim().length > 0;
 
-  // 输入框高度随内容自适应；compact 切换会重新挂载输入框，需要对新的 textarea 重新测量和监听
+  // 输入框高度随内容自适应：支持 field-sizing: content 的浏览器完全交给 CSS（见 globals.css #japaneseInput），
+  // 以下 JS 测量只给不支持的浏览器兜底。compact 切换会重新挂载输入框，需要对新的 textarea 重新测量和监听
   useLayoutEffect(() => {
     const input = japaneseInputRef.current;
-    if (!input) return;
+    if (!input || CSS.supports('field-sizing', 'content')) return;
     const resizeInput = () => {
       const scrollTop = input.scrollTop;
       input.style.height = 'auto';

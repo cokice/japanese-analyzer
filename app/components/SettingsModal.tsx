@@ -1,7 +1,8 @@
 'use client';
 
 import { useLanguage } from '../contexts/LanguageContext';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import ModalDialog from './ModalDialog';
 import { DEEPSEEK_MODEL_OPTIONS, GEMINI_MODEL_OPTIONS, getModelName, type AIModelName, type AIProvider } from '../services/api';
 import { Icon } from './Icons';
 import { ProviderLogo, PROVIDER_LABELS } from './ProviderLogo';
@@ -38,6 +39,7 @@ export default function SettingsModal({
   onModalClose
 }: SettingsModalProps) {
   const { t } = useLanguage();
+  const titleId = useId();
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(aiProvider);
   const [selectedModel, setSelectedModel] = useState<AIModelName>(getModelName(aiProvider, aiModel));
   const [geminiKey, setGeminiKey] = useState(geminiApiKey);
@@ -53,12 +55,6 @@ export default function SettingsModal({
     setStreamEnabled(useStream);
     setStatus('');
   }, [aiProvider, aiModel, geminiApiKey, deepseekApiKey, useStream, isModalOpen]);
-
-  const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onModalClose();
-    }
-  };
 
   const currentApiKey = selectedProvider === 'gemini' ? geminiKey : deepseekKey;
   const currentModelName = getModelName(selectedProvider, selectedModel);
@@ -87,13 +83,12 @@ export default function SettingsModal({
   };
 
   return (
-    <div
-      id="settingsModal"
-      className="settings-modal"
-      style={{ display: isModalOpen ? 'flex' : 'none' }}
-      onClick={handleOutsideClick}
+    <ModalDialog
+      open={isModalOpen}
+      onClose={onModalClose}
+      className="settings-modal-content"
+      aria-labelledby={titleId}
     >
-      <div className="settings-modal-content">
         <button
           id="closeSettingsModal"
           type="button"
@@ -106,7 +101,7 @@ export default function SettingsModal({
 
         <div className="mb-5">
           <div className="mb-1 flex items-center gap-2">
-            <h3 className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>{t("模型与 API")}</h3>
+            <h3 id={titleId} className="m-0 text-lg font-semibold" style={{ color: 'var(--ink)' }}>{t("模型与 API")}</h3>
           </div>
           <p className="m-0 text-sm leading-6" style={{ color: 'var(--ink-3)' }}>
             {t("使用默认配置，或填写自己的 API 密钥。")}
@@ -221,7 +216,6 @@ export default function SettingsModal({
         <p className="mb-0 mt-4 text-xs leading-5" style={{ color: 'var(--ink-3)' }}>
           {t("密钥保存在此浏览器中，随请求发送用于调用模型。留空则使用默认配置。")}
         </p>
-      </div>
-    </div>
+    </ModalDialog>
   );
 }

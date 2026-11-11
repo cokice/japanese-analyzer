@@ -4,13 +4,13 @@ import { browserStorage } from './utils/storage';
 
 import { useLanguage } from './contexts/LanguageContext';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import InputSection from './components/InputSection';
 import AnalysisResult, { DisplayOptions } from './components/AnalysisResult';
 import TranslationSection from './components/TranslationSection';
 import SettingsModal from './components/SettingsModal';
 import Header from './components/Header';
 import LoginModal from './components/LoginModal';
+import ModalDialog from './components/ModalDialog';
 import AIChat from './components/AIChat';
 import ReasoningStream from './components/ReasoningStream';
 import WordDetailPanel from './components/WordDetailPanel';
@@ -704,43 +704,39 @@ export default function Home() {
           useStream={useStream}
           onSaveSettings={handleSaveSettings}
           isModalOpen={isSettingsModalOpen}
-          onModalClose={() => setIsSettingsModalOpen(!isSettingsModalOpen)}
+          onModalClose={() => setIsSettingsModalOpen(false)}
         />
       </div>
 
       {/* 移动端词汇详情模态 */}
-      {!isDesktop && hasWordDetail && typeof document !== 'undefined' && createPortal(
-        <div
-          id="wordDetailModal"
-          className="word-detail-modal"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) handleCloseWordDetail();
-          }}
+      <ModalDialog
+        open={!isDesktop && hasWordDetail}
+        onClose={handleCloseWordDetail}
+        className="word-detail-modal-content"
+        aria-label={t("词汇详情")}
+      >
+        <button
+          type="button"
+          className="modal-close-button"
+          title={t("关闭详情")}
+          aria-label={t("关闭详情")}
+          onClick={handleCloseWordDetail}
         >
-          <div className="word-detail-modal-content">
-            <button
-              className="modal-close-button"
-              title={t("关闭详情")}
-              onClick={handleCloseWordDetail}
-            >
-              &times;
-            </button>
-            <WordDetailPanel
-              wordDetail={wordDetail}
-              isLoading={isWordDetailLoading}
-              isStreamLoading={isWordDetailStreaming}
-              streamError={wordDetailStreamError}
-              streamContent={wordDetailStreamContent}
-              onClose={handleCloseWordDetail}
-              onRefresh={handleRefreshWordDetail}
-      onMerge={canMergePhrase ? handleMergePhrase : undefined}
-      onSelectMore={selectedIndex !== null ? handleStartPick : undefined}
-              hideClose
-            />
-          </div>
-        </div>,
-        document.body
-      )}
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <WordDetailPanel
+          wordDetail={wordDetail}
+          isLoading={isWordDetailLoading}
+          isStreamLoading={isWordDetailStreaming}
+          streamError={wordDetailStreamError}
+          streamContent={wordDetailStreamContent}
+          onClose={handleCloseWordDetail}
+          onRefresh={handleRefreshWordDetail}
+          onMerge={canMergePhrase ? handleMergePhrase : undefined}
+          onSelectMore={selectedIndex !== null ? handleStartPick : undefined}
+          hideClose
+        />
+      </ModalDialog>
 
       {/* AI聊天助手 */}
       <AIChat

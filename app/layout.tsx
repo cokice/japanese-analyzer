@@ -17,6 +17,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // 首帧（CSS 生效前）就让浏览器知道两种配色都支持，减少深色模式下的白闪
+  colorScheme: 'light dark',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#f6f6f8' },
     { media: '(prefers-color-scheme: dark)', color: '#24232b' }
@@ -57,21 +59,12 @@ export default function RootLayout({
             document.documentElement.classList.add(actualTheme);
           })();
         `}} />
-        {/* Safari输入修复脚本 */}
+        {/* Safari 输入文字颜色修复：只打 html.safari 标记，颜色由 globals.css 按当前主题变量给出。
+            不再写内联样式：内联值只在加载时取一次主题，切换主题后会过时。 */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
-            var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-            if (isSafari) {
+            if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
               document.documentElement.classList.add('safari');
-              // 修复Safari中的输入问题
-              document.addEventListener('DOMContentLoaded', function() {
-                var inputs = document.querySelectorAll('input, textarea');
-                inputs.forEach(function(input) {
-                  var isDark = document.documentElement.classList.contains('dark');
-                  input.style.webkitTextFillColor = isDark ? '#f9fafb' : 'black';
-                  input.style.opacity = '1';
-                });
-              });
             }
           })();
         `}} />
