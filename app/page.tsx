@@ -548,6 +548,19 @@ export default function Home() {
     />
   );
 
+  useEffect(() => {
+    if (isDesktop || !hasWordDetail) return;
+    const frame = requestAnimationFrame(() => {
+      const index = selectedIndex ?? selectedRange?.start;
+      const word = document.querySelector(`[data-token-index="${index}"]`);
+      const sheet = document.querySelector('.word-detail-modal-content');
+      if (!word || !sheet) return;
+      const overlap = word.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top + 16;
+      if (overlap > 0) window.scrollBy({ top: overlap, behavior: 'instant' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isDesktop, hasWordDetail, selectedIndex, selectedRange]);
+
   // 如果需要认证但未认证，只显示登录界面
   if (requiresAuth && !isAuthenticated) {
     return (
@@ -573,7 +586,7 @@ export default function Home() {
 
   return (
     <>
-      <div className="flex min-h-screen flex-col">
+      <div className="app-shell flex min-h-screen flex-col" data-word-sheet-open={!isDesktop && hasWordDetail}>
         <Header
           thinking={isAnalyzing}
           aiProvider={aiProvider}
@@ -712,6 +725,7 @@ export default function Home() {
       {/* 移动端词汇详情模态 */}
       <ModalDialog
         open={!isDesktop && hasWordDetail}
+        modal={false}
         onClose={handleCloseWordDetail}
         className="word-detail-modal-content"
         aria-label={t("词汇详情")}
