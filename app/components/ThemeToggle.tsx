@@ -39,7 +39,7 @@ export default function ThemeToggle() {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         title={t("切换主题 - {0}", t(currentLabel))}
-        className="grid h-10 w-10 place-items-center rounded-[10px] border border-transparent transition-colors hover:border-[var(--line)] hover:text-[var(--primary)]"
+        className="grid h-10 w-10 place-items-center rounded-ui-md border border-transparent transition-colors hover:border-[var(--line)] hover:text-[var(--primary)]"
         style={{ color: 'var(--ink-2)' }}
       >
         {actualTheme === 'dark' ? Icon.moon : Icon.sun}
@@ -64,7 +64,7 @@ export default function ThemeToggle() {
                   setTheme(option.value);
                   setIsOpen(false);
                 }}
-                className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm font-medium transition-colors"
+                className="flex w-full items-center gap-2.5 rounded-ui-md px-3 py-2 text-left text-sm font-medium transition-colors"
                 style={{
                   background: active ? 'var(--primary-soft)' : 'transparent',
                   color: active ? 'var(--primary)' : 'var(--ink-2)',

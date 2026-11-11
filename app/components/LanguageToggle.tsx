@@ -91,7 +91,7 @@ export default function LanguageToggle() {
             menuRef.current?.showPopover();
           }
         }}
-        className="grid h-10 w-10 place-items-center rounded-[10px] border border-transparent transition-colors hover:border-[var(--line)] hover:text-[var(--primary)]"
+        className="grid h-10 w-10 place-items-center rounded-ui-md border border-transparent transition-colors hover:border-[var(--line)] hover:text-[var(--primary)]"
         style={{
           color: isOpen ? 'var(--primary)' : 'var(--ink-2)',
           anchorName,
@@ -131,7 +131,7 @@ export default function LanguageToggle() {
             aria-checked={locale === value}
             lang={value}
             tabIndex={-1}
-            className="flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-left text-sm font-medium transition-colors"
+            className="flex w-full items-center justify-between gap-3 rounded-ui-md px-3 py-2 text-left text-sm font-medium transition-colors"
             style={{
               background: locale === value ? 'var(--primary-soft)' : 'transparent',
               color: locale === value ? 'var(--primary)' : 'var(--ink-2)',

@@ -127,3 +127,9 @@
 - 640px 以下聊天全屏，仅保留窗口内的关闭按钮；输入区和顶栏避开设备安全区。
 - 640px 以下句子降到 24px，振假名 11px，译文 17px。
 - 可点区域至少 32×32px，主按钮高 40px。
+
+## 10. 可执行检查
+
+Tailwind 通过 `theme.extend` 映射颜色（如 `bg-panel`、`text-ink`）、字号（`text-ui-sm`）、圆角（`rounded-ui-md`）、间距（`p-ui-4`）和字体。间距 token 为 `--space-0/1/2/3/4/5/6/8`，对应 0/4/8/12/16/20/24/32px。
+
+`npm test` 检查 app/ 和 components/ 的任意 px 类、globals.css 中裸字号/圆角、700 字重和 token 定义之外的十六进制颜色。`tests/design-baseline.json` 是历史遗留数量上限，只能降低；新增样式必须用 token，后续逐批替换历史样式。首批替换了 10px 圆角与 12/13px 字号类。

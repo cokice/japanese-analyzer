@@ -126,7 +126,7 @@ export default function SettingsModal({
                   <button
                     key={provider}
                     type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium transition-colors"
+                    className="inline-flex items-center justify-center gap-2 rounded-ui-md px-3 py-2 text-sm font-medium transition-colors"
                     aria-pressed={active}
                     style={{
                       background: active ? 'var(--bg-2)' : 'transparent',
