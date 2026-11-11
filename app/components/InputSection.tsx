@@ -23,6 +23,7 @@ import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-m
 import { normalizePastedText } from '../utils/pastedText';
 import AnalysisHistory from './AnalysisHistory';
 import DailySentence from './DailySentence';
+import TtsSettingsPopover from './TtsSettingsPopover';
 import type { useAnalysisHistory } from '../hooks/useAnalysisHistory';
 
 interface InputSectionProps {
@@ -114,14 +115,12 @@ export default function InputSection({
   const [isImageUploading, setIsImageUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const [uploadStatusClass, setUploadStatusClass] = useState('');
-  const [showTtsDropdown, setShowTtsDropdown] = useState(false);
   const [selectedGender, setSelectedGender] = useState<'male' | 'female'>('female');
   const [selectedRate, setSelectedRate] = useState(0);
   const [selectedVoice, setSelectedVoice] = useState('Kore');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [submitState, setSubmitState] = useState<StateMorphButtonState>('idle');
   const [showFirstVisitExample, setShowFirstVisitExample] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const japaneseInputRef = useRef<HTMLTextAreaElement>(null);
   const inputShimmerFrameRef = useRef<HTMLDivElement>(null);
   const submitStartedRef = useRef(false);
@@ -237,23 +236,6 @@ export default function InputSection({
     setSelectedVoice(storedVoice);
     setSelectedStyle(storedStyle);
   }, []);
-
-  // 点击外部关闭下拉菜单
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowTtsDropdown(false);
-      }
-    };
-
-    if (showTtsDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showTtsDropdown]);
 
   const clearUsageMetadata = () => {
     usageMetadataRef.current = {};
@@ -644,6 +626,127 @@ export default function InputSection({
   const pillMotion = swap(320, 120, 'translateY(8px) scale(0.96)', 'translateY(4px) scale(0.98)', 60);
   const cardMotion = swap(300, 160, 'translateY(-6px) scale(0.985)', 'translateY(-10px) scale(0.97)');
 
+  const renderTtsControls = (inToolbar: boolean) => (
+    <div className="input-voice-controls flex">
+      <button
+        id={inToolbar ? undefined : 'speakButton'}
+        type="button"
+        className={inToolbar ? 'nd-ghost-btn compact-speak' : 'input-tool-button'}
+        onClick={handleSpeak}
+        disabled={!inputText.trim() || isLoading || isSpeaking}
+        title={inputText.trim() ? t("朗读文本（约 {0}）", getEstimatedTime(inputText)) : t("请先输入文本")}
+        aria-label={t("朗读文本")}
+      >
+        {isSpeaking
+          ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
+          : inToolbar ? Icon.speaker : Icon.speakerLg}
+        {inToolbar && <span>{t("朗读")}</span>}
+      </button>
+      <TtsSettingsPopover disabled={isLoading || isSpeaking}>
+        {/* TTS提供商选择 */}
+        <div className="mb-3">
+          <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音引擎")}</label>
+          <div className="segmented-control grid grid-cols-2 gap-1 rounded-xl p-1">
+            {(['edge', 'gemini'] as const).map((provider) => (
+              <button
+                key={provider}
+                className="cursor-pointer rounded-lg border-none px-3 py-2 text-sm transition-colors"
+                aria-pressed={ttsProvider === provider}
+                style={ttsProvider === provider
+                  ? { background: 'var(--bg-2)', color: 'var(--ink)', fontWeight: 500 }
+                  : { background: 'transparent', color: 'var(--ink-2)' }}
+                onClick={() => handleTtsProviderSelect(provider)}
+              >
+                {provider === 'edge' ? 'Edge TTS' : 'Gemini TTS'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Edge TTS 设置 */}
+        {ttsProvider === 'edge' && (
+          <>
+            <div className="mb-3">
+              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音性别")}</label>
+              <select
+                aria-label={t("语音性别")}
+                value={selectedGender}
+                onChange={(e) => handleGenderChange(e.target.value as 'male' | 'female')}
+                className="nd-input text-sm"
+              >
+                {TTS_GENDERS.map((gender) => (
+                  <option key={gender.value} value={gender.value}>
+                    {t(gender.label)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-2">
+              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
+                {t("语速 ·")} {t(getRateLabel(selectedRate))}
+              </label>
+              <input
+                type="range"
+                aria-label={t("语速")}
+                aria-valuetext={t(getRateLabel(selectedRate))}
+                min="-100"
+                max="100"
+                step="10"
+                value={selectedRate}
+                onChange={(e) => handleRateChange(parseInt(e.target.value))}
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg"
+                style={{ background: 'var(--line-2)', accentColor: 'var(--primary)' }}
+              />
+              <div className="mt-1 flex justify-between text-xs" style={{ color: 'var(--ink-3)' }}>
+                <span>{t("慢")}</span>
+                <span>{t("正常")}</span>
+                <span>{t("快")}</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Gemini TTS 设置 */}
+        {ttsProvider === 'gemini' && (
+          <>
+            <div className="mb-3">
+              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音选择")}</label>
+              <select
+                aria-label={t("语音选择")}
+                value={selectedVoice}
+                onChange={(e) => handleVoiceChange(e.target.value)}
+                className="nd-input text-sm"
+              >
+                {GEMINI_VOICES.map((voice) => (
+                  <option key={voice.value} value={voice.value}>
+                    {t(voice.label)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-2">
+              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音风格")}</label>
+              <select
+                aria-label={t("语音风格")}
+                value={selectedStyle}
+                onChange={(e) => handleStyleChange(e.target.value)}
+                className="nd-input text-sm"
+              >
+                {TTS_STYLES.map((style) => (
+                  <option key={style.value} value={style.value}>
+                    {t(style.label)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+      </TtsSettingsPopover>
+    </div>
+  );
+
   const compactBar = (
     <>
       <button type="button" className="nd-ghost-btn" onClick={onExpand} aria-label={t("编辑原文")}>
@@ -662,18 +765,7 @@ export default function InputSection({
       >
         {Icon.plus}<span className="compact-label">{t("新句子")}</span>
       </button>
-      <button
-        type="button"
-        className="nd-ghost-btn compact-speak"
-        onClick={handleSpeak}
-        disabled={!inputText.trim() || isLoading || isSpeaking}
-        title={inputText.trim() ? t("朗读文本（约 {0}）", getEstimatedTime(inputText)) : undefined}
-      >
-        {isSpeaking
-          ? <span className="loading-spinner" style={{ width: 14, height: 14, margin: 0 }} />
-          : Icon.speaker}
-        <span>{t("朗读")}</span>
-      </button>
+      {renderTtsControls(true)}
       {isLoading && (
         <button type="button" className="nd-ghost-btn" onClick={handleCancelAnalyze} aria-label={t("终止解析")}>
           {Icon.stop}<span>{t("停止")}</span>
@@ -786,151 +878,7 @@ export default function InputSection({
                       : Icon.photo}
                   </button>
 
-                  {/* TTS按钮组 */}
-                  <div className="relative" ref={dropdownRef}>
-                    <div className="input-voice-controls flex">
-                      <button
-                        id="speakButton"
-                        className="input-tool-button"
-                        onClick={handleSpeak}
-                        disabled={!inputText.trim() || isLoading || isSpeaking}
-                        title={inputText.trim() ?
-                          t("朗读文本（约 {0}）", getEstimatedTime(inputText)) :
-                          t("请先输入文本")
-                        }
-                        aria-label={t("朗读文本")}
-                      >
-                        {isSpeaking
-                          ? <span className="loading-spinner" style={{ width: 16, height: 16, margin: 0 }} />
-                          : Icon.speakerLg}
-                      </button>
-
-                      <button
-                        className="input-tool-button input-tool-disclosure"
-                        onClick={() => setShowTtsDropdown(!showTtsDropdown)}
-                        disabled={isLoading || isSpeaking}
-                        title={t("语音设置")}
-                        aria-label={t("语音设置")}
-                        aria-expanded={showTtsDropdown}
-                        aria-controls="inputVoiceSettings"
-                      >
-                        {Icon.chev}
-                      </button>
-                    </div>
-
-                    {/* TTS设置下拉菜单 */}
-                    {showTtsDropdown && (
-                      <div
-                        id="inputVoiceSettings"
-                        className="input-voice-menu absolute top-full z-20 mt-2 rounded-2xl p-4"
-                        style={{
-                          background: 'var(--bg-2)',
-                          border: '1px solid var(--line)',
-                          boxShadow: '0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06)',
-                        }}
-                      >
-                        <div className="mb-3 text-sm font-medium" style={{ color: 'var(--ink)' }}>{t("语音设置")}</div>
-
-                        {/* TTS提供商选择 */}
-                        <div className="mb-3">
-                          <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音引擎")}</label>
-                          <div className="segmented-control grid grid-cols-2 gap-1 rounded-xl p-1">
-                            {(['edge', 'gemini'] as const).map((provider) => (
-                              <button
-                                key={provider}
-                                className="cursor-pointer rounded-lg border-none px-3 py-2 text-sm transition-colors"
-                                aria-pressed={ttsProvider === provider}
-                                style={ttsProvider === provider
-                                  ? { background: 'var(--bg-2)', color: 'var(--ink)', fontWeight: 500 }
-                                  : { background: 'transparent', color: 'var(--ink-2)' }}
-                                onClick={() => handleTtsProviderSelect(provider)}
-                              >
-                                {provider === 'edge' ? 'Edge TTS' : 'Gemini TTS'}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Edge TTS 设置 */}
-                        {ttsProvider === 'edge' && (
-                          <>
-                            <div className="mb-3">
-                              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音性别")}</label>
-                              <select
-                                value={selectedGender}
-                                onChange={(e) => handleGenderChange(e.target.value as 'male' | 'female')}
-                                className="nd-input text-sm"
-                              >
-                                {TTS_GENDERS.map((gender) => (
-                                  <option key={gender.value} value={gender.value}>
-                                    {t(gender.label)}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div className="mb-2">
-                              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
-                                {t("语速 ·")} {t(getRateLabel(selectedRate))}
-                              </label>
-                              <input
-                                type="range"
-                                aria-label={t("语速")}
-                                aria-valuetext={t(getRateLabel(selectedRate))}
-                                min="-100"
-                                max="100"
-                                step="10"
-                                value={selectedRate}
-                                onChange={(e) => handleRateChange(parseInt(e.target.value))}
-                                className="h-2 w-full cursor-pointer appearance-none rounded-lg"
-                                style={{ background: 'var(--line-2)', accentColor: 'var(--primary)' }}
-                              />
-                              <div className="mt-1 flex justify-between text-xs" style={{ color: 'var(--ink-3)' }}>
-                                <span>{t("慢")}</span>
-                                <span>{t("正常")}</span>
-                                <span>{t("快")}</span>
-                              </div>
-                            </div>
-                          </>
-                        )}
-
-                        {/* Gemini TTS 设置 */}
-                        {ttsProvider === 'gemini' && (
-                          <>
-                            <div className="mb-3">
-                              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音选择")}</label>
-                              <select
-                                value={selectedVoice}
-                                onChange={(e) => handleVoiceChange(e.target.value)}
-                                className="nd-input text-sm"
-                              >
-                                {GEMINI_VOICES.map((voice) => (
-                                  <option key={voice.value} value={voice.value}>
-                                    {t(voice.label)}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div className="mb-2">
-                              <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音风格")}</label>
-                              <select
-                                value={selectedStyle}
-                                onChange={(e) => handleStyleChange(e.target.value)}
-                                className="nd-input text-sm"
-                              >
-                                {TTS_STYLES.map((style) => (
-                                  <option key={style.value} value={style.value}>
-                                    {t(style.label)}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  {renderTtsControls(false)}
                 </div>
 
                 <div className="flex-1" />
@@ -1002,17 +950,6 @@ export default function InputSection({
         </div>
       )}
 
-      {isSpeaking && (
-        <div
-          className="mt-4 rounded-xl p-4 text-sm"
-          style={{ background: 'var(--primary-soft)', color: 'var(--ink-2)' }}
-        >
-          <p className="m-0 font-medium">{t("正在准备朗读…")}</p>
-          <p className="mb-0 mt-1 text-xs" style={{ color: 'var(--ink-3)' }}>
-            {t("预计需要")} {getEstimatedTime(inputText)}
-          </p>
-        </div>
-      )}
     </div>
   );
 }

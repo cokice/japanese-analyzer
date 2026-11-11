@@ -1632,7 +1632,18 @@ body {
   outline: 2px solid var(--primary);
   outline-offset: 3px;
 }
-.input-voice-menu { left: -48px; width: 280px; max-width: calc(100vw - 64px); }
+.input-voice-menu {
+  position: fixed;
+  z-index: 10000;
+  width: 280px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 50px -10px rgba(40,10,80,.25), 0 2px 8px rgba(20,10,40,.06);
+}
 @media (hover: hover) {
   .input-action-bar > .input-tools > .input-tool-button:hover:not(:disabled) {
     background: var(--input-glass);
@@ -2171,6 +2182,8 @@ body {
   border-radius: 999px;
   font-size: 13px;
 }
+.input-compact-bar .input-voice-controls { align-items: center; flex-shrink: 0; background: transparent; }
+.input-compact-bar .input-tool-disclosure { width: 28px; height: 34px; }
 /* 紫色只留给主按钮、选中词和焦点环；朗读与旁边按钮同色 */
 .compact-divider {
   width: 1px;
