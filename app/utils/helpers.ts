@@ -129,12 +129,13 @@ export async function getJapaneseTtsAudioUrl(
   text: string, 
   apiKey?: string, 
   provider: TTSProvider = 'edge',
-  options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number; signal?: AbortSignal } = {}
+  options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number; style?: string; signal?: AbortSignal } = {}
 ): Promise<string> {
   const { audio, mimeType } = await synthesizeSpeech(text, provider, options, apiKey);
-  return provider === 'edge' ? 
-    createPlayableUrlFromAudio(audio, mimeType) : 
-    createPlayableUrlFromPcm(audio, mimeType);
+  // Gemini 3.8 returns WAV by default; only raw PCM needs a WAV header.
+  return /^audio\/(?:l16|pcm)(?:;|$)/i.test(mimeType.trim())
+    ? createPlayableUrlFromPcm(audio, mimeType)
+    : createPlayableUrlFromAudio(audio, mimeType);
 }
 
 // 将 Base64 音频数据转换为可播放的 URL (Edge TTS用)

@@ -200,31 +200,6 @@ body {
 }
 
 /* ========== 按钮 ========== */
-.nd-icon-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink-2);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.nd-icon-btn:hover:not(:disabled) {
-  border-color: var(--line-2);
-  color: var(--primary);
-}
-
-.nd-icon-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .provider-indicator {
   display: inline-flex;
   height: 40px;
@@ -329,41 +304,6 @@ body {
   gap: 7px;
   white-space: nowrap;
 }
-
-/* ========== 开关 Toggle ========== */
-.nd-toggle {
-  width: 38px;
-  height: 22px;
-  border-radius: 999px;
-  background: var(--line-2);
-  position: relative;
-  border: none;
-  cursor: pointer;
-  transition: background 0.18s;
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.nd-toggle[aria-pressed="true"] { background: var(--primary); }
-
-.nd-toggle:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.nd-toggle .nd-toggle-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #fff;
-  transition: left 0.18s;
-  box-shadow: 0 1px 3px rgba(20, 10, 40, 0.25);
-}
-
-.nd-toggle[aria-pressed="true"] .nd-toggle-knob { left: 18px; }
 
 .nd-dots {
   display: inline-flex;
@@ -612,21 +552,6 @@ input, textarea {
 @keyframes detailIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.word-detail-panel-empty {
-  background: var(--bg-2);
-  border: 1px dashed var(--line-2);
-  border-radius: 16px;
-  padding: 30px 24px;
-  text-align: center;
-  color: var(--ink-3);
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
 }
 
 .detail-section-label {
@@ -1392,12 +1317,6 @@ dialog.app-dialog::backdrop {
   }
 }
 
-.morphing-chat-trigger {
-  position: relative;
-  right: auto;
-  bottom: auto;
-}
-
 /* ========== 滚动条 ========== */
 /* 标准写法在 :root 的 scrollbar-color / scrollbar-width；这里只给不支持标准属性的旧浏览器兜底 */
 @supports not (scrollbar-color: auto) {
@@ -1608,7 +1527,7 @@ body {
 }
 
 .nd-card, .dark .nd-card,
-.word-detail-panel, .word-detail-panel-empty {
+.word-detail-panel {
   background: var(--reading-surface);
   border-color: var(--glass-border);
   box-shadow: var(--glass-shadow);
@@ -1727,12 +1646,6 @@ body {
   border-color: color-mix(in srgb, var(--primary) 45%, var(--glass-border));
   box-shadow: var(--glass-shadow), 0 0 0 3px color-mix(in srgb, var(--primary) 8%, transparent);
 }
-.word-detail-panel-empty {
-  border-style: solid;
-  background: color-mix(in srgb, var(--bg-2) 35%, transparent);
-  box-shadow: inset 0 1px 0 var(--glass-highlight);
-}
-
 .glass-toolbar {
   position: relative;
   z-index: 30;
@@ -1743,7 +1656,7 @@ body {
   -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
 
-.nd-icon-btn, .nd-soft-btn {
+.nd-soft-btn {
   background: var(--glass-control);
   border-color: var(--glass-border);
   box-shadow: inset 0 1px 0 var(--glass-highlight), 0 2px 6px #30204406;
@@ -1839,7 +1752,7 @@ body {
 .nd-soft-btn, .nd-ghost-btn { min-height: 32px; border-radius: 10px; }
 .nd-primary-btn:disabled { cursor: not-allowed; }
 .first-visit-submit-cue { animation: none; }
-:is(.nd-icon-btn, .nd-soft-btn, .nd-ghost-btn, .nd-primary-btn, .dictionary-icon-btn, .glass-toolbar button, .glass-toolbar a) {
+:is(.nd-soft-btn, .nd-ghost-btn, .nd-primary-btn, .dictionary-icon-btn, .glass-toolbar button, .glass-toolbar a) {
   transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 .glass-toolbar > button, .glass-toolbar > a, .glass-toolbar > .relative > button { border-radius: 999px; }
@@ -1849,7 +1762,7 @@ body {
     background: color-mix(in srgb, var(--ink) 5%, transparent);
   }
 }
-:is(.nd-icon-btn, .nd-soft-btn, .nd-ghost-btn, .nd-primary-btn, .dictionary-icon-btn):active:not(:disabled) { transform: scale(.97); }
+:is(.nd-soft-btn, .nd-ghost-btn, .nd-primary-btn, .dictionary-icon-btn):active:not(:disabled) { transform: scale(.97); }
 .word-detail-panel { animation-duration: 180ms; }
 @media (max-width: 640px) {
   .analysis-heading { gap: 12px 0; }
@@ -1869,8 +1782,8 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .word-detail-panel, .settings-modal-content { animation: none; }
-  :is(.word-unit-wrapper, .word-token, .nd-icon-btn, .nd-soft-btn, .nd-ghost-btn, .nd-primary-btn, .dictionary-icon-btn, .glass-toolbar button, .glass-toolbar a) { transition: none; }
-  :is(.nd-icon-btn, .nd-soft-btn, .nd-ghost-btn, .nd-primary-btn, .dictionary-icon-btn):active:not(:disabled) { transform: none; }
+  :is(.word-unit-wrapper, .word-token, .nd-soft-btn, .nd-ghost-btn, .nd-primary-btn, .dictionary-icon-btn, .glass-toolbar button, .glass-toolbar a) { transition: none; }
+  :is(.nd-soft-btn, .nd-ghost-btn, .nd-primary-btn, .dictionary-icon-btn):active:not(:disabled) { transform: none; }
 }
 
 .nd-primary-btn {
@@ -1977,14 +1890,14 @@ body {
 }
 
 @supports not (backdrop-filter: blur(1px)) {
-  .nd-card, .dark .nd-card, .word-detail-panel, .word-detail-panel-empty,
+  .nd-card, .dark .nd-card, .word-detail-panel,
   .glass-toolbar, .settings-modal-content, .assistant-modal-panel, .word-detail-modal-content {
     background: var(--bg-2);
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .nd-card, .dark .nd-card, .word-detail-panel, .word-detail-panel-empty,
+  .nd-card, .dark .nd-card, .word-detail-panel,
   .glass-toolbar, .settings-modal-content, .assistant-modal-panel, .word-detail-modal-content {
     background: var(--bg-2);
     backdrop-filter: none;
