@@ -61,7 +61,14 @@ export function getPhraseText(tokens: readonly TokenData[], range: PhraseRange):
 
 /** 整段读音：有注音的词用注音，其余用原文 */
 export function getPhraseReading(tokens: readonly TokenData[], range: PhraseRange): string {
-  return tokens.slice(range.start, range.end + 1).map((token) => token.furigana || token.word).join('');
+  return tokens.slice(range.start, range.end + 1).map((token) => {
+    if (/助詞|助词/.test(token.pos) && !/助動詞|助动词/.test(token.pos)) {
+      if (token.word === 'は') return 'わ';
+      if (token.word === 'へ') return 'え';
+      if (token.word === 'を') return 'お';
+    }
+    return token.furigana || token.word;
+  }).join('');
 }
 
 /** 把被拆开的一个词合并回单个词项；词性、读音取 AI 给出的结果 */

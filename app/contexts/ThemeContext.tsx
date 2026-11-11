@@ -1,5 +1,7 @@
 'use client';
 
+import { browserStorage } from '../utils/storage';
+
 import { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -18,7 +20,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // 从本地存储加载主题设置
-    const savedTheme = localStorage.getItem('theme');
+    const savedTheme = browserStorage.getItem('theme');
     if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
       setTheme(savedTheme);
     }
@@ -57,7 +59,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const handleSetTheme = (newTheme: Theme) => {
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
+    browserStorage.setItem('theme', newTheme);
   };
 
   return (

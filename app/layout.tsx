@@ -38,9 +38,10 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             function getThemePreference() {
-              if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
-                return localStorage.getItem('theme');
-              }
+              try {
+                const saved = localStorage.getItem('theme');
+                if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+              } catch {}
               return 'system';
             }
             

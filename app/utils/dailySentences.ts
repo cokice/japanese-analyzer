@@ -65,7 +65,7 @@ export function getDayNumber(dateKey: string): number {
 /** 离日本时间下一个零点还有多少秒 */
 export function secondsUntilJstMidnight(date = new Date()): number {
   const jstMs = date.getTime() + 9 * 3_600_000;
-  return Math.max(60, Math.ceil((86_400_000 - (jstMs % 86_400_000)) / 1000));
+  return Math.max(0, Math.floor((86_400_000 - (jstMs % 86_400_000)) / 1000));
 }
 
 /** 备用句：AI 生成不可用时按日期从预置句子里取一句 */

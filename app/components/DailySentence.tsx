@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { containsKanji, getPosClass } from '../utils/helpers';
+import { getPosClass } from '../utils/helpers';
 import { getApiEndpoint } from '../services/api';
 import {
   getFallbackDailySentence,
   getJstDateKey,
+  secondsUntilJstMidnight,
   type DailySentence as DailySentenceData,
 } from '../utils/dailySentences';
 import { Icon } from './Icons';
@@ -40,10 +41,28 @@ export default function DailySentence({ onAnalyze, disabled = false }: DailySent
   const { t, locale } = useLanguage();
   const [sentence, setSentence] = useState<DailySentenceData | null>(null);
 
+  const [dateKey, setDateKey] = useState(getJstDateKey);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const refreshDate = () => {
+      clearTimeout(timer);
+      setDateKey(getJstDateKey());
+      timer = setTimeout(refreshDate, (secondsUntilJstMidnight() + 1) * 1000);
+    };
+    refreshDate();
+    window.addEventListener('focus', refreshDate);
+    document.addEventListener('visibilitychange', refreshDate);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('focus', refreshDate);
+      document.removeEventListener('visibilitychange', refreshDate);
+    };
+  }, []);
+
   // 句子每天由服务端 AI 生成一次（日本时间零点换句）；浏览器按日期缓存，同一天再打开不再请求。
   // 未配置服务器密钥、生成失败或超时时，改用内置备用句。
   useEffect(() => {
-    const dateKey = getJstDateKey();
     const cached = readCachedSentence(dateKey);
     if (cached) {
       setSentence(cached);
@@ -58,9 +77,8 @@ export default function DailySentence({ onAnalyze, disabled = false }: DailySent
       .then((data: unknown) => {
         if (!isDailySentence(data)) throw new Error('invalid daily sentence');
         if (disposed) return;
+        if (data.date !== dateKey || getJstDateKey() !== dateKey) throw new Error('stale daily sentence');
         setSentence(data);
-        // 跨零点时服务端可能返回前一天的句子：照常显示，但不缓存，下次打开重新获取
-        if (data.date !== dateKey) return;
         try {
           localStorage.setItem(DAILY_CACHE_KEY, JSON.stringify(data));
         } catch {
@@ -77,7 +95,7 @@ export default function DailySentence({ onAnalyze, disabled = false }: DailySent
       clearTimeout(timer);
       controller.abort();
     };
-  }, []);
+  }, [dateKey]);
 
   if (!sentence) {
     return (
@@ -104,7 +122,7 @@ export default function DailySentence({ onAnalyze, disabled = false }: DailySent
       <span className="daily-tokens" lang="ja" aria-hidden="true">
         {sentence.tokens.map((token, index) => {
           const isPunct = token.pos === '記号';
-          const furigana = token.furigana && token.furigana !== token.word && containsKanji(token.word)
+          const furigana = token.furigana && token.furigana !== token.word
             ? token.furigana
             : ' ';
           return (

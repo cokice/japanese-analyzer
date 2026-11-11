@@ -15,7 +15,7 @@ concurrency:
 
 env:
   IMAGE_NAME: howenhowen/japanese-analyzer
-  NODE_VERSION: "22"
+  NODE_VERSION: "22.23.4"
 
 jobs:
   validate:

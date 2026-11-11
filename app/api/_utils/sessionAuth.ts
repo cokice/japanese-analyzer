@@ -56,13 +56,14 @@ export function hasValidAuthSession(req: NextRequest): boolean {
   return isValidAuthToken(req.cookies.get(AUTH_COOKIE_NAME)?.value);
 }
 
-export function setAuthCookie(response: NextResponse): void {
+export function setAuthCookie(response: NextResponse, request: NextRequest): void {
   response.cookies.set({
     name: AUTH_COOKIE_NAME,
     value: createAuthToken(),
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.AUTH_COOKIE_SECURE === 'true'
+      || (process.env.AUTH_COOKIE_SECURE !== 'false' && request.nextUrl.protocol === 'https:'),
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE_SECONDS,
   });
