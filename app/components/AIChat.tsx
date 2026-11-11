@@ -188,10 +188,11 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
       // 输入法确认候选词的回车不能发送。Safari 会在 keydown 之前就把 isComposing 置回 false，
       // 但这次 keydown 的 keyCode 仍是 229（VK_PROCESSKEY），两者都要判断。
       if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
+      // 确认候选词时保留输入法的默认行为，只有普通回车发送才阻止换行。
+      e.preventDefault();
       handleSendMessage();
     }
   };
