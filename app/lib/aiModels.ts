@@ -1,3 +1,6 @@
+// 仓库所有者开启此值后，设置、解析与摘要接口一起恢复。
+export const DEEPSEEK_THINKING_AVAILABLE: boolean = false;
+
 export type AIProvider = 'gemini' | 'deepseek';
 export type GeminiModelName = 'gemini-flash-latest' | 'gemini-flash-lite-latest';
 export type DeepSeekModelName = 'deepseek-flash';

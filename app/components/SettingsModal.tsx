@@ -1,5 +1,6 @@
 'use client';
 
+import { DEEPSEEK_THINKING_AVAILABLE } from '../lib/aiModels';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useId, useState } from 'react';
 import ModalDialog from './ModalDialog';
@@ -23,6 +24,7 @@ interface SettingsModalProps {
   geminiApiKey: string;
   deepseekApiKey: string;
   useStream: boolean;
+  deepseekThinkingEnabled: boolean;
   onSaveSettings: (settings: SettingsPayload) => void;
   isModalOpen: boolean;
   onModalClose: () => void;
@@ -34,6 +36,7 @@ export default function SettingsModal({
   geminiApiKey,
   deepseekApiKey,
   useStream,
+  deepseekThinkingEnabled,
   onSaveSettings,
   isModalOpen,
   onModalClose
@@ -45,6 +48,7 @@ export default function SettingsModal({
   const [geminiKey, setGeminiKey] = useState(geminiApiKey);
   const [deepseekKey, setDeepseekKey] = useState(deepseekApiKey);
   const [streamEnabled, setStreamEnabled] = useState(useStream);
+  const [thinkingEnabled, setThinkingEnabled] = useState(deepseekThinkingEnabled);
   const [status, setStatus] = useState('');
 
   useEffect(() => {
@@ -53,8 +57,9 @@ export default function SettingsModal({
     setGeminiKey(geminiApiKey);
     setDeepseekKey(deepseekApiKey);
     setStreamEnabled(useStream);
+    setThinkingEnabled(deepseekThinkingEnabled);
     setStatus('');
-  }, [aiProvider, aiModel, geminiApiKey, deepseekApiKey, useStream, isModalOpen]);
+  }, [aiProvider, aiModel, geminiApiKey, deepseekApiKey, useStream, isModalOpen, deepseekThinkingEnabled]);
 
   const currentApiKey = selectedProvider === 'gemini' ? geminiKey : deepseekKey;
   const currentModelName = getModelName(selectedProvider, selectedModel);
@@ -74,7 +79,7 @@ export default function SettingsModal({
       aiModel: currentModelName,
       geminiApiKey: geminiKey.trim(),
       deepseekApiKey: deepseekKey.trim(),
-      deepseekThinkingEnabled: false,
+      deepseekThinkingEnabled: DEEPSEEK_THINKING_AVAILABLE && thinkingEnabled,
       useStream: streamEnabled,
     });
 
@@ -190,9 +195,16 @@ export default function SettingsModal({
           </div>
 
           {selectedProvider === 'deepseek' && (
-            <div className="settings-unavailable-row">
-              <span>{t("深度思考")}</span><span>{t("暂不可用")}</span>
-            </div>
+            DEEPSEEK_THINKING_AVAILABLE ? (
+              <div className="settings-option-row flex items-center justify-between gap-4">
+                <label htmlFor="thinkingToggle">{t("深度思考")}</label>
+                <Switch id="thinkingToggle" aria-label={t("深度思考")} checked={thinkingEnabled} onCheckedChange={setThinkingEnabled} />
+              </div>
+            ) : (
+              <div className="settings-unavailable-row">
+                <span>{t("深度思考")}</span><span>{t("暂不可用")}</span>
+              </div>
+            )
           )}
         </div>
 

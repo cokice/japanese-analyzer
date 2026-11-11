@@ -2,7 +2,7 @@ import { serverKeyRateLimitResponse } from '../_utils/serverKeyRateLimit';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { getReasoningSummaryPrompt } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
-import { DEEPSEEK_MODEL_NAME } from '../../lib/aiModels';
+import { DEEPSEEK_MODEL_NAME, DEEPSEEK_THINKING_AVAILABLE } from '../../lib/aiModels';
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeReasoningSummary } from '../../utils/reasoningSummary';
 import { proxyOpenAICompatibleRequest } from '../_utils/openaiProxy';
@@ -23,6 +23,7 @@ function extractAssistantText(data: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (!DEEPSEEK_THINKING_AVAILABLE) return new NextResponse(null, { status: 404 });
   try {
     const locale = normalizeLocale(req.headers.get('X-App-Locale'));
     const authError = requireApiSession(req);

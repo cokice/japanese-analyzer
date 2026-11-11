@@ -1,4 +1,5 @@
 import { serverKeyRateLimitResponse } from '../_utils/serverKeyRateLimit';
+import { DEEPSEEK_THINKING_AVAILABLE } from '../../lib/aiModels';
 import { buildAnalyzePrompt } from '../../lib/analyzePrompt';
 import { protectAnalysisUrls } from '../../utils/analysisUrls';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
       stream: stream,
     }, {
       structuredOutput: 'analysisTokens',
-      enableThinking: thinkingEnabled === true,
+      enableThinking: DEEPSEEK_THINKING_AVAILABLE && thinkingEnabled === true,
     });
 
     const proxied = await proxyOpenAICompatibleRequest({

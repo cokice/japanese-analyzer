@@ -3,6 +3,7 @@ import { GEMINI_TTS_MODEL_NAME } from '../lib/tts';
 // API与分析相关的服务函数
 import {
   DEFAULT_AI_PROVIDER,
+  DEEPSEEK_THINKING_AVAILABLE,
   getModelName,
   normalizeAIModel,
   normalizeAIProvider,
@@ -123,7 +124,7 @@ export function getRequestProviderPayload(
   };
 }
 
-export function loadAISettingsFromStorage(storage: StorageLike): StoredAISettings {
+export function loadAISettingsFromStorage(storage: StorageLike, thinkingAvailable = DEEPSEEK_THINKING_AVAILABLE): StoredAISettings {
   const legacyApiKey = storage.getItem('userApiKey') || '';
 
   let geminiApiKey = storage.getItem('geminiApiKey');
@@ -133,16 +134,13 @@ export function loadAISettingsFromStorage(storage: StorageLike): StoredAISetting
   }
 
   const aiProvider = normalizeAIProvider(storage.getItem('aiProvider'));
-  if (storage.getItem('deepseekThinkingEnabled') === 'true') {
-    storage.setItem('deepseekThinkingEnabled', 'false');
-  }
 
   return {
     aiProvider,
     aiModel: normalizeAIModel(aiProvider, storage.getItem('aiModel')),
     geminiApiKey: geminiApiKey || '',
     deepseekApiKey: storage.getItem('deepseekApiKey') || '',
-    deepseekThinkingEnabled: false,
+    deepseekThinkingEnabled: thinkingAvailable && storage.getItem('deepseekThinkingEnabled') === 'true',
   };
 }
 
