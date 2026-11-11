@@ -17,17 +17,12 @@ async function main() {
   assert.equal(normalizeLocale('invalid'), 'zh-CN');
   assert.deepEqual(Object.values(LANGUAGE_LABELS), ['简体中文', '繁體中文', 'English', '한국어']);
   assert.equal(normalizeLocale('ko'), 'ko');
+  assert.equal(localizeError({ code: 'INVALID_API_KEY' }, 'en'), 'Invalid API key. Check it in Settings.');
+  assert.equal(localizeError({ code: 'UPSTREAM_TIMEOUT' }, 'ko'), '요청 시간이 초과되었습니다. 잠시 후 다시 시도하세요.');
   assert.equal(createTranslator('ko')('中文译文'), '한국어 번역');
-  assert.equal(localizeError('查询释义失败：未知错误', 'ko'), '뜻 조회 실패: 알 수 없는 오류');
   assert.equal(createTranslator('zh-TW')('保存设置'), '儲存設定');
   assert.equal(createTranslator('en')('当前模型服务商：{0}', 'Gemini'), 'Current AI provider: Gemini');
-  assert.equal(localizeError('流式翻译失败：未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥', 'en'), 'Streaming translation failed: No API key provided. Enter one in Settings or contact the administrator.');
-  assert.equal(localizeError('第 2/3 段没有返回完整解析结果，请重试。', 'en'), 'Chunk 2/3 returned an incomplete analysis. Please try again.');
-  assert.equal(localizeError('翻译结果连接已结束，但没有收到完整结束信号，请重新生成。', 'en'), 'The translation disconnected before completion. Please try again.');
-  assert.equal(localizeError('图片文字提取连接已结束，但没有收到完整结束信号，请重新生成。', 'ko'), '이미지 글자 추출 완료 신호를 받기 전에 연결이 종료되었습니다. 다시 시도해 주세요.');
   assert.equal(localizeError('HTTP 429: upstream quota exceeded', 'zh-TW'), 'HTTP 429: upstream quota exceeded');
-  assert.equal(localizeError('流式解析失败：上游流式响应空闲超时，请重试。', 'en'), 'Streaming analysis failed: The upstream stream stopped responding. Please try again.');
-  assert.equal(localizeError('提取时发生错误: 图片数据太大，请压缩后重试。', 'ko'), createTranslator('ko')('提取时发生错误: {0}。', '이미지가 너무 큽니다. 압축한 뒤 다시 시도해 주세요.'));
   assert.equal(createTranslator('en')('正在连接模型…'), 'Connecting to the model…');
   for (const [key, translations] of Object.entries(messages)) {
     assert.deepEqual(Object.keys(translations).sort(), LOCALES.filter(locale => locale !== 'zh-CN').sort(), `Missing locale: ${key}`);
@@ -73,7 +68,7 @@ async function main() {
                 assert.match(payload.messages[0].content, /Preserve exactly the original paragraph/);
               }
               if (name === 'wordDetail') {
-                assert.match(payload.messages[0].content, /chineseTranslation/);
+                assert.match(payload.messages[0].content, /translation/);
                 assert.match(payload.messages[0].content, /exampleTranslation/);
                 assert.equal(JSON.parse(payload.messages[1].content).word, '本');
                 if (locale === 'ko') {

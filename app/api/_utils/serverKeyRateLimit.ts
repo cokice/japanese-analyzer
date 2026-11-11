@@ -1,6 +1,6 @@
 import { isIP } from 'node:net';
-import { NextRequest, NextResponse } from 'next/server';
-import { createTranslator, normalizeLocale } from '../../i18n';
+import { NextRequest } from 'next/server';
+import { apiErrorResponse } from './apiErrorResponse';
 
 const positiveInteger = (value: string | undefined, fallback: number) => {
   const parsed = Number(value);
@@ -38,11 +38,9 @@ export function reserveServerKeyRequest(req: NextRequest) {
   if (retryAfter) throw new ServerKeyRateLimitError(retryAfter);
 }
 
-export function serverKeyRateLimitResponse(error: unknown, req: NextRequest) {
+export function serverKeyRateLimitResponse(error: unknown) {
   if (!(error instanceof ServerKeyRateLimitError)) return null;
-  const t = createTranslator(normalizeLocale(req.headers.get('X-App-Locale')));
-  return NextResponse.json({ error: { code: 'RATE_LIMITED', params: { retryAfter: error.retryAfter },
-    message: t('请求过于频繁，请稍后重试。') } }, {
-    status: 429, headers: { 'Retry-After': String(error.retryAfter), 'Cache-Control': 'no-store' },
+  return apiErrorResponse('RATE_LIMITED', 429, [error.retryAfter], {
+    'Retry-After': String(error.retryAfter), 'Cache-Control': 'no-store',
   });
 }

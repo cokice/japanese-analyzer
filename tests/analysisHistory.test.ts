@@ -42,3 +42,12 @@ assert.equal(restored[0].text, '文 59');
 assert.equal(restored.at(-1)?.text, '文 10');
 assert.deepEqual(parseAnalysisHistory('[]'), [], 'Cleared history stays empty after reload');
 console.log('Analysis history tests passed');
+
+const cachedTokens = [{ word: '本', pos: '名詞', furigana: 'ほん', romaji: 'hon' }];
+const cachedEntry = addAnalysisHistoryEntry([], '本', 300, cachedTokens);
+assert.deepEqual(parseAnalysisHistory(JSON.stringify(cachedEntry)), [{ text: '本', analyzedAt: 300, tokens: cachedTokens }]);
+cachedTokens[0].word = '別';
+assert.equal(cachedEntry[0].tokens?.[0].word, '本', 'Stored tokens are detached from later edits');
+for (const tokens of [null, [], [{}], [{ word: '別', pos: '名詞' }], [{ word: '本', pos: 42 }], [{ word: '本', pos: '名詞', furigana: 42 }]]) {
+  assert.deepEqual(parseAnalysisHistory(JSON.stringify([{ text: '本', analyzedAt: 300, tokens }])), [{ text: '本', analyzedAt: 300 }], 'Invalid cached tokens degrade to a valid legacy entry');
+}

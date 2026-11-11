@@ -24,7 +24,8 @@ import { selectWordDetailContext } from './utils/wordDetailContext';
 import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRange, type PhraseRange } from './utils/phraseRange';
 import { createRequestMetrics, trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
 import { localizeError } from './i18n';
-import { InvalidResponseError } from './utils/requestErrors';
+import type { AnalysisHistoryEntry } from './utils/analysisHistory';
+import { apiErrorFromResponse, InvalidResponseError } from './utils/requestErrors';
 import {
   analyzeSentence,
   AIModelName,
@@ -243,7 +244,7 @@ export default function Home() {
         setIsAuthenticated(true);
         browserStorage.removeItem('isAuthenticated');
       } else {
-        setAuthError(localizeError(data.message || "验证失败", locale));
+        setAuthError(localizeError(apiErrorFromResponse(data, response.status), locale));
       }
     } catch (error) {
       console.error('验证过程中出错:', error);
@@ -441,8 +442,8 @@ export default function Home() {
                 metrics.firstResult();
                 setAnalyzedTokens(tokens);
                 metrics.succeed();
-                history.record(text);
-        setTranslationTrigger(Date.now());
+                history.record(text, tokens);
+                setTranslationTrigger(Date.now());
               } catch (error) {
                 metrics.fail(new InvalidResponseError('Invalid analysis result'));
                 console.error('Final stream analysis parse error:', error);
@@ -478,7 +479,7 @@ export default function Home() {
         metrics.firstResult();
         setAnalyzedTokens(tokens);
         metrics.succeed();
-        history.record(text);
+        history.record(text, tokens);
         setTranslationTrigger(Date.now());
         finishReasoningStatus(t("已深度思考"));
         setIsAnalyzing(false);
@@ -538,6 +539,16 @@ export default function Home() {
     setCurrentSentence('');
     setAnalysisError(null);
     setIsEditingInput(true);
+  };
+
+  const handleRestoreAnalysis = (entry: AnalysisHistoryEntry) => {
+    if (!entry.tokens) { void handleAnalyze(entry.text); return; }
+    handleStartOver();
+    setCurrentSentence(entry.text);
+    setAnalyzedTokens(entry.tokens);
+    setIsEditingInput(false);
+    setAnalysisSignal(undefined);
+    setTranslationTrigger(0);
   };
 
   const hasWordDetail = (selectedIndex !== null || selectedRange !== null)
@@ -619,6 +630,8 @@ export default function Home() {
               history={history}
               onAnalyze={handleAnalyze}
               onCancelAnalyze={handleCancelAnalysis}
+              onRestoreAnalysis={handleRestoreAnalysis}
+              onReanalyze={() => handleAnalyze(currentSentence)}
               userApiKey={userApiKey}
               aiProvider={aiProvider}
               aiModel={aiModel}

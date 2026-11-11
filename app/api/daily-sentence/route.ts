@@ -1,3 +1,4 @@
+import { apiErrorResponse } from '../_utils/apiErrorResponse';
 import { NextRequest, NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
 import { getJstDateKey, secondsUntilJstMidnight, type DailySentence } from '../../utils/dailySentences';
@@ -41,9 +42,6 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     // 前端收到非 200 时会改用内置备用句
     if (!(error instanceof DailySentenceUnavailableError)) console.error('Daily sentence error:', error);
-    return NextResponse.json(
-      { error: { message: error instanceof Error ? error.message : '今日一句生成失败' } },
-      { status: 503 },
-    );
+    return apiErrorResponse('UPSTREAM_ERROR', 503);
   }
 }

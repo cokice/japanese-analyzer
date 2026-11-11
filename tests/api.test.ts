@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { runApiErrorTests } from './apiErrors.test';
 import { DEEPSEEK_THINKING_AVAILABLE } from '../app/lib/aiModels';
 import { runServerKeyRateLimitTests } from './serverKeyRateLimit.test';
 import { runRequestValidationTests } from './requestValidation.test';
@@ -530,7 +531,7 @@ async function collectOpenAIContentStream(
 
 const completeWordDetailJson = JSON.stringify({
   originalWord: 'エンターテインメント',
-  chineseTranslation: '娱乐作品',
+  translation: '娱乐作品',
   pos: '名詞',
   furigana: 'えんたーていんめんと',
   romaji: 'enta-teinmento',
@@ -543,7 +544,7 @@ const completeWordDetailJson = JSON.stringify({
 
 const looseWordDetailJson = `{
   "originalWord": "エンターテインメント",
-  "chineseTranslation": "娱乐",
+  "translation": "娱乐",
   "pos": "名詞",
   "furigana": "えんたーていんめんと",
   "romaji": "entaateinmento",
@@ -671,7 +672,7 @@ async function runOpenAIContentStreamTests() {
     stalledController,
     10
   ).text();
-  assert.ok(stalledText.includes('上游流式响应空闲超时'));
+  assert.ok(stalledText.includes('UPSTREAM_TIMEOUT'));
   assert.strictEqual(stalledController.signal.aborted, true);
 }
 
@@ -963,6 +964,7 @@ Promise.all([
   runReasoningSummaryControllerTests(),
 ])
   .then(runServerKeyRateLimitTests)
+  .then(runApiErrorTests)
   .then(runRequestValidationTests)
   .then(runLocalOutputTests)
   .then(runRequestMetricsTests)

@@ -1,3 +1,4 @@
+import { apiErrorResponse, upstreamErrorResponse } from '../_utils/apiErrorResponse';
 import { serverKeyRateLimitResponse } from '../_utils/serverKeyRateLimit';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { normalizeLocale } from '../../i18n';
@@ -22,17 +23,11 @@ export async function POST(req: NextRequest) {
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
     
     if (!providerConfig.apiKey) {
-      return NextResponse.json(
-        { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
-        { status: 500 }
-      );
+      return apiErrorResponse('MISSING_API_KEY', 500);
     }
 
     if (!word || (!pos && !isPhrase) || !sentence) {
-      return NextResponse.json(
-        { error: { message: '缺少必要的参数' } },
-        { status: 400 }
-      );
+      return apiErrorResponse('INVALID_REQUEST', 400);
     }
 
     const payload = withProviderControls(providerConfig.provider, {
@@ -58,10 +53,7 @@ export async function POST(req: NextRequest) {
 
     if (!proxied.ok) {
       console.error('AI API error (Word Detail):', proxied.error.raw ?? proxied.error.message);
-      return NextResponse.json(
-        { error: { message: proxied.error.message } },
-        { status: proxied.status }
-      );
+      return upstreamErrorResponse(proxied.status);
     }
 
     const response = proxied.response;
@@ -81,15 +73,12 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    const quotaError = serverKeyRateLimitResponse(error, req);
+    const quotaError = serverKeyRateLimitResponse(error);
     if (quotaError) return quotaError;
     const bodyError = requestBodyErrorResponse(error);
     if (bodyError) return bodyError;
     if (error instanceof ProviderConfigError) {
-      return NextResponse.json(
-        { error: { message: error.message } },
-        { status: error.status }
-      );
+      return apiErrorResponse('INVALID_REQUEST', error.status);
     }
 
     if (req.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
@@ -98,16 +87,10 @@ export async function POST(req: NextRequest) {
 
     // 非流式请求在读取上游响应时整体超时，避免把英文 TimeoutError 原文透传给界面。
     if (isUpstreamTimeoutError(error)) {
-      return NextResponse.json(
-        { error: { message: '上游接口请求超时，请稍后重试。' } },
-        { status: 504 }
-      );
+      return apiErrorResponse('UPSTREAM_TIMEOUT', 504);
     }
 
     console.error('Server error (Word Detail):', error);
-    return NextResponse.json(
-      { error: { message: error instanceof Error ? error.message : '服务器错误' } },
-      { status: 500 }
-    );
+    return apiErrorResponse('SERVER_ERROR', 500);
   }
 }

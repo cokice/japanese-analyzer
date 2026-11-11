@@ -39,7 +39,7 @@ assert.equal(merged[1].word, 'で');
 
 // 短语释义：显示用前端按词拼出的完整读音，AI 返回的读音只留作合并用
 const phraseDetail = parseWordDetailResponseContent(JSON.stringify({
-  chineseTranslation: '因为有考试', category: '連語', dictionaryForm: '', explanation: '说明原因。',
+  translation: '因为有考试', category: '連語', dictionaryForm: '', explanation: '说明原因。',
   breakdown: '', example: '', exampleTranslation: '', pos: '', furigana: 'しけんがあるので',
 }), { word: '試験があるので、今夜は', pos: '', furigana: 'しけんがあるので、こんやは', kind: 'phrase' });
 assert.equal(phraseDetail.furigana, 'しけんがあるので、こんやは');
@@ -48,7 +48,7 @@ assert.equal(phraseDetail.category, '連語');
 
 // 短语字段必须齐全：缺类别、类别不在四种之内、缺构成都算未完整生成
 const phraseContext = { word: '試験がある', pos: '', furigana: 'しけんがある', kind: 'phrase' as const };
-const phraseFields = { chineseTranslation: '有考试', dictionaryForm: '', explanation: '', breakdown: '', example: '', exampleTranslation: '', pos: '', furigana: '' };
+const phraseFields = { translation: '有考试', dictionaryForm: '', explanation: '', breakdown: '', example: '', exampleTranslation: '', pos: '', furigana: '' };
 assert.throws(() => parseWordDetailResponseContent(JSON.stringify(phraseFields), phraseContext), /category/);
 assert.throws(() => parseWordDetailResponseContent(JSON.stringify({ ...phraseFields, category: '句子' }), phraseContext), /category/);
 const withoutBreakdown: Record<string, string> = { ...phraseFields, category: '連語' };

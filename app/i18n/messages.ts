@@ -1,5 +1,18 @@
 // Simplified Chinese source text is the stable message key.
 export const messages = {
+  "请求参数无效，请检查后重试。": {"zh-TW": "請求參數無效，請檢查後重試。", "en": "Invalid request. Check the input and try again.", "ko": "요청이 올바르지 않습니다. 입력을 확인한 뒤 다시 시도하세요."},
+  "请求内容过大，请缩短文本或压缩图片。": {"zh-TW": "請求內容過大，請縮短文字或壓縮圖片。", "en": "Request too large. Shorten the text or compress the image.", "ko": "요청 내용이 너무 큽니다. 텍스트를 줄이거나 이미지를 압축하세요."},
+  "API 密钥无效，请在设置中检查。": {"zh-TW": "API 金鑰無效，請在設定中檢查。", "en": "Invalid API key. Check it in Settings.", "ko": "API 키가 올바르지 않습니다. 설정에서 확인하세요."},
+  "请先登录后再使用此功能。": {"zh-TW": "請先登入後再使用此功能。", "en": "Sign in to use this feature.", "ko": "이 기능을 사용하려면 먼저 로그인하세요."},
+  "模型服务额度不足或请求过多，请稍后重试。": {"zh-TW": "模型服務額度不足或請求過多，請稍後重試。", "en": "Model quota exhausted or too many requests. Try again later.", "ko": "모델 할당량이 부족하거나 요청이 너무 많습니다. 잠시 후 다시 시도하세요."},
+  "请求超时，请稍后重试。": {"zh-TW": "請求逾時，請稍後重試。", "en": "Request timed out. Please try again later.", "ko": "요청 시간이 초과되었습니다. 잠시 후 다시 시도하세요."},
+  "模型服务暂时不可用，请稍后重试。": {"zh-TW": "模型服務暫時無法使用，請稍後重試。", "en": "The model service is temporarily unavailable. Try again later.", "ko": "모델 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요."},
+  "返回的结果不完整，请重试。": {"zh-TW": "傳回的結果不完整，請重試。", "en": "The response is incomplete. Please try again.", "ko": "응답이 불완전합니다. 다시 시도하세요."},
+  "服务器暂时不可用，请稍后重试。": {"zh-TW": "伺服器暫時無法使用，請稍後重試。", "en": "The server is temporarily unavailable. Try again later.", "ko": "서버를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요."},
+  "此功能暂不可用。": {"zh-TW": "此功能暫時無法使用。", "en": "This feature is currently unavailable.", "ko": "현재 이 기능을 사용할 수 없습니다."},
+  "重新解析": {"zh-TW": "重新解析", "en": "Analyze again", "ko": "다시 분석"},
+  "点击翻译查看译文。": {"zh-TW": "點擊翻譯查看譯文。", "en": "Choose Translate to view a translation.", "ko": "번역을 누르면 번역문을 볼 수 있습니다."},
+
   "打开设置": {"zh-TW": "開啟設定", "en": "Open settings", "ko": "설정 열기"},
   "重试": {"zh-TW": "重試", "en": "Retry", "ko": "다시 시도"},
 

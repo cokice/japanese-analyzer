@@ -36,7 +36,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
   const [isLoading, setIsLoading] = useState(false);
   const [isStreamLoading, setIsStreamLoading] = useState(false);
   const [streamContent, setStreamContent] = useState('');
-  const [streamError, setStreamError] = useState('');
+  const [streamError, setStreamError] = useState<Error | null>(null);
   // 只缓存已完成的词条；被取消的半截结果不能当作命中。
   const cacheRef = useRef(new Map<string, WordDetail>());
   const activeRef = useRef<{ key: string; controller: AbortController } | null>(null);
@@ -45,7 +45,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
     activeRef.current?.controller.abort();
     activeRef.current = null;
     setWordDetail(null); setIsLoading(false); setIsStreamLoading(false);
-    setStreamContent(''); setStreamError('');
+    setStreamContent(''); setStreamError(null);
   }, []);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
     if (!options.force && activeRef.current?.key === key) return;
     activeRef.current?.controller.abort();
     activeRef.current = null;
-    setStreamError(''); setStreamContent('');
+    setStreamError(null); setStreamContent('');
     const cached = cacheRef.current.get(key);
     if (!options.force && cached) {
       setWordDetail(cached); setIsLoading(false); setIsStreamLoading(false); return;
@@ -73,7 +73,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
     const isCurrent = () => activeRef.current?.controller === controller && !signal.aborted;
     const context = { word, pos, furigana, kind };
     const phraseFields = kind === 'phrase' ? { kind, category: '', breakdown: '' } : {};
-    setWordDetail({ originalWord: word, pos, furigana: furigana || '', romaji: getLocalRomaji(word, furigana, pos), chineseTranslation: t("加载中..."), explanation: '', ...phraseFields });
+    setWordDetail({ originalWord: word, pos, furigana: furigana || '', romaji: getLocalRomaji(word, furigana, pos), translation: t("加载中..."), explanation: '', ...phraseFields });
     setIsLoading(!useStream); setIsStreamLoading(useStream);
 
     const finish = (detail: WordDetail) => {
@@ -85,7 +85,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
     };
     const fail = (error: Error) => {
       if (!isCurrent()) return;
-      setStreamError(error.message || t("查询释义失败"));
+      setStreamError(error);
       setIsLoading(false); setIsStreamLoading(false); activeRef.current = null;
     };
     try {
@@ -101,7 +101,7 @@ export function useWordDetail({ userApiKey, aiProvider, aiModel, useStream = tru
           setWordDetail({
             originalWord: word, pos: correctedPos, furigana: correctedReading,
             romaji: getLocalRomaji(word, correctedReading, correctedPos),
-            chineseTranslation: partialField(content, 'chineseTranslation') || t("加载中..."),
+            translation: partialField(content, 'translation') || t("加载中..."),
             dictionaryForm: partialField(content, 'dictionaryForm'),
             explanation: partialField(content, 'explanation'),
             conjugation: partialField(content, 'conjugation'),

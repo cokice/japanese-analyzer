@@ -104,7 +104,7 @@ export function wrapStreamingResponseWithIdleTimeout(
           finished = true;
           const error = new DOMException('上游流式响应长时间没有返回数据', 'TimeoutError');
           controller.enqueue(encoder.encode(
-            `data: ${JSON.stringify({ error: { message: '上游流式响应空闲超时，请重试。' } })}\n\n`
+            `data: ${JSON.stringify({ error: { code: 'UPSTREAM_TIMEOUT' } })}\n\n`
           ));
           controller.close();
           upstreamController.abort(error);

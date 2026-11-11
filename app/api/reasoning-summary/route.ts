@@ -1,3 +1,4 @@
+import { apiErrorResponse, upstreamErrorResponse } from '../_utils/apiErrorResponse';
 import { serverKeyRateLimitResponse } from '../_utils/serverKeyRateLimit';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { getReasoningSummaryPrompt } from '../../lib/languagePrompts';
@@ -23,7 +24,7 @@ function extractAssistantText(data: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
-  if (!DEEPSEEK_THINKING_AVAILABLE) return new NextResponse(null, { status: 404 });
+  if (!DEEPSEEK_THINKING_AVAILABLE) return apiErrorResponse('NOT_FOUND', 404);
   try {
     const locale = normalizeLocale(req.headers.get('X-App-Locale'));
     const authError = requireApiSession(req);
@@ -35,10 +36,7 @@ export async function POST(req: NextRequest) {
       : '';
 
     if (!reasoningSnippet.trim()) {
-      return NextResponse.json(
-        { error: { message: '缺少待总结的思考片段' } },
-        { status: 400 }
-      );
+      return apiErrorResponse('INVALID_REQUEST', 400);
     }
 
     const providerConfig = resolveProviderConfig(req, {
@@ -47,10 +45,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!providerConfig.apiKey) {
-      return NextResponse.json(
-        { error: { message: '未提供 DeepSeek API 密钥' } },
-        { status: 500 }
-      );
+      return apiErrorResponse('MISSING_API_KEY', 500);
     }
 
     const payload = withProviderControls('deepseek', {
@@ -71,39 +66,27 @@ export async function POST(req: NextRequest) {
     });
 
     if (!proxied.ok) {
-      return NextResponse.json(
-        { error: { message: proxied.error.message } },
-        { status: proxied.status }
-      );
+      return upstreamErrorResponse(proxied.status);
     }
 
     const data = await proxied.response.json();
     const summary = sanitizeReasoningSummary(extractAssistantText(data), locale === 'en' || locale === 'ko' ? 100 : 30);
     if (!summary) {
-      return NextResponse.json(
-        { error: { message: 'DeepSeek 没有返回有效的思考摘要' } },
-        { status: 502 }
-      );
+      return apiErrorResponse('INVALID_RESPONSE', 502);
     }
 
     return NextResponse.json({ summary });
   } catch (error) {
-    const quotaError = serverKeyRateLimitResponse(error, req);
+    const quotaError = serverKeyRateLimitResponse(error);
     if (quotaError) return quotaError;
     const bodyError = requestBodyErrorResponse(error);
     if (bodyError) return bodyError;
     if (req.signal.aborted) return new Response(null, { status: 499 });
     if (error instanceof ProviderConfigError) {
-      return NextResponse.json(
-        { error: { message: error.message } },
-        { status: error.status }
-      );
+      return apiErrorResponse('INVALID_REQUEST', error.status);
     }
 
     console.error('Server error (Reasoning summary):', error);
-    return NextResponse.json(
-      { error: { message: error instanceof Error ? error.message : '思考摘要生成失败' } },
-      { status: 500 }
-    );
+    return apiErrorResponse('SERVER_ERROR', 500);
   }
 }

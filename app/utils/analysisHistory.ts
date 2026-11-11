@@ -1,9 +1,23 @@
-export const ANALYSIS_HISTORY_KEY = 'japaneseAnalyzer:analysisHistory:v1';
+import type { TokenData } from '../services/api';
+
+export const LEGACY_ANALYSIS_HISTORY_KEY = 'japaneseAnalyzer:analysisHistory:v1';
+export const ANALYSIS_HISTORY_KEY = 'japaneseAnalyzer:analysisHistory:v2';
 export const ANALYSIS_HISTORY_LIMIT = 50;
 
 export interface AnalysisHistoryEntry {
   text: string;
   analyzedAt: number;
+  tokens?: TokenData[];
+}
+
+function validTokens(text: string, tokens: unknown): TokenData[] | undefined {
+  if (!Array.isArray(tokens) || !tokens.length || tokens.some(token => !token || typeof token !== 'object'
+    || typeof token.word !== 'string' || !token.word || typeof token.pos !== 'string'
+    || (token.furigana !== undefined && typeof token.furigana !== 'string')
+    || (token.romaji !== undefined && typeof token.romaji !== 'string'))
+    || tokens.map(token => token.word).join('') !== text) return undefined;
+  return tokens.map(({ word, pos, furigana, romaji }) => ({ word, pos,
+    ...(furigana !== undefined ? { furigana } : {}), ...(romaji !== undefined ? { romaji } : {}) }));
 }
 
 function isHistoryEntry(value: unknown): value is AnalysisHistoryEntry {
@@ -28,7 +42,10 @@ export function parseAnalysisHistory(raw: string | null): AnalysisHistoryEntry[]
         return true;
       })
       .slice(0, ANALYSIS_HISTORY_LIMIT)
-      .map(({ text, analyzedAt }) => ({ text, analyzedAt }));
+      .map(({ text, analyzedAt, tokens }) => {
+        const cached = validTokens(text, tokens);
+        return { text, analyzedAt, ...(cached ? { tokens: cached } : {}) };
+      });
   } catch {
     return [];
   }
@@ -38,10 +55,12 @@ export function addAnalysisHistoryEntry(
   entries: AnalysisHistoryEntry[],
   text: string,
   analyzedAt = Date.now(),
+  tokens?: TokenData[],
 ): AnalysisHistoryEntry[] {
   if (!text.trim()) return entries;
+  const cached = validTokens(text, tokens);
   return [
-    { text, analyzedAt },
+    { text, analyzedAt, ...(cached ? { tokens: cached } : {}) },
     ...entries.filter(entry => entry.text.trim() !== text.trim()),
   ].slice(0, ANALYSIS_HISTORY_LIMIT);
 }

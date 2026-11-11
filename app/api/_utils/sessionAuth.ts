@@ -1,3 +1,4 @@
+import { apiErrorResponse } from './apiErrorResponse';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -72,8 +73,5 @@ export function setAuthCookie(response: NextResponse, request: NextRequest): voi
 export function requireApiSession(req: NextRequest): NextResponse | null {
   if (hasValidAuthSession(req)) return null;
 
-  return NextResponse.json(
-    { error: { message: '请先通过密码验证' } },
-    { status: 401 }
-  );
+  return apiErrorResponse('AUTH_REQUIRED', 401);
 }

@@ -4,7 +4,7 @@ import { getStructuredResponseFormat } from '../app/api/_utils/providerConfig';
 
 const legacy = {
   originalWord: '読んだ',
-  chineseTranslation: '读了',
+  translation: '读了',
   pos: '動詞',
   furigana: 'よんだ',
   romaji: 'yonda',

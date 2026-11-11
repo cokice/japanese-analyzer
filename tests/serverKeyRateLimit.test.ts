@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { localizeError } from '../app/i18n';
 import { NextRequest } from 'next/server';
 import { createServerKeyRateLimiter } from '../app/api/_utils/serverKeyRateLimit';
 import { POST as analyze } from '../app/api/analyze/route';
@@ -33,7 +34,10 @@ export async function runServerKeyRateLimitTests() {
     const limited = await analyze(request('192.0.2.42'));
     assert.equal(limited.status, 429);
     assert.ok(Number(limited.headers.get('Retry-After')) > 0);
-    assert.equal((await limited.json()).error.message, 'Too many requests. Please try again later.');
+    const payload = (await limited.json()).error;
+    assert.equal(payload.code, 'RATE_LIMITED');
+    assert.equal(payload.message, undefined);
+    assert.equal(localizeError(payload, 'en'), 'Too many requests. Please try again later.');
     assert.equal(upstreamCalls, 2, 'Quota is shared by endpoints and reserves before upstream requests');
     assert.equal((await analyze(request('192.0.2.43'))).status, 200);
     for (let i = 0; i < 4; i++) assert.equal((await analyze(request('192.0.2.42', true))).status, 200);
