@@ -5,7 +5,6 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEND_GROUPS } from '../utils/helpers';
 import { TokenData } from '../services/api';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
-import { Switch } from '@/components/ui/switch';
 import { getReadingDensity, groupPendingChars, groupReadingTokens, groupReadingAttachments } from '../utils/readingLayout';
 import { isPunctuationToken, type PhraseRange } from '../utils/phraseRange';
 import { usePhraseSelection } from '../hooks/usePhraseSelection';
@@ -53,53 +52,14 @@ function PickHint({ onCancel }: { onCancel: () => void }) {
   );
 }
 
-function Toggle({
-  on,
-  onChange,
-  ariaLabel,
-}: {
-  on: boolean;
-  onChange: (v: boolean) => void;
-  ariaLabel: string;
-}) {
-  return (
-    <Switch checked={on} onCheckedChange={onChange} aria-label={ariaLabel} />
-  );
-}
-
 export function DisplayOptions({
-  showFurigana,
-  onShowFuriganaChange,
-  showRomaji,
-  onShowRomajiChange,
-  variant = 'switch',
-}: Pick<AnalysisResultProps, 'showFurigana' | 'onShowFuriganaChange' | 'showRomaji' | 'onShowRomajiChange'> & {
-  /** chips：阅读态胶囊里用的紧凑标签样式 */
-  variant?: 'switch' | 'chips';
-}) {
+  showFurigana, onShowFuriganaChange, showRomaji, onShowRomajiChange,
+}: Pick<AnalysisResultProps, 'showFurigana' | 'onShowFuriganaChange' | 'showRomaji' | 'onShowRomajiChange'>) {
   const { t } = useLanguage();
-  if (variant === 'chips') {
-    return (
-      <div className="display-chips">
-        <button type="button" className="display-chip" aria-pressed={showFurigana} aria-label={t("显示假名")} onClick={() => onShowFuriganaChange(!showFurigana)}>
-          {t("假名")}
-        </button>
-        <button type="button" className="display-chip" aria-pressed={showRomaji} aria-label={t("显示罗马音")} onClick={() => onShowRomajiChange(!showRomaji)}>
-          {t("罗马音")}
-        </button>
-      </div>
-    );
-  }
   return (
-    <div className="analysis-display-options flex items-center gap-4 sm:gap-[18px]">
-      <label className="inline-flex cursor-pointer items-center gap-2">
-        <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>{t("假名")}</span>
-        <Toggle on={showFurigana} onChange={onShowFuriganaChange} ariaLabel={t("显示假名")} />
-      </label>
-      <label className="inline-flex cursor-pointer items-center gap-2">
-        <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>{t("罗马音")}</span>
-        <Toggle on={showRomaji} onChange={onShowRomajiChange} ariaLabel={t("显示罗马音")} />
-      </label>
+    <div className="display-chips">
+      <button type="button" className="display-chip" aria-pressed={showFurigana} aria-label={t("显示假名")} onClick={() => onShowFuriganaChange(!showFurigana)}>{t("假名")}</button>
+      <button type="button" className="display-chip" aria-pressed={showRomaji} aria-label={t("显示罗马音")} onClick={() => onShowRomajiChange(!showRomaji)}>{t("罗马音")}</button>
     </div>
   );
 }
