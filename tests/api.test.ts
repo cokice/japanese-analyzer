@@ -8,28 +8,19 @@ import './dailySentence.test';
 import './phraseRange.test';
 import './readingLayout.test';
 import './readingView.test';
+import './moduleBoundaries.test';
 import './posColors.test';
 import './wordDetailContext.test';
 import './wordDetailDictionary.test';
 import { runLocalOutputTests } from './localOutput.test';
 import { runRequestMetricsTests } from './requestMetrics.test';
-import {
-  DEFAULT_AI_PROVIDER,
-  DEEPSEEK_VISION_MODEL_NAME,
-  DEEPSEEK_MODEL_OPTIONS,
-  GEMINI_MODEL_OPTIONS,
-  getApiEndpoint,
-  getImageRecognitionModelName,
-  getModelName,
-  getTtsModelName,
-  getRequestProviderPayload,
-  loadAISettingsFromStorage,
-  normalizeAIModel,
-  normalizeAIProvider,
-  parseWordDetailResponseContent,
-  readOpenAIContentStream,
-  type StorageLike
-} from '../app/services/api';
+import { DEFAULT_AI_PROVIDER, DEEPSEEK_VISION_MODEL_NAME, DEEPSEEK_MODEL_OPTIONS, GEMINI_MODEL_OPTIONS, getImageRecognitionModelName, getModelName, getRequestProviderPayload, normalizeAIModel, normalizeAIProvider } from '../app/lib/aiModels';
+import { getApiEndpoint } from '../app/services/request';
+import { getTtsModelName } from '../app/lib/tts';
+import { loadAISettingsFromStorage } from '../app/lib/aiSettings';
+import { parseWordDetailResponseContent } from '../app/lib/apiResponse';
+import { readOpenAIContentStream } from '../app/services/openaiStream';
+import { type StorageLike } from '../app/lib/apiTypes';
 import {
   DEFAULT_AI_PROVIDER as SERVER_DEFAULT_AI_PROVIDER,
   GEMINI_OPENAI_API_URL,

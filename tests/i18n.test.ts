@@ -10,7 +10,7 @@ import { POST as wordDetail } from '../app/api/word-detail/route';
 import { POST as chat } from '../app/api/chat/route';
 import { POST as imageToText } from '../app/api/image-to-text/route';
 import { POST as summary } from '../app/api/reasoning-summary/route';
-import { streamChat } from '../app/services/api';
+import { streamChat } from '../app/services/chat';
 
 async function main() {
   assert.equal(normalizeLocale(undefined), 'zh-CN');

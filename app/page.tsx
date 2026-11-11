@@ -26,15 +26,9 @@ import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRang
 import { trackWordDetailUsage } from './utils/analytics';
 import { localizeError } from './i18n';
 import { apiErrorFromResponse } from './utils/requestErrors';
-import {
-  AIModelName,
-  TokenData,
-  DEFAULT_AI_PROVIDER,
-  AIProvider,
-  TTSProvider,
-  getModelName,
-  loadAISettingsFromStorage,
-} from './services/api';
+import { type AIModelName, DEFAULT_AI_PROVIDER, type AIProvider, getModelName } from './lib/aiModels';
+import { type TokenData, type TTSProvider } from './lib/apiTypes';
+import { loadAISettingsFromStorage } from './lib/aiSettings';
 
 export default function Home() {
   const { t, locale } = useLanguage();

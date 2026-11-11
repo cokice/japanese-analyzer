@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getPosClass } from '../utils/helpers';
-import { getApiEndpoint } from '../services/api';
+import { getApiEndpoint } from '../services/request';
 import {
   getFallbackDailySentence,
   getJstDateKey,

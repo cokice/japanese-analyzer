@@ -1,7 +1,7 @@
 import { LOCALES, type Locale } from '../../i18n';
 import { buildAnalyzePrompt } from '../../lib/analyzePrompt';
 import { DEFAULT_AI_PROVIDER, type AIProvider } from '../../lib/aiModels';
-import { parseAnalyzeResponseContent } from '../../services/api';
+import { parseAnalyzeResponseContent } from '../../lib/apiResponse';
 import { getDayNumber, type DailySentence } from '../../utils/dailySentences';
 import { proxyOpenAICompatibleRequest } from './openaiProxy';
 import { resolveServerProviderConfig, withProviderControls, type StructuredOutputKind } from './providerConfig';

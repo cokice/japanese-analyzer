@@ -1,7 +1,8 @@
 import assert from 'assert';
 import { createRequestMetrics, getRequestErrorCategory } from '../app/utils/analytics';
 import { ApiRequestError, InvalidResponseError } from '../app/utils/requestErrors';
-import { analyzeSentence, streamAnalyzeSentence, streamChat } from '../app/services/api';
+import { analyzeSentence, streamAnalyzeSentence } from '../app/services/analysis';
+import { streamChat } from '../app/services/chat';
 
 export async function runRequestMetricsTests() {
   type Event = { name: string; data: Record<string, string | number> };

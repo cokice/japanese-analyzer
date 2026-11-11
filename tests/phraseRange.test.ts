@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { parseWordDetailResponseContent } from '../app/services/api';
+import { parseWordDetailResponseContent } from '../app/lib/apiResponse';
 import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRange, PHRASE_MAX_WORDS } from '../app/utils/phraseRange';
 
 const token = (word: string, pos = '名詞', furigana = '') => ({ word, pos, furigana });

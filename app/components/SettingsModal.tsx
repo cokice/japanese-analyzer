@@ -4,7 +4,7 @@ import { DEEPSEEK_THINKING_AVAILABLE } from '../lib/aiModels';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useId, useState } from 'react';
 import ModalDialog from './ModalDialog';
-import { DEEPSEEK_MODEL_OPTIONS, GEMINI_MODEL_OPTIONS, getModelName, type AIModelName, type AIProvider } from '../services/api';
+import { DEEPSEEK_MODEL_OPTIONS, GEMINI_MODEL_OPTIONS, getModelName, type AIModelName, type AIProvider } from '../lib/aiModels';
 import { Icon } from './Icons';
 import { ProviderLogo, PROVIDER_LABELS } from './ProviderLogo';
 import { Switch } from '@/components/ui/switch';

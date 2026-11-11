@@ -1,6 +1,6 @@
 'use client';
 
-import type { TokenData } from '../services/api';
+import { type TokenData } from '../lib/apiTypes';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ANALYSIS_HISTORY_KEY,

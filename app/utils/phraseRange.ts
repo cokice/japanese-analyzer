@@ -1,4 +1,4 @@
-import type { TokenData } from '../services/api';
+import { type TokenData } from '../lib/apiTypes';
 import { getLocalRomaji } from './romaji';
 
 /** 一次最多圈选的词数（不含标点） */

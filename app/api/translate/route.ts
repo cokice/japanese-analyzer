@@ -1,6 +1,6 @@
 import { apiErrorResponse, upstreamErrorResponse } from '../_utils/apiErrorResponse';
 import { serverKeyRateLimitResponse } from '../_utils/serverKeyRateLimit';
-import { validateCompletion } from '../../services/api';
+import { validateCompletion } from '../../lib/apiResponse';
 import { InvalidResponseError } from '../../utils/requestErrors';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { getTranslationSystemPrompt } from '../../lib/languagePrompts';

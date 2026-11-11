@@ -3,7 +3,10 @@
 import { useLanguage } from "../contexts/LanguageContext";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getWordDetails, parseWordDetailResponseContent, streamWordDetails, type WordDetail, type WordDetailKind, type AIModelName, type AIProvider } from '../services/api';
+import { getWordDetails, streamWordDetails } from '../services/wordDetail';
+import { parseWordDetailResponseContent } from '../lib/apiResponse';
+import { type WordDetail, type WordDetailKind } from '../lib/apiTypes';
+import { type AIModelName, type AIProvider } from '../lib/aiModels';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
 import { getLocalRomaji } from '../utils/romaji';
 
