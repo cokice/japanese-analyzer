@@ -32,9 +32,19 @@
   /* 兼容旧变量 */
   --background: var(--bg);
   --foreground: var(--ink);
+
+  /* 滚动条：thumb 与背景对比度需 ≥3:1 */
+  --scrollbar-thumb: var(--ink-3);
+  --scrollbar-track: transparent;
+
+  /* 原生控件（滚动条、select、自动填充、日期选择器）跟随当前主题 */
+  color-scheme: light;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
 }
 
 .dark {
+  color-scheme: dark;
   --bg: #202022;
   --bg-2: #2b2b2e;
   --ink: #f2f2f4;
@@ -1009,17 +1019,19 @@ input, textarea {
   mask-image: none;
 }
 
-.reasoning-stream-window.is-review::-webkit-scrollbar {
-  width: 6px;
-}
+@supports not (scrollbar-color: auto) {
+  .reasoning-stream-window.is-review::-webkit-scrollbar {
+    width: 6px;
+  }
 
-.reasoning-stream-window.is-review::-webkit-scrollbar-track {
-  background: transparent;
-}
+  .reasoning-stream-window.is-review::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-.reasoning-stream-window.is-review::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--reasoning-archive-quote) 82%, transparent);
+  .reasoning-stream-window.is-review::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--reasoning-archive-quote) 82%, transparent);
+  }
 }
 
 .reasoning-stream-tail,
@@ -1164,19 +1176,26 @@ input, textarea {
   }
 }
 
-/* ========== 模态框 ========== */
-.settings-modal {
-  display: none;
-  position: fixed;
-  z-index: 1001;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  background-color: rgba(22, 21, 29, 0.32);
-  justify-content: center;
-  align-items: center;
+/* ========== 模态框（原生 <dialog>，见 components/ModalDialog.tsx） ========== */
+/* :where() 零优先级，只清掉 UA 默认样式，各弹窗自己的 class 照常生效 */
+:where(dialog.app-dialog) {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  max-width: none;
+  max-height: none;
+}
+
+/* 两条都要：否则在背景上或弹窗内滚动会带动后面的页面（替代 body overflow:hidden 锁） */
+dialog.app-dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog.app-dialog::backdrop {
+  background: rgba(22, 21, 29, 0.32);
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .settings-modal-content {
@@ -1224,31 +1243,19 @@ input, textarea {
 }
 
 /* 词语详情模态窗口（移动端） */
-.word-detail-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+.word-detail-modal-content::backdrop,
+.login-dialog::backdrop {
   background-color: rgba(20, 10, 40, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 10000;
-  padding: 15px;
-  animation: fadeInModal 0.2s ease;
-  will-change: opacity;
 }
 
 .word-detail-modal-content {
   background: var(--bg-2);
   border: 1px solid var(--line);
   border-radius: 16px;
-  width: 100%;
+  width: calc(100% - 30px);
   max-width: 500px;
-  max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
-  position: relative;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   animation: zoomInModal 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
   will-change: transform, opacity;
@@ -1392,22 +1399,59 @@ input, textarea {
 }
 
 /* ========== 滚动条 ========== */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* 标准写法在 :root 的 scrollbar-color / scrollbar-width；这里只给不支持标准属性的旧浏览器兜底 */
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 4px;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+/* ========== 语言菜单（popover，见 LanguageToggle.tsx） ========== */
+.language-menu {
+  /* 清掉 UA 的 popover 居中样式，坐标由锚点定位或 JS 兜底给出 */
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  color: var(--ink);
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--line-2);
-  border-radius: 4px;
+/* 锚在语言按钮下方、右边对齐；下方放不下时翻到上方 */
+@supports (position-area: block-end) {
+  .language-menu {
+    position-area: block-end span-inline-start;
+    position-try-fallbacks: flip-block;
+    margin-block: 8px;
+  }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-3);
+@media (prefers-reduced-motion: no-preference) {
+  .language-menu {
+    opacity: 0;
+    translate: 0 -4px;
+    transition: opacity 0.15s, translate 0.15s, display 0.15s, overlay 0.15s;
+    transition-behavior: allow-discrete;
+  }
+  .language-menu:is(:popover-open, .\:popover-open) {
+    opacity: 1;
+    translate: 0 0;
+    transition-duration: 0.1s;
+  }
+  @starting-style {
+    .language-menu:popover-open {
+      opacity: 0;
+      translate: 0 -4px;
+    }
+  }
 }
 
 /* ========== 杂项 ========== */
@@ -1672,8 +1716,10 @@ body {
 }
 #japaneseInput {
   display: block;
+  /* 随内容增高，到 max-height 后出现滚动条；不支持的浏览器由 InputSection 的 JS 兜底 */
+  field-sizing: content;
   min-height: 96px;
-  max-height: min(360px, 45vh);
+  max-height: min(360px, 45dvh);
   overflow-y: auto;
   scrollbar-width: thin;
 }
@@ -1750,12 +1796,14 @@ body {
 .reading-word-group .word-unit-wrapper { min-width: 0; }
 .reading-word-group .word-token { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .reading-word-group .furigana-text, .reading-word-group .romaji-text { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
-#analyzedSentenceOutput::-webkit-scrollbar { width: 6px; height: 6px; }
-#analyzedSentenceOutput::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
-#analyzedSentenceOutput::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
-.translation-scroll-region::-webkit-scrollbar { width: 6px; height: 6px; }
-.translation-scroll-region::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
-.translation-scroll-region::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+@supports not (scrollbar-color: auto) {
+  #analyzedSentenceOutput::-webkit-scrollbar { width: 6px; height: 6px; }
+  #analyzedSentenceOutput::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+  #analyzedSentenceOutput::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+  .translation-scroll-region::-webkit-scrollbar { width: 6px; height: 6px; }
+  .translation-scroll-region::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+  .translation-scroll-region::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+}
 #analyzedSentenceOutput[data-romaji="true"] .word-unit-wrapper { grid-template-rows: 18px auto 8px 15px; }
 #analyzedSentenceOutput[data-romaji="false"] .romaji-text { display: none; }
 #analyzedSentenceOutput[data-furigana="false"] .word-unit-wrapper { grid-template-rows: 4px auto 8px; }
@@ -1910,8 +1958,9 @@ body {
 .chat-send-button { width: 36px; height: 36px; min-height: 36px; padding: 0; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; }
 .chat-send-button svg { width: 17px; height: 17px; }
 .chat-send-button:disabled { background: var(--line-2); color: var(--ink-3); box-shadow: none; opacity: 1; }
-.chat-backdrop { background: rgba(22, 21, 29, .32); }
 .chat-expanded-panel { box-shadow: 0 24px 80px -24px #00000040; }
+/* display 只在打开时设置，否则会覆盖关闭态的 display:none */
+.chat-expanded-panel[open] { display: flex; flex-direction: column; overflow: hidden; }
 .assistant-modal-content-positioner { height: min(520px, calc(100dvh - 112px)); }
 .dark .chat-message-user { background: color-mix(in srgb, var(--primary) 18%, var(--bg-2)); }
 .dark .word-unit-wrapper.active-unit { background: #bba3ff1a; box-shadow: inset 0 0 0 1px #bba3ff30; }

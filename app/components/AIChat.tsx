@@ -10,6 +10,7 @@ import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { MarkdownText } from '@/components/ui/markdown-text';
 import { createRequestMetrics } from '../utils/analytics';
+import ModalDialog from './ModalDialog';
 
 interface ChatMessage {
   id: string;
@@ -68,17 +69,6 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isExpanded) {
-        setIsExpanded(false);
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isExpanded]);
 
   useEffect(() => {
     scrollToBottom();
@@ -197,8 +187,11 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      // 输入法确认候选词的回车不能发送。Safari 会在 keydown 之前就把 isComposing 置回 false，
+      // 但这次 keydown 的 keyCode 仍是 229（VK_PROCESSKEY），两者都要判断。
+      if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
       handleSendMessage();
     }
   };
@@ -319,29 +312,20 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
 
   return (
     <>
-      {isExpanded && (
-        <div
-          className="chat-backdrop fixed inset-0 z-40"
-          onClick={() => setIsExpanded(false)}
-        />
-      )}
-
-      {isExpanded && (
-        <div
-          className="chat-expanded-panel fixed z-50 flex flex-col overflow-hidden rounded-2xl"
-          style={{
-            top: '50%',
-            left: '50%',
-            width: 'min(860px, calc(100vw - 32px))',
-            height: 'min(720px, calc(100dvh - 48px))',
-            transform: 'translate(-50%, -50%)',
-            background: 'var(--bg-2)',
-            border: '1px solid var(--line)',
-          }}
-        >
-          {renderChatPanel(true)}
-        </div>
-      )}
+      <ModalDialog
+        open={isExpanded}
+        onClose={() => setIsExpanded(false)}
+        aria-label={t("AI 日语助手")}
+        className="chat-expanded-panel rounded-2xl"
+        style={{
+          width: 'min(860px, calc(100vw - 32px))',
+          height: 'min(720px, calc(100dvh - 48px))',
+          background: 'var(--bg-2)',
+          border: '1px solid var(--line)',
+        }}
+      >
+        {renderChatPanel(true)}
+      </ModalDialog>
 
       {!isExpanded && (
         <AssistantModalPrimitive.Root

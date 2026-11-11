@@ -18,6 +18,7 @@ export const messages = {
   "解析错误：": {"zh-TW": "解析錯誤：", "en": "Analysis error: ", "ko": "분석 오류: "},
   "AI也可能会犯错，请核查重要信息。": {"zh-TW": "AI 也可能出錯，請查證重要資訊。", "en": "AI can make mistakes. Check important information.", "ko": "AI도 실수할 수 있습니다. 중요한 정보는 확인해 주세요."},
   "关闭详情": {"zh-TW": "關閉詳細資訊", "en": "Close details", "ko": "상세 정보 닫기"},
+  "词汇详情": {"zh-TW": "單字詳細資訊", "en": "Word details", "ko": "단어 상세 정보"},
   "可以问我这句话的语法和用法。": {"zh-TW": "可以問我這句話的文法和用法。", "en": "Ask me about the grammar and usage in this sentence.", "ko": "이 문장의 문법과 용법을 물어보세요."},
   "想了解哪个词，或哪一句日语？": {"zh-TW": "想了解哪個詞，或哪一句日語？", "en": "Which Japanese word or sentence would you like to explore?", "ko": "어떤 일본어 단어나 문장이 궁금하신가요?"},
   "请注意：我正在分析这个日语句子：「{0}」。请在后续回答中结合这个句子的语境来解释相关的日语问题。": {"zh-TW": "我正在解析這個日語句子：「{0}」。請在後續回答中，配合這句話的語境說明相關的日語問題。", "en": "I am analyzing this Japanese sentence: “{0}”. Use its context when answering my Japanese questions.", "ko": "지금 분석 중인 일본어 문장은 「{0}」입니다. 이후 답변에서는 이 문장의 맥락에 맞춰 일본어를 설명해 주세요."},

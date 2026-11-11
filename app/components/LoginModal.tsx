@@ -2,8 +2,9 @@
 
 import { LANGUAGE_LABELS, LOCALES, normalizeLocale } from '../i18n';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useEffect, useState } from 'react';
+import { useId, useState } from 'react';
 import { Icon } from './Icons';
+import ModalDialog from './ModalDialog';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -17,13 +18,7 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : 'unset';
-
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
+  const titleId = useId();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,21 +32,19 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(20,10,40,.50)' }}
+    // 访问验证不可跳过：dismissible={false} 屏蔽 Esc 与点背景
+    <ModalDialog
+      open={isOpen}
+      dismissible={false}
+      aria-labelledby={titleId}
+      className="login-dialog w-[calc(100%-32px)] max-w-md rounded-2xl p-6"
+      style={{
+        background: 'var(--bg-2)',
+        border: '1px solid var(--line)',
+        boxShadow: '0 20px 50px -10px rgba(40,10,80,.25)',
+      }}
     >
-      <div
-        className="w-full max-w-md rounded-2xl p-6"
-        style={{
-          background: 'var(--bg-2)',
-          border: '1px solid var(--line)',
-          boxShadow: '0 20px 50px -10px rgba(40,10,80,.25)',
-        }}
-      >
         <div className="mb-6 text-center">
           <div
             className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full"
@@ -59,7 +52,7 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
           >
             {Icon.lock}
           </div>
-          <h2 className="mb-2 text-2xl font-semibold" style={{ color: 'var(--ink)' }}>
+          <h2 id={titleId} className="mb-2 text-2xl font-semibold" style={{ color: 'var(--ink)' }}>
             {t("访问验证")}
           </h2>
           <select aria-label={t("语言")} className="nd-input mt-3 text-sm" value={locale} onChange={(event) => setLocale(normalizeLocale(event.target.value))}>
@@ -79,7 +72,8 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
               placeholder={t("请输入访问密码")}
               className="nd-input pr-12"
               disabled={isLoading}
-              autoFocus
+              aria-label={t("请输入访问密码")}
+              data-autofocus
             />
             <button
               type="button"
@@ -131,7 +125,6 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
         <p className="mb-0 mt-5 text-center text-xs" style={{ color: 'var(--ink-3)' }}>
           {t("请联系管理员获取访问密码")}
         </p>
-      </div>
-    </div>
+    </ModalDialog>
   );
 }
