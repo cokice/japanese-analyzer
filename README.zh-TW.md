@@ -93,6 +93,7 @@ npm run dev
 | `GEMINI_API_KEY` | 可選。Gemini 文字模型、圖片辨識與 Gemini TTS |
 | `DEEPSEEK_API_URL` / `GEMINI_API_URL` | 可選。OpenAI 相容介面網址，留空使用官方網址 |
 | `SERVER_KEY_RATE_LIMIT` / `SERVER_KEY_RATE_WINDOW_SECONDS` | 共用伺服器 Key 的每個 IP 每 600 秒最多 30 次；自備 Key 不計入。 |
+| `EDGE_TTS_URL` | Edge TTS 上游網址，預設 https://api.howen.ink/api/tts 。朗讀文字會透過本站伺服器傳送至此網址。 |
 | `CODE` | 可選。存取密碼，留空則不需要密碼 |
 | `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 可選。兩者都填寫後啟用 Umami 統計 |
 

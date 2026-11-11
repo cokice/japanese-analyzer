@@ -31,6 +31,7 @@ function request(body: Record<string, unknown>) {
 async function run() {
   const originalFetch = globalThis.fetch;
   const originalCode = process.env.CODE;
+  const originalEdgeUrl = process.env.EDGE_TTS_URL;
   try {
     delete process.env.CODE;
     // Exercise client -> route -> upstream -> browser Blob, including style separation.
@@ -76,15 +77,32 @@ async function run() {
 
     // Edge still sends its own voice controls and plays compressed audio unchanged.
     const mp3 = Buffer.from('ID3test-audio');
-    globalThis.fetch = async (url, init) => {
-      assert.equal(String(url), 'https://api.howen.ink/api/tts');
-      assert.deepEqual(JSON.parse(String(init?.body)), { text, voice: 'ja-JP-KeitaNeural', rate: -20, pitch: 0 });
-      return new Response(mp3, { headers: { 'Content-Type': 'audio/mpeg' } });
-    };
-    const edgeUrl = await getJapaneseTtsAudioUrl(text, undefined, 'edge', { gender: 'male', rate: -20 });
-    try {
-      assert.deepEqual(Buffer.from(await (await originalFetch(edgeUrl)).arrayBuffer()), mp3);
-    } finally { URL.revokeObjectURL(edgeUrl); }
+    for (const endpoint of [undefined, 'https://tts.example.org/speech']) {
+      if (endpoint) process.env.EDGE_TTS_URL = endpoint; else delete process.env.EDGE_TTS_URL;
+      globalThis.fetch = async (url, init) => {
+        if (String(url) === '/api/tts') {
+          const body = JSON.parse(String(init?.body));
+          assert.equal(body.provider, 'edge');
+          assert.equal(body.gender, 'male');
+          return POST(new NextRequest('http://localhost/api/tts', init));
+        }
+        assert.equal(String(url), endpoint || 'https://api.howen.ink/api/tts');
+        assert.deepEqual(JSON.parse(String(init?.body)), { text, voice: 'ja-JP-KeitaNeural', rate: -20, pitch: 0 });
+        assert.ok(init?.signal);
+        return new Response(mp3, { headers: { 'Content-Type': 'audio/mpeg' } });
+      };
+      const edgeUrl = await getJapaneseTtsAudioUrl(text, undefined, 'edge', { gender: 'male', rate: -20 });
+      try {
+        assert.deepEqual(Buffer.from(await (await originalFetch(edgeUrl)).arrayBuffer()), mp3);
+      } finally { URL.revokeObjectURL(edgeUrl); }
+    }
+    globalThis.fetch = async (url, init) => String(url) === '/api/tts'
+      ? POST(new NextRequest('http://localhost/api/tts', init))
+      : Response.json({ error: 'TTS unavailable' }, { status: 503 });
+    await assert.rejects(getJapaneseTtsAudioUrl(text, undefined, 'edge'), /TTS unavailable/);
+    globalThis.fetch = async (url, init) => String(url) === '/api/tts'
+      ? POST(new NextRequest('http://localhost/api/tts', init)) : new Response('');
+    await assert.rejects(getJapaneseTtsAudioUrl(text, undefined, 'edge'), /无有效音频/);
 
     globalThis.fetch = async () => { throw new Error('Invalid input must not contact upstream'); };
     for (const body of [{ model: 'other-model' }, { voice: 'invalid' }, { style: {} }, { text: {} }, { text: '  ' }]) {
@@ -97,6 +115,7 @@ async function run() {
     console.log('TTS migration tests passed.');
   } finally {
     globalThis.fetch = originalFetch;
+    if (originalEdgeUrl === undefined) delete process.env.EDGE_TTS_URL; else process.env.EDGE_TTS_URL = originalEdgeUrl;
     if (originalCode === undefined) delete process.env.CODE;
     else process.env.CODE = originalCode;
   }

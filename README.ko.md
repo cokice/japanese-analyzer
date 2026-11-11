@@ -93,6 +93,7 @@ npm run dev
 | `GEMINI_API_KEY` | 선택. Gemini 텍스트 모델, 이미지 인식, Gemini TTS |
 | `DEEPSEEK_API_URL` / `GEMINI_API_URL` | 선택. OpenAI 호환 엔드포인트, 비워 두면 공식 주소 사용 |
 | `SERVER_KEY_RATE_LIMIT` / `SERVER_KEY_RATE_WINDOW_SECONDS` | 공유 서버 키는 IP당 600초에 30회가 기본이며 개인 키는 제외됩니다. |
+| `EDGE_TTS_URL` | Edge TTS 주소(기본값: https://api.howen.ink/api/tts). 낭독할 텍스트가 앱 서버를 통해 이 주소로 전송됩니다. |
 | `CODE` | 선택. 접속 비밀번호, 비워 두면 비밀번호 없이 사용 |
 | `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 선택. 둘 다 입력하면 Umami 통계 사용 |
 
