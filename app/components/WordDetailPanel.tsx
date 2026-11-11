@@ -299,7 +299,7 @@ export default function WordDetailPanel({
             </span>
             {wordDetail.dictionaryForm && wordDetail.dictionaryForm !== wordDetail.originalWord && (
               <span className="jp text-xs" style={{ color: 'var(--ink-2)' }}>
-                {t("形式")}<span lang="ja">{wordDetail.dictionaryForm}</span>
+                {t("形式")}<span lang="ja" className="ml-1">{wordDetail.dictionaryForm}</span>
               </span>
             )}
           </div>
@@ -315,18 +315,18 @@ export default function WordDetailPanel({
           {posDetail && (
             <span
               lang="ja"
-              className="word-detail-pos-original text-xs"
-              style={{ color: 'var(--ink-3)' }}
+              className="text-xs"
+              style={{ color: 'var(--ink-2)' }}
             >
               {posDetail}
             </span>
           )}
           {wordDetail.dictionaryForm && wordDetail.dictionaryForm !== wordDetail.originalWord && (
             <span
-              className="jp w-full pt-1 text-xs"
+              className="jp text-xs"
               style={{ color: 'var(--ink-2)' }}
             >
-              {t("原形")}<span lang="ja">{wordDetail.dictionaryForm}</span>
+              {t("原形")}<span lang="ja" className="ml-1">{wordDetail.dictionaryForm}</span>
             </span>
           )}
         </div>
@@ -336,7 +336,7 @@ export default function WordDetailPanel({
       {/* 正文 */}
       <div className="px-5 pb-5 pt-1">
         <p
-          className={`dictionary-definition m-0 text-[16px] font-medium leading-relaxed ${wordDetail.chineseTranslation === t("加载中...") ? 'animate-pulse' : ''}`}
+          className={`dictionary-definition m-0 font-medium ${wordDetail.chineseTranslation === t("加载中...") ? 'animate-pulse' : ''}`}
           style={{ color: 'var(--ink)' }}
         >
           {wordDetail.chineseTranslation}
@@ -344,7 +344,7 @@ export default function WordDetailPanel({
 
         {wordDetail.explanation && (
           <DetailSection label={t("本句用法")}>
-            <div className="flow-markdown word-detail-explanation text-[13px] leading-relaxed">
+            <div className="flow-markdown word-detail-explanation">
               {explanationContent(wordDetail.explanation)}
             </div>
             {showExpandButton && (
@@ -360,14 +360,14 @@ export default function WordDetailPanel({
         )}
         {isPhrase && wordDetail.breakdown && (
           <DetailSection label={t("构成")}>
-            <p lang="ja" className="dictionary-conjugation m-0 text-[13px] leading-7" style={{ color: 'var(--ink-2)' }}>
+            <p lang="ja" className="dictionary-conjugation m-0">
               {wordDetail.breakdown}
             </p>
           </DetailSection>
         )}
         {wordDetail.conjugation && (
           <DetailSection label={t("词形")}>
-            <p className="dictionary-conjugation m-0 text-[13px] leading-7" style={{ color: 'var(--ink-2)' }}>
+            <p className="dictionary-conjugation m-0">
               {wordDetail.conjugation}
             </p>
           </DetailSection>
@@ -375,8 +375,8 @@ export default function WordDetailPanel({
         {wordDetail.example && wordDetail.exampleTranslation && (
           <DetailSection label={t("例句")}>
             <div className="dictionary-example">
-              <p lang="ja" className="jp m-0 text-sm leading-7" style={{ color: 'var(--ink)' }}>{wordDetail.example}</p>
-              <p className="m-0 mt-1 text-xs leading-6" style={{ color: 'var(--ink-2)' }}>{wordDetail.exampleTranslation}</p>
+              <p lang="ja" className="jp m-0" style={{ color: 'var(--ink)' }}>{wordDetail.example}</p>
+              <p className="dictionary-example-translation m-0 mt-1">{wordDetail.exampleTranslation}</p>
             </div>
           </DetailSection>
         )}
