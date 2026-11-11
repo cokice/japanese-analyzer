@@ -75,9 +75,9 @@ const GEMINI_VOICES = [
 ];
 
 const TTS_STYLES = [
-  { value: '', label: '自然朗读', prompt: '' },
-  { value: 'slowly', label: '慢速朗读', prompt: 'Say slowly: ' },
-  { value: 'clearly', label: '清晰朗读', prompt: 'Say clearly: ' },
+  { value: '', label: '自然朗读', style: '' },
+  { value: 'slowly', label: '慢速朗读', style: 'Speak slowly.' },
+  { value: 'clearly', label: '清晰朗读', style: 'Speak clearly.' },
 ];
 
 const FIRST_VISIT_EXAMPLE_KEY = 'japaneseAnalyzer:firstVisitExampleSeen';
@@ -359,9 +359,8 @@ export default function InputSection({
         markTtsUsed('edge');
       } else if (ttsProvider === 'gemini') {
         // 使用 Gemini TTS，添加风格控制
-        const stylePrompt = TTS_STYLES.find(s => s.value === selectedStyle)?.prompt || '';
-        const textToSpeak = stylePrompt + inputText;
-        const url = await getJapaneseTtsAudioUrl(textToSpeak, geminiApiKey, 'gemini', { voice: selectedVoice, pitch: 0, signal: request.signal });
+        const style = TTS_STYLES.find(s => s.value === selectedStyle)?.style || '';
+        const url = await getJapaneseTtsAudioUrl(inputText, geminiApiKey, 'gemini', { voice: selectedVoice, style, pitch: 0, signal: request.signal });
         if (!request.isCurrent()) { URL.revokeObjectURL(url); return; }
         setTtsAudioUrl(url);
         markTtsUsed('gemini');
