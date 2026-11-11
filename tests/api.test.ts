@@ -140,7 +140,7 @@ assert.strictEqual(DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(SERVER_DEFAULT_AI_PROVIDER, 'deepseek');
 assert.strictEqual(getModelName(), 'deepseek-flash');
 assert.strictEqual(getTtsModelName('edge'), 'edge-tts');
-assert.strictEqual(getTtsModelName('gemini'), 'gemini-3.1-flash-tts-preview');
+assert.strictEqual(getTtsModelName('gemini'), 'gemini-3.8-flash-lite-tts');
 assert.deepStrictEqual(GEMINI_MODEL_OPTIONS, ['gemini-flash-latest', 'gemini-flash-lite-latest']);
 assert.deepStrictEqual(DEEPSEEK_MODEL_OPTIONS, ['deepseek-flash']);
 assert.strictEqual(DEEPSEEK_VISION_MODEL_NAME, 'deepseek-flash');
@@ -272,7 +272,7 @@ assert.deepStrictEqual(getAnalyzeUsageEvent('gemini', {
     image_model: 'gemini-flash-latest',
     tts: 'true',
     tts_provider: 'gemini',
-    tts_model: 'gemini-3.1-flash-tts-preview',
+    tts_model: 'gemini-3.8-flash-lite-tts',
   },
 });
 assert.deepStrictEqual(getImageRecognitionUsageEvent('gemini'), {
