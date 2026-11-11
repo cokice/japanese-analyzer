@@ -4,6 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { translateText, streamTranslateText } from '../services/api';
 import type { AIModelName, AIProvider } from '../services/api';
+import ErrorNotice from './ErrorNotice';
 import ThinkingIndicator from './ThinkingIndicator';
 import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
@@ -18,6 +19,7 @@ interface TranslationSectionProps {
   useStream?: boolean;
   trigger?: number;
   analysisSignal?: AbortSignal;
+  onOpenSettings: () => void;
 }
 
 export default function TranslationSection({
@@ -27,11 +29,13 @@ export default function TranslationSection({
   aiModel,
   useStream = true, // 默认为true，保持向后兼容
   trigger,
-  analysisSignal
+  analysisSignal,
+  onOpenSettings
 }: TranslationSectionProps) {
-  const { t, errorText } = useLanguage();
+  const { t } = useLanguage();
   const requestRef = useRef<AbortController | null>(null);
   const [translation, setTranslation] = useState<string>('');
+  const [translationError, setTranslationError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -49,26 +53,27 @@ export default function TranslationSection({
     const signal = analysisSignal && !analysisSignal.aborted
       ? AbortSignal.any([controller.signal, analysisSignal]) : controller.signal;
     const isCurrent = () => requestRef.current === controller && !signal.aborted;
+    setTranslationError(null);
     setIsLoading(true); setIsVisible(true); setCanAnimateTranslation(false); setTranslation('');
     try {
       if (useStream) {
         await streamTranslateText(japaneseText, (chunk) => {
           if (isCurrent()) setTranslation(chunk);
         }, (error) => {
-          if (isCurrent()) setTranslation(t("翻译时发生错误: {0}。", errorText(error.message)));
+          if (isCurrent()) { setTranslation(''); setTranslationError(error); }
         }, userApiKey, aiProvider, aiModel, signal);
       } else {
         const text = await translateText(japaneseText, userApiKey, aiProvider, aiModel, signal);
         if (isCurrent()) setTranslation(text);
       }
     } catch (error) {
-      if (isCurrent()) setTranslation(t("翻译时发生错误: {0}。", error instanceof Error ? errorText(error.message) : t("未知错误")));
+      if (isCurrent()) { setTranslation(''); setTranslationError(error instanceof Error ? error : new Error(t("未知错误"))); }
     } finally {
       if (requestRef.current === controller) {
         setIsLoading(false); requestRef.current = null;
       }
     }
-  }, [japaneseText, userApiKey, aiProvider, aiModel, useStream, analysisSignal, t, errorText]);
+  }, [japaneseText, userApiKey, aiProvider, aiModel, useStream, analysisSignal, t]);
 
   const handleCopy = () => {
     if (!translation) return;
@@ -130,6 +135,12 @@ export default function TranslationSection({
         <span>{isVisible ? t("收起") : t("展开")}</span>
       </button>
     </div>
+  );
+
+  if (translationError) return (
+    <section className="translation-section">
+      <ErrorNotice error={translationError} onOpenSettings={onOpenSettings} onRetry={() => void handleTranslate()} />
+    </section>
   );
 
   return (

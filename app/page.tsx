@@ -9,6 +9,7 @@ import AnalysisResult, { DisplayOptions } from './components/AnalysisResult';
 import TranslationSection from './components/TranslationSection';
 import SettingsModal from './components/SettingsModal';
 import Header from './components/Header';
+import ErrorNotice from './components/ErrorNotice';
 import LoginModal from './components/LoginModal';
 import ModalDialog from './components/ModalDialog';
 import AIChat from './components/AIChat';
@@ -44,7 +45,7 @@ export default function Home() {
   const [currentSentence, setCurrentSentence] = useState('');
   const [analyzedTokens, setAnalyzedTokens] = useState<TokenData[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisError, setAnalysisError] = useState('');
+  const [analysisError, setAnalysisError] = useState<Error | null>(null);
   const [useStream, setUseStream] = useState<boolean>(true);
 
   const [analysisSignal, setAnalysisSignal] = useState<AbortSignal>();
@@ -106,7 +107,7 @@ export default function Home() {
     analysisAbortControllerRef.current = null;
     reasoningSummaryControllerRef.current?.cancel();
     setIsAnalyzing(false);
-    setAnalysisError('');
+    setAnalysisError(null);
     setAuthError('');
     setSelectedIndex(null);
     setSelectedRange(null);
@@ -351,9 +352,9 @@ export default function Home() {
     const metrics = createRequestMetrics('analyze', aiProvider, aiModel, useStream, analysisAbortController.signal);
     setIsAnalyzing(true);
     setIsEditingInput(false);
-    setAnalysisError('');
+    setAnalysisError(null);
     setCurrentSentence(text);
-    setTranslationTrigger(Date.now());
+    setTranslationTrigger(0);
     setAnalyzedTokens([]);
     const deepseekThinkingActive = aiProvider === 'deepseek' && deepseekThinkingEnabled;
     reasoningTextStore.reset();
@@ -439,10 +440,11 @@ export default function Home() {
                 setAnalyzedTokens(tokens);
                 metrics.succeed();
                 history.record(text);
+                setTranslationTrigger(Date.now());
               } catch (error) {
                 metrics.fail(new InvalidResponseError('Invalid analysis result'));
                 console.error('Final stream analysis parse error:', error);
-                setAnalysisError(t("解析结果JSON格式错误"));
+                setAnalysisError(new Error(t("解析结果JSON格式错误")));
               }
             }
           },
@@ -451,7 +453,7 @@ export default function Home() {
             metrics.fail(error);
             finishReasoningStatus(t("深度思考已中止"));
             console.error('Stream analysis error:', error);
-            setAnalysisError(error.message || t("流式解析错误"));
+            setAnalysisError(error);
             setAnalyzedTokens([]);
             setIsAnalyzing(false);
             analysisAbortControllerRef.current = null;
@@ -475,6 +477,7 @@ export default function Home() {
         setAnalyzedTokens(tokens);
         metrics.succeed();
         history.record(text);
+                setTranslationTrigger(Date.now());
         finishReasoningStatus(t("已深度思考"));
         setIsAnalyzing(false);
         analysisAbortControllerRef.current = null;
@@ -484,7 +487,7 @@ export default function Home() {
       metrics.fail(error);
       finishReasoningStatus(t("深度思考已中止"));
       console.error('Analysis error:', error);
-      setAnalysisError(error instanceof Error ? error.message : t("未知错误"));
+      setAnalysisError(error instanceof Error ? error : new Error(t("未知错误")));
       setAnalyzedTokens([]);
       setIsAnalyzing(false);
       analysisAbortControllerRef.current = null;
@@ -501,7 +504,7 @@ export default function Home() {
     reasoningSummaryControllerRef.current?.cancel();
     reasoningSummaryControllerRef.current = null;
     setIsAnalyzing(false);
-    setAnalysisError('');
+    setAnalysisError(null);
     setDeepseekReasoningCompletionLabel(t("已终止思考"));
     setDeepseekReasoningDone(true);
   };
@@ -531,7 +534,7 @@ export default function Home() {
     setDeepseekReasoningSummaryHistory([]);
     setAnalyzedTokens([]);
     setCurrentSentence('');
-    setAnalysisError('');
+    setAnalysisError(null);
     setIsEditingInput(true);
   };
 
@@ -645,24 +648,7 @@ export default function Home() {
               )}
 
             {analysisError && (
-              <div className="nd-card">
-                <div
-                  className="flex items-start gap-2 rounded-[10px] p-3 text-sm"
-                  style={{
-                    background: 'color-mix(in oklab, var(--pos-p) 10%, transparent)',
-                    color: 'var(--ink-2)',
-                  }}
-                >
-                  <span
-                    className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[12px] font-bold leading-none"
-                    style={{ background: 'var(--pos-p)', color: '#fff' }}
-                    aria-hidden="true"
-                  >
-                    !
-                  </span>
-                  <span>{t("解析错误：")}{localizeError(analysisError, locale)}</span>
-                </div>
-              </div>
+              <ErrorNotice error={analysisError} onOpenSettings={() => setIsSettingsModalOpen(true)} onRetry={() => handleAnalyze(currentSentence)} />
             )}
 
             {(shouldShowAnalyzer() || currentSentence) && (
@@ -686,7 +672,7 @@ export default function Home() {
                   />
                 )}
 
-                {currentSentence && (
+                {currentSentence && !isAnalyzing && !analysisError && analyzedTokens.length > 0 && (
                   <TranslationSection
                     japaneseText={currentSentence}
                     userApiKey={userApiKey}
@@ -695,6 +681,7 @@ export default function Home() {
                     useStream={useStream}
                     trigger={translationTrigger}
                     analysisSignal={analysisSignal}
+                    onOpenSettings={() => setIsSettingsModalOpen(true)}
                   />
                 )}
               </div>

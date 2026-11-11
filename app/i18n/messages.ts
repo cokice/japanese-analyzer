@@ -1,5 +1,8 @@
 // Simplified Chinese source text is the stable message key.
 export const messages = {
+  "打开设置": {"zh-TW": "開啟設定", "en": "Open settings", "ko": "설정 열기"},
+  "重试": {"zh-TW": "重試", "en": "Retry", "ko": "다시 시도"},
+
   "侧栏": {"zh-TW": "側欄", "en": "Sidebar", "ko": "사이드바"},
   "释义": {"zh-TW": "釋義", "en": "Definition", "ko": "뜻"},
   "助手": {"zh-TW": "助手", "en": "Assistant", "ko": "도우미"},
