@@ -8,6 +8,8 @@ interface ModalDialogProps {
   onClose?: () => void;
   /** false：只能由代码关闭（如登录验证），Esc 与点背景都无效 */
   dismissible?: boolean;
+  /** 非模态抽屉允许继续操作背景正文，不限制 Tab 焦点。 */
+  modal?: boolean;
   className?: string;
   style?: React.CSSProperties;
   'aria-label'?: string;
@@ -30,6 +32,7 @@ export default function ModalDialog({
   open,
   onClose,
   dismissible = true,
+  modal = true,
   className,
   style,
   children,
@@ -39,6 +42,7 @@ export default function ModalDialog({
   const openRef = useRef(open);
   const onCloseRef = useRef(onClose);
   const dismissibleRef = useRef(dismissible);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     openRef.current = open;
@@ -50,13 +54,15 @@ export default function ModalDialog({
     const dialog = ref.current;
     if (!dialog) return;
     if (open && !dialog.open) {
-      dialog.showModal();
+      returnFocusRef.current = document.activeElement as HTMLElement | null;
+      if (modal) dialog.showModal();
+      else dialog.show();
       // React 的 autoFocus 不写 DOM 属性，showModal 看不到；用 data-autofocus 指定初始焦点
-      dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+      dialog.querySelector<HTMLElement>('[data-autofocus], button')?.focus({ preventScroll: true });
     } else if (!open && dialog.open) {
       dialog.close();
     }
-  }, [open]);
+  }, [open, modal]);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -66,20 +72,30 @@ export default function ModalDialog({
       if (!dismissibleRef.current) event.preventDefault();
     };
     const handleClose = () => {
+      if (dialog.contains(document.activeElement)) returnFocusRef.current?.focus({ preventScroll: true });
       if (!openRef.current) return; // 由 open=false 关闭，状态已同步
       if (!dismissibleRef.current) {
         // 连按 Esc 时浏览器可以无视 cancel 的 preventDefault，不可关闭的弹窗直接重新打开
-        dialog.showModal();
+        if (modal) dialog.showModal();
+        else dialog.show();
         return;
       }
       onCloseRef.current?.();
     };
     dialog.addEventListener('cancel', handleCancel);
     dialog.addEventListener('close', handleClose);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!modal && dialog.open && dismissibleRef.current && event.key === 'Escape'
+        && !document.querySelector('dialog:modal')) {
+        event.preventDefault();
+        dialog.close();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
 
     // closedby="any" 的兜底（Safari 尚不支持）：按下和松开都在弹窗外才算点背景，拖选文字到背景上不会误关
     let removeLightDismiss = () => {};
-    if (!('closedBy' in HTMLDialogElement.prototype)) {
+    if (modal && !('closedBy' in HTMLDialogElement.prototype)) {
       let pressedOutside = false;
       const handlePointerDown = (event: PointerEvent) => { pressedOutside = isOutside(event, dialog); };
       const handlePointerUp = (event: PointerEvent) => {
@@ -97,16 +113,17 @@ export default function ModalDialog({
     return () => {
       dialog.removeEventListener('cancel', handleCancel);
       dialog.removeEventListener('close', handleClose);
+      document.removeEventListener('keydown', handleKeyDown);
       removeLightDismiss();
     };
-  }, []);
+  }, [modal]);
 
   return (
     <dialog
       ref={ref}
       className={className ? `app-dialog ${className}` : 'app-dialog'}
       style={style}
-      {...({ closedby: dismissible ? 'any' : 'none' } as Record<string, string>)}
+      {...({ closedby: dismissible && modal ? 'any' : 'none' } as Record<string, string>)}
       {...aria}
     >
       {open ? children : null}
