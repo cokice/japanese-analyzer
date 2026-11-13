@@ -1,5 +1,15 @@
 // Simplified Chinese source text is the stable message key.
 export const messages = {
+  "读取这个网页": {"zh-TW": "讀取這個網頁", "en": "Read this page", "ko": "이 웹페이지 읽기", "ja": "このページを読み込む"},
+  "正在读取网页…": {"zh-TW": "正在讀取網頁…", "en": "Reading page…", "ko": "웹페이지 읽는 중…", "ja": "ページを読み込み中…"},
+  "取消读取网页": {"zh-TW": "取消讀取網頁", "en": "Cancel reading page", "ko": "웹페이지 읽기 취소", "ja": "ページの読み込みをキャンセル"},
+  "网页已读取，请确认后点击「解析」。": {"zh-TW": "網頁已讀取，請確認後點擊「解析」。", "en": "Page loaded. Review the text, then select Analyze.", "ko": "웹페이지를 불러왔습니다. 내용을 확인한 뒤 분석을 누르세요.", "ja": "ページを読み込みました。内容を確認して「解析」を押してください。"},
+  "无法读取网页正文，请复制正文后粘贴。": {"zh-TW": "無法讀取網頁正文，請複製正文後貼上。", "en": "Unable to read the page. Copy and paste its text instead.", "ko": "웹페이지 본문을 읽을 수 없습니다. 본문을 복사해 붙여 넣어 주세요.", "ja": "ページの本文を読み込めません。本文をコピーして貼り付けてください。"},
+  "朗读回答（DeepSeek）": {"zh-TW": "朗讀回答（DeepSeek）", "en": "Read answer aloud (DeepSeek)", "ko": "답변 읽기 (DeepSeek)", "ja": "回答を読み上げる（DeepSeek）"},
+  "音色": {"zh-TW": "音色", "en": "Voice", "ko": "음성", "ja": "音声"},
+  "海星 · 女声": {"zh-TW": "海星 · 女聲", "en": "Stella · Female", "ko": "Stella · 여성", "ja": "Stella · 女性"},
+  "暗潮 · 男声": {"zh-TW": "暗潮 · 男聲", "en": "Tide · Male", "ko": "Tide · 남성", "ja": "Tide · 男性"},
+  "正在合成语音…": {"zh-TW": "正在合成語音…", "en": "Generating speech…", "ko": "음성 생성 중…", "ja": "音声を生成中…"},
   "请求参数无效，请检查后重试。": {"zh-TW": "請求參數無效，請檢查後重試。", "en": "Invalid request. Check the input and try again.", "ko": "요청이 올바르지 않습니다. 입력을 확인한 뒤 다시 시도하세요.", "ja": "リクエストが無効です。入力内容を確認して、もう一度お試しください。"},
   "请求内容过大，请缩短文本或压缩图片。": {"zh-TW": "請求內容過大，請縮短文字或壓縮圖片。", "en": "Request too large. Shorten the text or compress the image.", "ko": "요청 내용이 너무 큽니다. 텍스트를 줄이거나 이미지를 압축하세요.", "ja": "リクエストが大きすぎます。テキストを短くするか、画像を圧縮してください。"},
   "API 密钥无效，请在设置中检查。": {"zh-TW": "API 金鑰無效，請在設定中檢查。", "en": "Invalid API key. Check it in Settings.", "ko": "API 키가 올바르지 않습니다. 설정에서 확인하세요.", "ja": "APIキーが無効です。設定で確認してください。"},

@@ -9,7 +9,7 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { extractTextFromImage, streamExtractTextFromImage } from '../services/imageText';
 import { type AIProvider, type AIModelName } from '../lib/aiModels';
 import { type TTSProvider } from '../lib/apiTypes';
-import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
+import { getJapaneseTtsAudioUrl } from '../utils/helpers';
 import {
   getImageRecognitionUsage,
   getTtsUsage,
@@ -21,6 +21,8 @@ import { Icon } from './Icons';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { TextShimmer } from '@/components/ui/text-shimmer';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
+import { getSingleWebUrl } from '../lib/webUrl';
+import { readWebPage } from '../services/webPage';
 import { normalizePastedText } from '../utils/pastedText';
 import AnalysisHistory from './AnalysisHistory';
 import type { AnalysisHistoryEntry } from '../utils/analysisHistory';
@@ -38,6 +40,7 @@ interface InputSectionProps {
   aiProvider: AIProvider;
   aiModel?: AIModelName;
   geminiApiKey?: string;
+  deepseekApiKey?: string;
   useStream?: boolean;
   ttsProvider: TTSProvider;
   onTtsProviderChange: (provider: TTSProvider) => void;
@@ -102,6 +105,7 @@ export default function InputSection({
   aiProvider,
   aiModel,
   geminiApiKey,
+  deepseekApiKey,
   useStream = true, // 默认启用流式输出
   ttsProvider,
   onTtsProviderChange,
@@ -119,11 +123,16 @@ export default function InputSection({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
   const [isImageUploading, setIsImageUploading] = useState(false);
+  const [pendingWebPage, setPendingWebPage] = useState<{ url: string; start: number; end: number } | null>(null);
+  const [isReadingWebPage, setIsReadingWebPage] = useState(false);
+  const [webPageError, setWebPageError] = useState('');
   const [uploadStatus, setUploadStatus] = useState('');
   const [uploadStatusClass, setUploadStatusClass] = useState('');
   const [selectedGender, setSelectedGender] = useState<'male' | 'female'>('female');
   const [selectedRate, setSelectedRate] = useState(0);
   const [selectedVoice, setSelectedVoice] = useState('Kore');
+  const [deepseekVoice, setDeepseekVoice] = useState('stella');
+  const [speechError, setSpeechError] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [submitState, setSubmitState] = useState<StateMorphButtonState>('idle');
   const [showFirstVisitExample, setShowFirstVisitExample] = useState(false);
@@ -136,10 +145,12 @@ export default function InputSection({
   const spokenTextRef = useRef('');
   const wasCompactRef = useRef(compact);
   const reduceMotion = useReducedMotion();
+  const webPageRequest = useRef(new LatestRequest());
   const imageRequest = useRef(new LatestRequest());
   const speechRequest = useRef(new LatestRequest());
 
   useEffect(() => () => {
+    webPageRequest.current.cancel();
     imageRequest.current.cancel();
     speechRequest.current.cancel();
     window.speechSynthesis?.cancel();
@@ -150,8 +161,12 @@ export default function InputSection({
   }, [ttsAudioUrl]);
 
   useEffect(() => {
+    webPageRequest.current.cancel();
     imageRequest.current.cancel();
     speechRequest.current.cancel();
+    setPendingWebPage(null);
+    setIsReadingWebPage(false);
+    setWebPageError('');
     setIsImageUploading(false);
     setIsSpeaking(false);
     setUploadStatus('');
@@ -159,9 +174,18 @@ export default function InputSection({
     window.speechSynthesis?.cancel();
   }, [aiProvider, aiModel, locale, ttsProvider]);
 
+  useEffect(() => {
+    webPageRequest.current.cancel();
+    setIsReadingWebPage(false);
+  }, [deepseekApiKey]);
+
   const cancelInputRequests = () => {
+    webPageRequest.current.cancel();
     imageRequest.current.cancel();
     speechRequest.current.cancel();
+    setPendingWebPage(null);
+    setIsReadingWebPage(false);
+    setWebPageError('');
     setIsImageUploading(false);
     setIsSpeaking(false);
     setUploadStatus('');
@@ -233,6 +257,7 @@ export default function InputSection({
 
   // 从本地存储加载TTS设置
   useEffect(() => {
+    setDeepseekVoice(browserStorage.getItem('deepseekTtsVoice') === 'tide' ? 'tide' : 'stella');
     const storedGender = (browserStorage.getItem('ttsGender') || 'female') as 'male' | 'female';
     const storedRate = parseInt(browserStorage.getItem('ttsRate') || '0');
     const storedVoice = browserStorage.getItem('ttsVoice') || 'Kore';
@@ -293,6 +318,7 @@ export default function InputSection({
   };
 
   const startAnalysis = (text: string, usage: AnalyzeUsageMetadata) => {
+    cancelInputRequests();
     if (!text.trim()) {
       alert(t("请输入日语句子！"));
       return;
@@ -331,6 +357,7 @@ export default function InputSection({
     if (!inputText.trim()) return;
     const request = speechRequest.current.start();
     setIsSpeaking(true);
+    setSpeechError('');
     setTtsAudioUrl(null);
 
     try {
@@ -352,13 +379,17 @@ export default function InputSection({
         if (!request.isCurrent()) { URL.revokeObjectURL(url); return; }
         setTtsAudioUrl(url);
         markTtsUsed('gemini');
+      } else if (ttsProvider === 'deepseek') {
+        const url = await getJapaneseTtsAudioUrl(inputText, deepseekApiKey, 'deepseek', { voice: deepseekVoice, signal: request.signal });
+        if (!request.isCurrent()) { URL.revokeObjectURL(url); return; }
+        setTtsAudioUrl(url);
+        markTtsUsed('deepseek');
       }
     } catch (e) {
       if (!request.isCurrent()) return;
       console.error('TTS error:', e);
       setTtsAudioUrl(null);
-      // 如果失败，回退到系统 TTS
-      speakJapanese(inputText);
+      setSpeechError(errorText(e instanceof Error ? e : t('未知错误')));
     } finally {
       if (request.isCurrent()) setIsSpeaking(false);
     }
@@ -476,10 +507,47 @@ export default function InputSection({
     event.target.value = '';
   };
 
+  const handleReadWebPage = async () => {
+    if (!pendingWebPage || isLoading || isReadingWebPage) return;
+    const { url, start, end } = pendingWebPage;
+    const originalText = inputText;
+    cancelInputRequests();
+    setPendingWebPage({ url, start, end });
+    const request = webPageRequest.current.start();
+    setIsReadingWebPage(true);
+    try {
+      const text = await readWebPage(url, deepseekApiKey, request.signal);
+      if (!request.isCurrent()) return;
+      const value = originalText.slice(0, start) + text + originalText.slice(end);
+      setInputText(value);
+      clearUsageMetadata();
+      setPendingWebPage(null);
+      setUploadStatus(t('网页已读取，请确认后点击「解析」。'));
+      setUploadStatusClass('mt-2 text-sm');
+      requestAnimationFrame(() => {
+        if (!request.isCurrent()) return;
+        japaneseInputRef.current?.focus();
+        japaneseInputRef.current?.setSelectionRange(start, start + text.length);
+      });
+    } catch (error) {
+      if (request.isCurrent()) setWebPageError(errorText(error instanceof Error ? error : t('未知错误')));
+    } finally {
+      if (request.isCurrent()) setIsReadingWebPage(false);
+    }
+  };
+
   // 处理粘贴事件
   const handlePaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const plainText = event.clipboardData.getData('text/plain');
     const html = event.clipboardData.getData('text/html');
+    const url = getSingleWebUrl(plainText);
+    if (url) {
+      event.preventDefault();
+      cancelInputRequests();
+      setShowFirstVisitExample(false);
+      setPendingWebPage({ url, start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd });
+      return;
+    }
     const pasted = plainText || html ? normalizePastedText(plainText, html) : '';
     if (pasted || plainText) {
       event.preventDefault();
@@ -653,7 +721,7 @@ export default function InputSection({
         <div className="mb-3">
           <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{t("语音引擎")}</label>
           <div className="segmented-control grid grid-cols-2 gap-1 rounded-xl p-1">
-            {(['edge', 'gemini'] as const).map((provider) => (
+            {(['edge', 'gemini', 'deepseek'] as const).map((provider) => (
               <button
                 key={provider}
                 className="cursor-pointer rounded-lg border-none px-3 py-2 text-sm transition-colors"
@@ -663,11 +731,21 @@ export default function InputSection({
                   : { background: 'transparent', color: 'var(--ink-2)' }}
                 onClick={() => handleTtsProviderSelect(provider)}
               >
-                {provider === 'edge' ? 'Edge TTS' : 'Gemini TTS'}
+                {provider === 'edge' ? 'Edge TTS' : provider === 'deepseek' ? 'DeepSeek' : 'Gemini TTS'}
               </button>
             ))}
           </div>
         </div>
+
+        {ttsProvider === 'deepseek' && (
+          <label className="block text-ui-sm text-muted">{t('音色')}
+            <select aria-label={t('音色')} value={deepseekVoice} className="w-full bg-panel text-ink rounded-ui-sm p-ui-2"
+              onChange={event => { setDeepseekVoice(event.target.value); browserStorage.setItem('deepseekTtsVoice', event.target.value); }}>
+              <option value="stella">{t('海星 · 女声')}</option>
+              <option value="tide">{t('暗潮 · 男声')}</option>
+            </select>
+          </label>
+        )}
 
         {/* Edge TTS 设置 */}
         {ttsProvider === 'edge' && (
@@ -868,6 +946,20 @@ export default function InputSection({
                 )}
               </div>
 
+              {pendingWebPage && (
+                <div className="mt-ui-3 text-ui-sm" aria-live="polite">
+                  <div className="flex flex-wrap items-center gap-ui-2">
+                    <span className="min-w-0 flex-1 truncate text-muted" title={pendingWebPage.url}>{pendingWebPage.url}</span>
+                    <button type="button" className="nd-ghost-btn" disabled={isLoading || isReadingWebPage} onClick={handleReadWebPage}>
+                      {isReadingWebPage ? t('正在读取网页…') : t('读取这个网页')}
+                    </button>
+                    <button type="button" className="input-tool-button" aria-label={t('取消读取网页')} title={t('取消读取网页')}
+                      onClick={cancelInputRequests}>{Icon.xSm}</button>
+                  </div>
+                  {webPageError && <p role="alert" className="mt-ui-2 text-danger">{webPageError}</p>}
+                </div>
+              )}
+
               <div className="input-action-bar mt-3.5 flex items-center">
                 {/* 左侧工具按钮区域 */}
                 <div className="input-tools flex items-center gap-2">
@@ -911,7 +1003,7 @@ export default function InputSection({
                 <StateMorphButton
                   id="analyzeButton"
                   onClick={isLoading ? handleCancelAnalyze : handleAnalyze}
-                  disabled={!isLoading && !inputText.trim()}
+                  disabled={!isLoading && (!inputText.trim() || isReadingWebPage)}
                   state={submitState}
                   className={showFirstVisitExample ? 'first-visit-submit-cue' : undefined}
                 />
@@ -949,6 +1041,8 @@ export default function InputSection({
       )}
 
       {uploadStatus && <div id="imageUploadStatus" className={uploadStatusClass}>{errorText(uploadStatus)}</div>}
+
+      {speechError && <p role="alert" className="text-ui-sm" style={{ color: 'var(--danger)' }}>{speechError}</p>}
 
       {ttsAudioUrl && (
         <div className="mt-4">

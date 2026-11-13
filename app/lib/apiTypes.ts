@@ -38,7 +38,7 @@ export interface ChatMessage {
   content: string;
 }
 
-export type TTSProvider = 'edge' | 'gemini';
+export type TTSProvider = 'edge' | 'gemini' | 'deepseek';
 
 export interface StorageLike {
   getItem: (key: string) => string | null;
