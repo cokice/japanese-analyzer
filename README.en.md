@@ -41,7 +41,7 @@
 - Read-aloud (Edge TTS / Gemini TTS) and an AI Japanese assistant that knows the current sentence
 
 **Interface**
-- Simplified Chinese, Traditional Chinese, English, and Korean — the UI, translations, and entries switch together
+- Simplified Chinese, Traditional Chinese, English, Korean, and Japanese — the UI, translations, and entries switch together; Japanese mode provides simpler Japanese paraphrases
 - Light and dark themes, on desktop and mobile
 - Recent analyses are kept locally in your browser
 

@@ -1,7 +1,7 @@
 import { API_ERROR_MESSAGES, isApiErrorCode, type ApiErrorPayload } from '../lib/apiErrors';
 import { messages } from './messages';
 
-export const LOCALES = ['zh-CN', 'zh-TW', 'en', 'ko'] as const;
+export const LOCALES = ['zh-CN', 'zh-TW', 'en', 'ko', 'ja'] as const;
 export type Locale = typeof LOCALES[number];
 export const DEFAULT_LOCALE: Locale = 'zh-CN';
 export const LANGUAGE_STORAGE_KEY = 'language';
@@ -10,6 +10,7 @@ export const LANGUAGE_LABELS: Record<Locale, string> = {
   'zh-TW': '繁體中文',
   en: 'English',
   ko: '한국어',
+  ja: '日本語',
 };
 
 export function normalizeLocale(value: unknown): Locale {

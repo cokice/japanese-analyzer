@@ -14,7 +14,7 @@ assert.equal(getJstDateKey(new Date('2026-09-24T15:00:00Z')), '2026-09-25');
 assert.equal(secondsUntilJstMidnight(new Date('2026-09-24T14:00:00Z')), 3600);
 assert.equal(getDayNumber('2026-09-25') - getDayNumber('2026-09-24'), 1);
 
-// 备用句本身必须合格：分词能拼回原句、四种译文齐全
+// 备用句本身必须合格：分词能拼回原句、所有语言内容齐全
 for (const sentence of DAILY_SENTENCES) {
   assert.doesNotThrow(() => validateDailySentence(sentence), sentence.text);
 }
@@ -24,6 +24,7 @@ assert.ok(DAILY_SENTENCES.includes(getFallbackDailySentence(new Date('2026-09-24
 const sample = DAILY_SENTENCES[0];
 assert.throws(() => validateDailySentence({ ...sample, tokens: sample.tokens.slice(1) }), /拼回原句/);
 assert.throws(() => validateDailySentence({ ...sample, translation: { ...sample.translation, ko: '' } }), /ko/);
+assert.throws(() => validateDailySentence({ ...sample, translation: { ...sample.translation, ja: '' } }), /ja/);
 
 // 格式约束：必须以「。」结尾，不含数字、字母、引号、括号
 const withText = (text: string) => ({ ...sample, text, tokens: [{ word: text, pos: '名詞' }] });
@@ -38,6 +39,7 @@ const today = buildDailySentencePrompt('2026-09-24');
 assert.notEqual(today, buildDailySentencePrompt('2026-09-25'));
 assert.match(today, /2026-09-24/);
 assert.match(today, /季节是秋/);
+assert.match(today, /日语（ja）/);
 assert.match(buildDailySentencePrompt('2026-01-10'), /季节是冬/);
 
 console.log('Daily sentence tests passed');

@@ -134,7 +134,7 @@ export default function DailySentence({ onAnalyze, disabled = false }: DailySent
           );
         })}
       </span>
-      <span className="daily-translation">{sentence.translation[locale] || sentence.translation['zh-CN']}</span>
+      <span className="daily-translation">{sentence.translation[locale] || (locale === 'ja' ? sentence.text : sentence.translation['zh-CN'])}</span>
     </button>
   );
 }

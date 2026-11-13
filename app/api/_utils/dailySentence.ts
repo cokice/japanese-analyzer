@@ -38,9 +38,10 @@ export function buildDailySentencePrompt(dateKey: string): string {
 3. 长度 10～28 个字符，一句话，以「。」结尾，不含换行、引号、括号、英文字母或阿拉伯数字。
 4. 可以呼应季节，但不要出现人名、品牌、政治、宗教、灾难等内容。
 5. 同时给出自然的译文：简体中文（zh-CN）、繁体中文（zh-TW）、英语（en）、韩语（ko）。
+6. 日语（ja）提供适合学习者的易懂日语改写，保持原意、时态和语气，不添加信息；原句已足够简单时可以保留原句。
 
 只返回严格有效的 JSON 对象，不要包含 markdown：
-{"text": "日语原句", "translations": {"zh-CN": "…", "zh-TW": "…", "en": "…", "ko": "…"}}`;
+{"text": "日语原句", "translations": {"zh-CN": "…", "zh-TW": "…", "en": "…", "ko": "…", "ja": "…"}}`;
 }
 
 // 与提示词第 3 条一致：不含阿拉伯数字、拉丁字母、引号、括号（全角半角都算）
@@ -89,7 +90,7 @@ function parseJsonObject(content: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
-/** 校验生成结果：原句格式、四种译文、分词拼回原句 */
+/** 校验生成结果：原句格式、所有语言的译文或改写、分词拼回原句 */
 export function validateDailySentence(value: DailySentence): DailySentence {
   const text = value.text.trim();
   if (text.length < 6 || text.length > 40 || /[\n\r]/.test(text)) throw new Error(`今日一句长度或格式不合适：${text}`);
