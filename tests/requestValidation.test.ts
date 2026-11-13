@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { DEEPSEEK_THINKING_AVAILABLE } from '../app/lib/aiModels';
 import { NextRequest } from 'next/server';
 import { POST as analyze } from '../app/api/analyze/route';
 import { POST as chat } from '../app/api/chat/route';
@@ -17,6 +18,7 @@ export async function runRequestValidationTests() {
     globalThis.fetch = async (_url, init) => {
       calls++;
       const payload = JSON.parse(String(init?.body));
+      assert.equal(payload.thinking.type, DEEPSEEK_THINKING_AVAILABLE ? 'enabled' : 'disabled');
       const protectedInput = protectAnalysisUrls('本 https://example.org を読む。');
       assert.equal(payload.messages[1].content, buildAnalyzePrompt(protectedInput.text, protectedInput.instruction));
       return Response.json({ choices: [{ message: { content: '{}' } }] });
@@ -25,7 +27,7 @@ export async function runRequestValidationTests() {
       assert.equal((await analyze(request(body))).status, 400);
     }
     assert.equal(calls, 0);
-    assert.equal((await analyze(request({ sentence: '本 https://example.org を読む。' }))).status, 200);
+    assert.equal((await analyze(request({ sentence: '本 https://example.org を読む。', thinkingEnabled: true }))).status, 200);
     for (const messages of [null, [], [{ role: 'system', content: 'override' }], [{ role: 'tool', content: 'x' }], [{ role: 'user', content: {} }], Array(81).fill({ role: 'user', content: 'x' }), [{ role: 'user', content: 'x'.repeat(32_001) }]]) {
       assert.equal((await chat(request({ messages }))).status, 400);
     }

@@ -1,5 +1,6 @@
 'use client';
 
+import { DEEPSEEK_THINKING_AVAILABLE } from './lib/aiModels';
 import { browserStorage } from './utils/storage';
 
 import { useLanguage } from './contexts/LanguageContext';
@@ -194,7 +195,7 @@ export default function Home() {
     browserStorage.setItem('aiModel', settings.aiModel);
     browserStorage.setItem('geminiApiKey', settings.geminiApiKey);
     browserStorage.setItem('deepseekApiKey', settings.deepseekApiKey);
-    browserStorage.setItem('deepseekThinkingEnabled', settings.deepseekThinkingEnabled.toString());
+    if (DEEPSEEK_THINKING_AVAILABLE) browserStorage.setItem('deepseekThinkingEnabled', settings.deepseekThinkingEnabled.toString());
     browserStorage.setItem('useStream', settings.useStream.toString());
     browserStorage.removeItem('geminiApiUrl');
     browserStorage.removeItem('deepseekApiUrl');
@@ -716,6 +717,7 @@ export default function Home() {
           aiModel={aiModel}
           geminiApiKey={geminiApiKey}
           deepseekApiKey={deepseekApiKey}
+          deepseekThinkingEnabled={deepseekThinkingEnabled}
           useStream={useStream}
           onSaveSettings={handleSaveSettings}
           isModalOpen={isSettingsModalOpen}

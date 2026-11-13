@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { DEEPSEEK_THINKING_AVAILABLE } from '../app/lib/aiModels';
 import { NextRequest } from 'next/server';
 import { createTranslator, LANGUAGE_LABELS, LOCALES, localizeError, normalizeLocale } from '../app/i18n';
 import { messages } from '../app/i18n/messages';
@@ -90,6 +91,7 @@ async function main() {
               method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-key', 'X-App-Locale': locale },
               body: JSON.stringify({ ...bodies[name], provider, stream, useStream: stream }),
             }));
+            if (name === 'summary' && !DEEPSEEK_THINKING_AVAILABLE) { assert.equal(response.status, 404); continue; }
             assert.equal(response.status, 200, `${name}, ${locale}, ${provider}, stream=${stream}`);
             const text = await response.text();
             if (name === 'summary' && locale === 'ko') assert.equal(JSON.parse(text).summary, '문장에 쓰인 동사의 활용과 앞뒤 단어 사이의 조사 연결 관계를 확인하는 중');
@@ -98,7 +100,7 @@ async function main() {
         }
       }
     }
-    assert.equal(requestCount, LOCALES.length * 2 * 2 * Object.keys(handlers).length);
+    assert.equal(requestCount, LOCALES.length * 2 * 2 * (Object.keys(handlers).length - (DEEPSEEK_THINKING_AVAILABLE ? 0 : 1)));
 
     // Switching languages cancels a pending chat request without reporting an error.
     globalThis.fetch = async (_url, init) => new Promise((_resolve, reject) => {

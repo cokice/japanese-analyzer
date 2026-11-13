@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { DEEPSEEK_THINKING_AVAILABLE } from '../app/lib/aiModels';
 import { runServerKeyRateLimitTests } from './serverKeyRateLimit.test';
 import { runRequestValidationTests } from './requestValidation.test';
 import './analysisHistory.test';
@@ -773,11 +774,14 @@ assert.deepStrictEqual(migratedSettings, {
   aiModel: 'deepseek-flash',
   geminiApiKey: 'legacy-gemini-key',
   deepseekApiKey: 'deepseek-key',
-  deepseekThinkingEnabled: false,
+  deepseekThinkingEnabled: DEEPSEEK_THINKING_AVAILABLE,
 });
 assert.strictEqual(migratedStorage.getItem('geminiApiKey'), 'legacy-gemini-key');
 assert.strictEqual(migratedStorage.getItem('geminiApiUrl'), null);
-assert.strictEqual(migratedStorage.getItem('deepseekThinkingEnabled'), 'false');
+assert.strictEqual(migratedStorage.getItem('deepseekThinkingEnabled'), 'true');
+assert.equal(loadAISettingsFromStorage(migratedStorage, false).deepseekThinkingEnabled, false);
+assert.equal(loadAISettingsFromStorage(migratedStorage, true).deepseekThinkingEnabled, true);
+assert.equal(migratedStorage.getItem('deepseekThinkingEnabled'), 'true');
 
 const defaultStorage = new MemoryStorage({
   aiProvider: 'unknown',

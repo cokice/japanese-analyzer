@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { DEEPSEEK_THINKING_AVAILABLE } from '../app/lib/aiModels';
 import { NextRequest } from 'next/server';
 import { POST as login, GET as authStatus } from '../app/api/auth/route';
 import { POST as translate } from '../app/api/translate/route';
@@ -29,7 +30,7 @@ async function run() {
     delete process.env.AUTH_COOKIE_SECURE;
     for (const handler of [login, translate, imageToText, analyze, chat, wordDetail, summary, tts]) {
       for (const body of ['{', 'null', '[]', '"value"']) {
-        assert.equal((await handler(request(body)))?.status, 400);
+        assert.equal((await handler(request(body)))?.status, handler === summary && !DEEPSEEK_THINKING_AVAILABLE ? 404 : 400);
       }
     }
     // Fixed-length oversize and forged-small/missing lengths hit the same limit.
