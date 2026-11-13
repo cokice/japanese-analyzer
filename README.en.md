@@ -92,12 +92,9 @@ Open <http://localhost:3000>. To try it from a phone on the same network, run `n
 | `DEEPSEEK_API_KEY` | Recommended. Default analysis, translation, and image recognition |
 | `GEMINI_API_KEY` | Optional. Gemini text models, image recognition, and Gemini TTS |
 | `DEEPSEEK_API_URL` / `GEMINI_API_URL` | Optional. OpenAI-compatible endpoints; leave empty for the official ones |
-| `SERVER_KEY_RATE_LIMIT` / `SERVER_KEY_RATE_WINDOW_SECONDS` | Shared server keys allow 30 requests per IP per 600 seconds by default; personal keys are exempt. |
 | `EDGE_TTS_URL` | Edge TTS endpoint (default: https://api.howen.ink/api/tts). Read-aloud text is sent to this address through this app’s server. |
 | `CODE` | Optional. Access password; leave empty for open access |
 | `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Optional. Set both to enable Umami analytics |
-
-Counters live in process memory and are unreliable on stateless or multi-instance deployments such as Vercel; use a gateway backed by shared storage there. The trusted reverse proxy must overwrite X-Forwarded-For rather than pass client-supplied IPs. Requests without a valid IP share one quota.
 
 Keys stay on the server and are never sent to the browser. The sentence of the day is generated with the server key; without one, built-in examples are shown.
 
