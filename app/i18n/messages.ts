@@ -1,5 +1,8 @@
 // Simplified Chinese source text is the stable message key.
 export const messages = {
+  "请提供有效的日语原文（最多 20000 字），不接受 prompt 参数": {"zh-TW": "請提供有效的日語原文（最多 20000 字），不接受 prompt 參數", "en": "Provide Japanese text of up to 20000 characters. The prompt field is not accepted.", "ko": "20000자 이내의 일본어 원문을 입력하세요. prompt 필드는 허용되지 않습니다."},
+  "消息格式无效，请缩短对话后重试": {"zh-TW": "訊息格式無效，請縮短對話後重試", "en": "Invalid message format. Shorten the conversation and try again.", "ko": "메시지 형식이 올바르지 않습니다. 대화를 줄인 뒤 다시 시도하세요."},
+
   "历史记录": {"zh-TW": "歷史紀錄", "en": "History", "ko": "기록"},
   "清空历史记录": {"zh-TW": "清空歷史紀錄", "en": "Clear history", "ko": "기록 지우기"},
   "历史记录暂时无法保存到浏览器，刷新后可能丢失。": {"zh-TW": "歷史紀錄暫時無法儲存至瀏覽器，重新整理後可能遺失。", "en": "History cannot be saved to this browser right now and may be lost on refresh.", "ko": "현재 브라우저에 기록을 저장할 수 없어 새로고침하면 사라질 수 있습니다."},

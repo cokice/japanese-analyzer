@@ -41,7 +41,7 @@ async function main() {
   const originalCode = process.env.CODE;
   delete process.env.CODE;
   const bodies = {
-    analyze: { prompt: 'Analyze 本を読む。', thinkingEnabled: true },
+    analyze: { sentence: '本を読む。', thinkingEnabled: true },
     translate: { text: '本を読む。\n図書館で勉強する。' },
     wordDetail: { word: '本', pos: '名詞', sentence: '本を読む。', furigana: 'ほん' },
     chat: { messages: [{ role: 'user', content: 'Explain を' }] },

@@ -15,19 +15,17 @@ export async function POST(req: NextRequest) {
 
     // 解析请求体
     const { messages, useStream = true, provider, apiUrl, model } = await readJsonBody(req);
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > 80
+      || messages.some(message => !message || typeof message !== 'object'
+        || !['user', 'assistant'].includes(message.role) || typeof message.content !== 'string')
+      || messages.reduce((total, message) => total + message.content.length, 0) > 32_000) {
+      return NextResponse.json({ error: { message: '消息格式无效，请缩短对话后重试' } }, { status: 400 });
+    }
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
-    
     if (!providerConfig.apiKey) {
       return NextResponse.json(
         { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
         { status: 500 }
-      );
-    }
-
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json(
-        { error: { message: '缺少消息内容' } },
-        { status: 400 }
       );
     }
 

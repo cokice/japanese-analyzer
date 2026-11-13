@@ -14,7 +14,8 @@ export async function runAnalysisUrlTests() {
     globalThis.fetch = async (_url, init) => {
       requests++;
       const body = JSON.parse(init?.body as string);
-      const source = JSON.parse(body.prompt.match(/待解析句子.*： (.*)$/u)[1]) as string;
+      assert.equal('prompt' in body, false);
+      const source = protectAnalysisUrls(body.sentence).text;
       assert.ok(!source.includes('https://'), 'Encoded URLs never go to the model');
       const words = (omitWhitespace ? source.replace(/\s/gu, '') : source).split(/(X*JAURL\d+END)/u).filter(Boolean);
       const tokens = words.filter(word => !omitLink || !/JAURL\d+END/u.test(word))

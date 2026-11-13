@@ -1,3 +1,5 @@
+import { buildAnalyzePrompt } from '../../lib/analyzePrompt';
+import { protectAnalysisUrls } from '../../utils/analysisUrls';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { getResponseLanguageInstruction } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
@@ -17,26 +19,23 @@ export async function POST(req: NextRequest) {
     const requestData = await readJsonBody(req);
 
     const {
-      prompt,
+      sentence,
       model,
       apiUrl,
       stream = false,
       provider,
       thinkingEnabled = false,
     } = requestData;
+    if ('prompt' in requestData || typeof sentence !== 'string' || !sentence.trim() || sentence.length > 20_000) {
+      return NextResponse.json({ error: { message: '请提供有效的日语原文（最多 20000 字），不接受 prompt 参数' } }, { status: 400 });
+    }
+    const protectedInput = protectAnalysisUrls(sentence);
+    const prompt = buildAnalyzePrompt(protectedInput.text, protectedInput.instruction);
     const providerConfig = resolveProviderConfig(req, { provider, apiUrl, model });
-    
     if (!providerConfig.apiKey) {
       return NextResponse.json(
         { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
         { status: 500 }
-      );
-    }
-
-    if (!prompt) {
-      return NextResponse.json(
-        { error: { message: '缺少必要的prompt参数' } },
-        { status: 400 }
       );
     }
 

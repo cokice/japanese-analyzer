@@ -14,7 +14,6 @@ import { normalizeEscapedLineBreaks } from '../utils/markdown';
 import { getLocalRomaji } from '../utils/romaji';
 import { ApiRequestError, InvalidResponseError } from '../utils/requestErrors';
 import { protectAnalysisUrls } from '../utils/analysisUrls';
-import { buildAnalyzePrompt } from '../lib/analyzePrompt';
 
 export {
   DEFAULT_AI_PROVIDER,
@@ -818,7 +817,7 @@ async function analyzeSingleSentence(
       headers,
       signal: options.signal,
       body: JSON.stringify({ 
-        prompt: buildAnalyzePrompt(protectedInput.text, protectedInput.instruction),
+        sentence,
         ...getRequestProviderPayload(provider, model),
         thinkingEnabled: provider === 'deepseek' && options.deepseekThinkingEnabled === true,
       })
@@ -937,7 +936,7 @@ async function streamAnalyzeSingleSentence(
       headers,
       signal: options.signal,
       body: JSON.stringify({ 
-        prompt: buildAnalyzePrompt(protectedInput.text, protectedInput.instruction),
+        sentence,
         ...getRequestProviderPayload(provider, model),
         thinkingEnabled: provider === 'deepseek' && options.deepseekThinkingEnabled === true,
         stream: true
