@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
         pitch
       };
 
-      const response = await fetch(EDGE_TTS_URL, {
+      const response = await fetch(process.env.EDGE_TTS_URL || EDGE_TTS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       }
 
       const audioBuffer = await response.arrayBuffer();
-      
+
       if (!audioBuffer || audioBuffer.byteLength === 0) {
         return NextResponse.json(
           { error: { message: '无有效音频数据' } },
@@ -87,9 +87,9 @@ export async function POST(req: NextRequest) {
       }
 
       const base64Audio = Buffer.from(audioBuffer).toString('base64');
-      return NextResponse.json({ 
-        audio: base64Audio, 
-        mimeType: 'audio/mp3' 
+      return NextResponse.json({
+        audio: base64Audio,
+        mimeType: response.headers.get('content-type') || 'audio/mpeg'
       });
 
     } else if (provider === 'gemini') {

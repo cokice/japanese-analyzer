@@ -93,6 +93,7 @@ Open <http://localhost:3000>. To try it from a phone on the same network, run `n
 | `GEMINI_API_KEY` | Optional. Gemini text models, image recognition, and Gemini TTS |
 | `DEEPSEEK_API_URL` / `GEMINI_API_URL` | Optional. OpenAI-compatible endpoints; leave empty for the official ones |
 | `SERVER_KEY_RATE_LIMIT` / `SERVER_KEY_RATE_WINDOW_SECONDS` | Shared server keys allow 30 requests per IP per 600 seconds by default; personal keys are exempt. |
+| `EDGE_TTS_URL` | Edge TTS endpoint (default: https://api.howen.ink/api/tts). Read-aloud text is sent to this address through this app’s server. |
 | `CODE` | Optional. Access password; leave empty for open access |
 | `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Optional. Set both to enable Umami analytics |
 
