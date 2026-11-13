@@ -580,10 +580,11 @@ export default function Home() {
           onSettingsClick={() => setIsSettingsModalOpen(true)}
         />
 
-        {/* 阅读列居中；点词后详情栏从右侧展开，主列随之左移。 */}
+        {/* 桌面阅读态始终预留侧栏，点词只显示面板。 */}
         <main
           className="app-main mx-auto flex w-full max-w-[1240px] flex-1 items-start justify-center px-4 pb-6 pt-2 sm:px-9"
           data-detail-open={isDesktop && hasWordDetail}
+          data-reading={isReading}
         >
           {/* 主列 */}
           <div className="app-column relative flex w-full min-w-0 max-w-[780px] flex-col gap-[22px]" data-home={isHome}>
@@ -683,7 +684,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* 侧栏：词汇详情（桌面端），未选词时收起不占位 */}
+          {/* 侧栏：桌面阅读态预留位置 */}
           <aside className="detail-rail sticky top-4 hidden self-start lg:block">
             <div className="detail-rail-inner">
               {isDesktop && hasWordDetail && wordDetailPanel}

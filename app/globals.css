@@ -47,6 +47,8 @@
   --r-md: 10px;       /* 词块、普通按钮 */
   --r-lg: 16px;       /* 输入框、面板、弹窗 */
   --r-pill: 999px;    /* 主按钮、工具条、开关 */
+  --detail-width: 360px;
+  --detail-gap: 28px;
 
   /* 动效 3 档 */
   --dur-fast: 120ms;  /* 悬停、按下 */
@@ -2216,16 +2218,17 @@ body {
 }
 .display-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
-/* 词汇详情栏：未选词时宽度为 0，选词后展开，主列随之平移 */
+/* 词汇详情栏：阅读态始终占位，面板独立淡入 */
 .detail-rail {
   flex: 0 0 auto;
   width: 0;
   margin-left: 0;
   overflow: hidden;
-  transition: width var(--dur-slow) var(--ease-out), margin-left var(--dur-slow) var(--ease-out);
 }
-.app-main[data-detail-open="true"] .detail-rail { width: 360px; margin-left: 28px; }
-.detail-rail-inner { width: 360px; padding-bottom: 4px; }
+@media (min-width: 1024px) {
+  .app-main[data-reading="true"] .detail-rail { width: var(--detail-width); margin-left: var(--detail-gap); }
+}
+.detail-rail-inner { width: var(--detail-width); padding-bottom: 4px; }
 
 @media (max-width: 640px) {
   .reading-surface { margin-top: 8px; padding: 0 2px; }
