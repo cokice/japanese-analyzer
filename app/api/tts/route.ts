@@ -1,3 +1,4 @@
+import { serverKeyRateLimitResponse, reserveServerKeyRequest } from '../_utils/serverKeyRateLimit';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { NextRequest, NextResponse } from 'next/server';
 import { createUpstreamSignal, isUpstreamTimeoutError } from '../_utils/requestTimeout';
@@ -126,6 +127,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      reserveServerKeyRequest(req);
+
       const payload = {
         contents: [{ parts: [{ text, ...(style.trim() ? { speech_metadata: { style: style.trim() } } : {}) }] }],
         generationConfig: {
@@ -173,6 +176,8 @@ export async function POST(req: NextRequest) {
     }
 
   } catch (error) {
+    const quotaError = serverKeyRateLimitResponse(error, req);
+    if (quotaError) return quotaError;
     const bodyError = requestBodyErrorResponse(error);
     if (bodyError) return bodyError;
     if (req.signal.aborted) return new Response(null, { status: 499 });

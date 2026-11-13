@@ -1,3 +1,4 @@
+import { serverKeyRateLimitResponse } from '../_utils/serverKeyRateLimit';
 import { buildAnalyzePrompt } from '../../lib/analyzePrompt';
 import { protectAnalysisUrls } from '../../utils/analysisUrls';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
@@ -91,6 +92,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data);
     }
   } catch (error) {
+    const quotaError = serverKeyRateLimitResponse(error, req);
+    if (quotaError) return quotaError;
     const bodyError = requestBodyErrorResponse(error);
     if (bodyError) return bodyError;
     if (error instanceof ProviderConfigError) {

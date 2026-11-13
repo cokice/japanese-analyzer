@@ -1,3 +1,4 @@
+import { serverKeyRateLimitResponse } from '../_utils/serverKeyRateLimit';
 import { validateCompletion } from '../../services/api';
 import { InvalidResponseError } from '../../utils/requestErrors';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
@@ -84,6 +85,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data);
     }
   } catch (error) {
+    const quotaError = serverKeyRateLimitResponse(error, req);
+    if (quotaError) return quotaError;
     const bodyError = requestBodyErrorResponse(error);
     if (bodyError) return bodyError;
     if (error instanceof InvalidResponseError) return NextResponse.json({ error: { message: error.message } }, { status: 502 });

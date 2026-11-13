@@ -1,3 +1,4 @@
+import { serverKeyRateLimitResponse } from '../_utils/serverKeyRateLimit';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { getReasoningSummaryPrompt } from '../../lib/languagePrompts';
 import { normalizeLocale } from '../../i18n';
@@ -86,6 +87,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ summary });
   } catch (error) {
+    const quotaError = serverKeyRateLimitResponse(error, req);
+    if (quotaError) return quotaError;
     const bodyError = requestBodyErrorResponse(error);
     if (bodyError) return bodyError;
     if (req.signal.aborted) return new Response(null, { status: 499 });

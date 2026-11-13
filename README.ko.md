@@ -92,8 +92,11 @@ npm run dev
 | `DEEPSEEK_API_KEY` | 권장. 기본 분석, 번역, 이미지 인식 |
 | `GEMINI_API_KEY` | 선택. Gemini 텍스트 모델, 이미지 인식, Gemini TTS |
 | `DEEPSEEK_API_URL` / `GEMINI_API_URL` | 선택. OpenAI 호환 엔드포인트, 비워 두면 공식 주소 사용 |
+| `SERVER_KEY_RATE_LIMIT` / `SERVER_KEY_RATE_WINDOW_SECONDS` | 공유 서버 키는 IP당 600초에 30회가 기본이며 개인 키는 제외됩니다. |
 | `CODE` | 선택. 접속 비밀번호, 비워 두면 비밀번호 없이 사용 |
 | `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 선택. 둘 다 입력하면 Umami 통계 사용 |
+
+카운터는 프로세스 메모리에 있어 Vercel 같은 무상태 또는 다중 인스턴스 배포에서는 신뢰할 수 없습니다. 공유 저장소 기반 게이트웨이 제한을 사용하세요. 신뢰할 수 있는 프록시가 X-Forwarded-For를 덮어써야 합니다. 유효한 IP가 없으면 공통 할당량을 사용합니다.
 
 키는 서버에서만 사용되며 브라우저로 전달되지 않습니다. 「오늘의 문장」은 서버 키로 생성하며, 키가 없으면 내장 예문을 보여 줍니다.
 
