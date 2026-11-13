@@ -16,6 +16,8 @@
   --primary: #6d4cdb;
   --primary-2: #5a39c8;
   --primary-soft: #f0ecfa;
+  --danger: #a52a35;
+  --danger-soft: #fae9eb;
   /* 词性颜色 */
   --pos-n: #4f75be;      /* 名词 blue */
   --pos-v: #388774;      /* 动词 green */
@@ -87,6 +89,8 @@
   --primary: #8b6fff;
   --primary-2: #7a5cff;
   --primary-soft: #3b305a;
+  --danger: #ffadb5;
+  --danger-soft: #452c32;
   --selection-ink: #c6b5ff;
   --pos-n: #7e9ed7;
   --pos-v: #72b6a2;
@@ -2508,3 +2512,7 @@ body {
 
 .reading-word-group { flex-wrap: wrap; width: max-content; }
 .reading-attachment { display: inline-flex; align-items: flex-end; max-width: 100%; min-width: 0; }
+
+.error-notice { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4); border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); border-radius: var(--r-lg); background: var(--danger-soft); color: var(--danger); font-size: var(--text-base); line-height: 1.7; }
+.error-notice-message { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.error-notice .nd-ghost-btn { flex-shrink: 0; color: var(--danger); }

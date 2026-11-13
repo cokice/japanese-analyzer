@@ -822,7 +822,7 @@ async function analyzeSingleSentence(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('API Error (Analysis):', errorData);
-      throw new ApiRequestError(`解析失败：${errorData.error?.message || response.statusText || '未知错误'}`, response.status);
+      throw new ApiRequestError(errorData.error?.message || response.statusText || '未知错误', response.status);
     }
     
     const result = await response.json();
@@ -942,7 +942,7 @@ async function streamAnalyzeSingleSentence(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('API Error (Stream Analysis):', errorData);
-      onError(new ApiRequestError(`流式解析失败：${errorData.error?.message || response.statusText || '未知错误'}`, response.status));
+      onError(new ApiRequestError(errorData.error?.message || response.statusText || '未知错误', response.status));
       return;
     }
     
@@ -1166,7 +1166,7 @@ export async function streamTranslateText(
     if (!response.ok) {
       const errorData = await response.json();
       console.error('API Error (Stream Translation):', errorData);
-      onError(new Error(`流式翻译失败：${errorData.error?.message || response.statusText || '未知错误'}`));
+      onError(new ApiRequestError(errorData.error?.message || response.statusText || '未知错误', response.status));
       return;
     }
     
@@ -1326,7 +1326,7 @@ export async function translateText(
     if (!response.ok) {
       const errorData = await response.json();
       console.error('API Error (Translation):', errorData);
-      throw new Error(`翻译失败：${errorData.error?.message || response.statusText || '未知错误'}`);
+      throw new ApiRequestError(errorData.error?.message || response.statusText || '未知错误', response.status);
     }
 
     const result = await response.json();
