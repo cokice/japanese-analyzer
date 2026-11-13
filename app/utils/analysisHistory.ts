@@ -1,4 +1,4 @@
-import type { TokenData } from '../services/api';
+import { type TokenData } from '../lib/apiTypes';
 
 export const LEGACY_ANALYSIS_HISTORY_KEY = 'japaneseAnalyzer:analysisHistory:v1';
 export const ANALYSIS_HISTORY_KEY = 'japaneseAnalyzer:analysisHistory:v2';

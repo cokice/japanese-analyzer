@@ -1,4 +1,4 @@
-import type { TokenData } from '../services/api';
+import { type TokenData } from '../lib/apiTypes';
 
 // 文节与禁则分组只改变排版，不改变原始分词和点击索引。
 const LINE_START_PROHIBITED = /^[、。，．,.!?！？:：;；）)\]｝}」』】〉》〕〗〙〛ー々ゝゞヽヾぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ]/;

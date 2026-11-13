@@ -2,7 +2,7 @@
 
 import { useLanguage } from '../contexts/LanguageContext';
 import Image from 'next/image';
-import type { AIProvider } from '../services/api';
+import { type AIProvider } from '../lib/aiModels';
 import ThemeToggle from './ThemeToggle';
 import LanguageToggle from './LanguageToggle';
 import { Icon } from './Icons';

@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { parseWordDetailResponseContent } from '../app/services/api';
+import { parseWordDetailResponseContent } from '../app/lib/apiResponse';
 import { getStructuredResponseFormat } from '../app/api/_utils/providerConfig';
 
 const legacy = {

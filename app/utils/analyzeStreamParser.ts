@@ -1,4 +1,4 @@
-import type { TokenData } from '../services/api';
+import { type TokenData } from '../lib/apiTypes';
 import { getLocalRomaji } from './romaji';
 
 // 扫描新增字符，仅解析完整词项；兼容流式对象、裸数组和分块合并后的快照。

@@ -6,8 +6,9 @@ import { browserStorage } from '../utils/storage';
 import { getImageExtractionPrompt } from '../lib/languagePrompts';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { extractTextFromImage, streamExtractTextFromImage } from '../services/api';
-import type { AIProvider, AIModelName, TTSProvider } from '../services/api';
+import { extractTextFromImage, streamExtractTextFromImage } from '../services/imageText';
+import { type AIProvider, type AIModelName } from '../lib/aiModels';
+import { type TTSProvider } from '../lib/apiTypes';
 import { getJapaneseTtsAudioUrl, speakJapanese } from '../utils/helpers';
 import {
   getImageRecognitionUsage,

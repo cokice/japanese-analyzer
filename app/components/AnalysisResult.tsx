@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEND_GROUPS } from '../utils/helpers';
-import { TokenData } from '../services/api';
+import { type TokenData } from '../lib/apiTypes';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { getReadingDensity, groupPendingChars, groupReadingTokens, groupReadingAttachments } from '../utils/readingLayout';
 import { isPunctuationToken, type PhraseRange } from '../utils/phraseRange';

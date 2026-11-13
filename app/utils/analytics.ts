@@ -1,11 +1,6 @@
-import {
-  AIModelName,
-  AIProvider,
-  TTSProvider,
-  getImageRecognitionModelName,
-  getModelName,
-  getTtsModelName,
-} from '../services/api';
+import { type AIModelName, type AIProvider, getImageRecognitionModelName, getModelName } from '../lib/aiModels';
+import { type TTSProvider } from '../lib/apiTypes';
+import { getTtsModelName } from '../lib/tts';
 import { ApiRequestError, InvalidResponseError } from './requestErrors';
 
 type EventData = Record<string, string | number>;

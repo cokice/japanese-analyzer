@@ -53,3 +53,13 @@ export function getImageRecognitionModelName(
     ? DEEPSEEK_VISION_MODEL_NAME
     : normalizeAIModel(provider, model) as GeminiModelName;
 }
+
+export function getRequestProviderPayload(
+  provider: AIProvider = DEFAULT_AI_PROVIDER,
+  model?: string | null
+) {
+  return {
+    provider,
+    model: getModelName(provider, model),
+  };
+}

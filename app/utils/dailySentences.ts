@@ -1,4 +1,4 @@
-import type { TokenData } from '../services/api';
+import { type TokenData } from '../lib/apiTypes';
 import type { Locale } from '../i18n';
 
 export interface DailySentence {

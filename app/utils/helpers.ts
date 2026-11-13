@@ -1,5 +1,6 @@
 // 工具函数
-import { synthesizeSpeech, type TTSProvider } from '../services/api';
+import { synthesizeSpeech } from '../services/tts';
+import { type TTSProvider } from '../lib/apiTypes';
 
 // 检查字符串是否包含汉字
 export function containsKanji(text: string): boolean {

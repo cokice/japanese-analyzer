@@ -2,7 +2,7 @@
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { WordDetail } from '../services/api';
+import { type WordDetail } from '../lib/apiTypes';
 import { getPosGroup, normalizePosBase, POS_GROUP_COLORS, POS_GROUP_LABELS, posChineseMap, speakJapanese, getJapaneseTtsAudioUrl } from '../utils/helpers';
 import { trackTtsUsage } from '../utils/analytics';
 import { Icon, I } from './Icons';

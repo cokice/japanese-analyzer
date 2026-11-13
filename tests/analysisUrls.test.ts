@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { protectAnalysisUrls } from '../app/utils/analysisUrls';
-import { analyzeSentence, parseAnalyzeResponseContent, streamAnalyzeSentence } from '../app/services/api';
+import { analyzeSentence, streamAnalyzeSentence } from '../app/services/analysis';
+import { parseAnalyzeResponseContent } from '../app/lib/apiResponse';
 
 export async function runAnalysisUrlTests() {
   const url = 'https://search.example/search?p=%E3%81%A6%E3%81%A3&other=$&';

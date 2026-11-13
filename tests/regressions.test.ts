@@ -16,7 +16,9 @@ import { browserStorage } from '../app/utils/storage';
 import { getPhraseReading } from '../app/utils/phraseRange';
 import { getLocalRomaji } from '../app/utils/romaji';
 import { secondsUntilJstMidnight } from '../app/utils/dailySentences';
-import { extractTextFromImage, translateText, loadAISettingsFromStorage } from '../app/services/api';
+import { extractTextFromImage } from '../app/services/imageText';
+import { translateText } from '../app/services/translation';
+import { loadAISettingsFromStorage } from '../app/lib/aiSettings';
 
 const request = (body: string, url = 'http://localhost/api/auth', headers: Record<string, string> = {}) =>
   new NextRequest(url, { method: 'POST', body, headers: { 'Content-Type': 'application/json', ...headers } });

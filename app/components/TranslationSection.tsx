@@ -2,8 +2,8 @@
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { translateText, streamTranslateText } from '../services/api';
-import type { AIModelName, AIProvider } from '../services/api';
+import { translateText, streamTranslateText } from '../services/translation';
+import { type AIModelName, type AIProvider } from '../lib/aiModels';
 import ErrorNotice from './ErrorNotice';
 import ThinkingIndicator from './ThinkingIndicator';
 import { Icon } from './Icons';

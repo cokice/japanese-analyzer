@@ -1,7 +1,7 @@
 'use client';
 
 import { useId } from 'react';
-import type { AIProvider } from '../services/api';
+import { type AIProvider } from '../lib/aiModels';
 
 export const PROVIDER_LABELS: Record<AIProvider, string> = {
   gemini: 'Gemini',
