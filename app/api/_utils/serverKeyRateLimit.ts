@@ -2,10 +2,11 @@ import { isIP } from 'node:net';
 import { NextRequest } from 'next/server';
 import { apiErrorResponse } from './apiErrorResponse';
 
-const positiveInteger = (value: string | undefined, fallback: number) => {
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
-};
+// 服务器 Key 限流已停用：产品决定不对共享服务器 Key 限流，也不提供环境变量或设置项。
+// 实现和测试保留。要恢复时把下面的开关改为 true，每个 IP 在窗口内最多 SERVER_KEY_RATE_LIMIT 次。
+const SERVER_KEY_RATE_LIMIT_ENABLED: boolean = false;
+const SERVER_KEY_RATE_LIMIT = 30;
+const SERVER_KEY_RATE_WINDOW_MS = 600_000;
 
 export function createServerKeyRateLimiter() {
   const buckets = new Map<string, { count: number; resetAt: number }>();
@@ -30,11 +31,11 @@ export class ServerKeyRateLimitError extends Error {
 
 export function reserveServerKeyRequest(req: NextRequest) {
   if (/^Bearer\s+\S+/i.test(req.headers.get('Authorization') || '')) return;
-  // The deployment proxy must overwrite X-Forwarded-For; see README.
+  if (!SERVER_KEY_RATE_LIMIT_ENABLED) return;
+  // 启用时反向代理必须覆盖 X-Forwarded-For，否则客户端可以伪造 IP 绕过配额。
   const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || '';
   const ip = isIP(forwarded) ? forwarded : 'unknown';
-  const retryAfter = reserve(ip, positiveInteger(process.env.SERVER_KEY_RATE_LIMIT, 30),
-    positiveInteger(process.env.SERVER_KEY_RATE_WINDOW_SECONDS, 600) * 1000);
+  const retryAfter = reserve(ip, SERVER_KEY_RATE_LIMIT, SERVER_KEY_RATE_WINDOW_MS);
   if (retryAfter) throw new ServerKeyRateLimitError(retryAfter);
 }
 

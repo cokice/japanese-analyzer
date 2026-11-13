@@ -92,12 +92,9 @@ npm run dev
 | `DEEPSEEK_API_KEY` | 建議。預設的解析、翻譯與圖片辨識 |
 | `GEMINI_API_KEY` | 可選。Gemini 文字模型、圖片辨識與 Gemini TTS |
 | `DEEPSEEK_API_URL` / `GEMINI_API_URL` | 可選。OpenAI 相容介面網址，留空使用官方網址 |
-| `SERVER_KEY_RATE_LIMIT` / `SERVER_KEY_RATE_WINDOW_SECONDS` | 共用伺服器 Key 的每個 IP 每 600 秒最多 30 次；自備 Key 不計入。 |
 | `EDGE_TTS_URL` | Edge TTS 上游網址，預設 https://api.howen.ink/api/tts 。朗讀文字會透過本站伺服器傳送至此網址。 |
 | `CODE` | 可選。存取密碼，留空則不需要密碼 |
 | `NEXT_PUBLIC_UMAMI_SRC` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | 可選。兩者都填寫後啟用 Umami 統計 |
-
-計數儲存於程序記憶體，在 Vercel 等無狀態或多實例部署上不可靠，應使用共用儲存的閘道限流。反向代理必須覆寫 X-Forwarded-For；沒有可信 IP 時共用一個配額。
 
 金鑰只在伺服器端使用，不會傳到瀏覽器。「每日一句」使用伺服器金鑰產生，未設定時顯示內建例句。
 
