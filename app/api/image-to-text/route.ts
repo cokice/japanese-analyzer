@@ -1,3 +1,4 @@
+import { apiErrorResponse, upstreamErrorResponse } from '../_utils/apiErrorResponse';
 import { serverKeyRateLimitResponse } from '../_utils/serverKeyRateLimit';
 import { validateCompletion } from '../../services/api';
 import { InvalidResponseError } from '../../utils/requestErrors';
@@ -24,24 +25,15 @@ export async function POST(req: NextRequest) {
 
     // 验证imageData大小
     if (typeof imageData === 'string' && imageData.length > 1024 * 1024 * 8) { // 8MB限制
-      return NextResponse.json(
-        { error: { message: '图片数据太大，请压缩后重试' } },
-        { status: 413 }
-      );
+      return apiErrorResponse('PAYLOAD_TOO_LARGE', 413);
     }
 
     if (!providerConfig.apiKey) {
-      return NextResponse.json(
-        { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
-        { status: 500 }
-      );
+      return apiErrorResponse('MISSING_API_KEY', 500);
     }
 
     if (!imageData) {
-      return NextResponse.json(
-        { error: { message: '缺少必要的图片数据' } },
-        { status: 400 }
-      );
+      return apiErrorResponse('INVALID_REQUEST', 400);
     }
 
     // 优化提示词，避免换行符
@@ -77,10 +69,7 @@ export async function POST(req: NextRequest) {
 
     if (!proxied.ok) {
       console.error('AI API error (Image):', proxied.error.raw ?? proxied.error.message);
-      return NextResponse.json(
-        { error: { message: proxied.error.message } },
-        { status: proxied.status }
-      );
+      return upstreamErrorResponse(proxied.status);
     }
 
     const response = proxied.response;
@@ -89,10 +78,7 @@ export async function POST(req: NextRequest) {
     if (stream) {
       const readableStream = response.body;
       if (!readableStream) {
-        return NextResponse.json(
-          { error: { message: '流式响应创建失败' } },
-          { status: 500 }
-        );
+        return apiErrorResponse('INVALID_RESPONSE', 500);
       }
 
       // 创建一个新的流式响应
@@ -113,18 +99,12 @@ export async function POST(req: NextRequest) {
           data = JSON.parse(responseText);
         } catch {
           console.error('Failed to parse API response:', responseText.substring(0, 200) + '...');
-          return NextResponse.json(
-            { error: { message: '无法解析API响应，请稍后重试' } },
-            { status: 500 }
-          );
+          return apiErrorResponse('INVALID_RESPONSE', 500);
         }
       } catch (readError) {
         if (req.signal.aborted || isUpstreamTimeoutError(readError)) throw readError;
         console.error('Failed to read API response:', readError);
-        return NextResponse.json(
-          { error: { message: '读取API响应时出错，请稍后重试' } },
-          { status: 500 }
-        );
+        return apiErrorResponse('INVALID_RESPONSE', 500);
       }
 
       // 将AI API的响应传回给客户端
@@ -132,31 +112,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data);
     }
   } catch (error) {
-    const quotaError = serverKeyRateLimitResponse(error, req);
+    const quotaError = serverKeyRateLimitResponse(error);
     if (quotaError) return quotaError;
     const bodyError = requestBodyErrorResponse(error);
     if (bodyError) return bodyError;
-    if (error instanceof InvalidResponseError) return NextResponse.json({ error: { message: error.message } }, { status: 502 });
+    if (error instanceof InvalidResponseError) return apiErrorResponse('INVALID_RESPONSE', 502);
     if (req.signal.aborted) return new Response(null, { status: 499 });
     if (error instanceof ProviderConfigError) {
-      return NextResponse.json(
-        { error: { message: error.message } },
-        { status: error.status }
-      );
+      return apiErrorResponse('INVALID_REQUEST', error.status);
     }
 
     // 非流式请求在读取上游响应时整体超时，避免把英文 TimeoutError 原文透传给界面。
     if (isUpstreamTimeoutError(error)) {
-      return NextResponse.json(
-        { error: { message: '上游接口请求超时，请稍后重试。' } },
-        { status: 504 }
-      );
+      return apiErrorResponse('UPSTREAM_TIMEOUT', 504);
     }
 
     console.error('Server error (Image):', error);
-    return NextResponse.json(
-      { error: { message: error instanceof Error ? error.message : '服务器错误' } },
-      { status: 500 }
-    );
+    return apiErrorResponse('SERVER_ERROR', 500);
   }
 } 

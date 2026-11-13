@@ -13,7 +13,7 @@ import {
 import { splitJapaneseText, type JapaneseTextChunk } from '../utils/japaneseChunking';
 import { normalizeEscapedLineBreaks } from '../utils/markdown';
 import { getLocalRomaji } from '../utils/romaji';
-import { ApiRequestError, InvalidResponseError } from '../utils/requestErrors';
+import { apiErrorFromResponse, InvalidResponseError } from '../utils/requestErrors';
 import { protectAnalysisUrls } from '../utils/analysisUrls';
 
 export {
@@ -42,7 +42,7 @@ export interface TokenData {
 
 export interface WordDetail {
   originalWord: string;
-  chineseTranslation: string;
+  translation: string;
   pos: string;
   furigana?: string;
   romaji?: string;
@@ -224,10 +224,7 @@ export async function summarizeDeepSeekReasoningProgress(
   } | null;
 
   if (!response.ok) {
-    const message = typeof data?.error?.message === 'string'
-      ? data.error.message
-      : response.statusText || '思考摘要生成失败';
-    throw new Error(message);
+    throw apiErrorFromResponse(data, response.status);
   }
 
   if (typeof data?.summary !== 'string' || !data.summary.trim()) {
@@ -326,7 +323,7 @@ function formatChunkReasoning(
     .join('\n\n');
 }
 
-const requiredWordDetailFields = ['chineseTranslation', 'dictionaryForm', 'explanation'] as const;
+const requiredWordDetailFields = ['translation', 'dictionaryForm', 'explanation'] as const;
 const optionalWordDetailFields = ['originalWord', 'pos', 'furigana', 'romaji', 'conjugation', 'example', 'exampleTranslation', 'category', 'breakdown'] as const;
 const wordDetailFields = [...requiredWordDetailFields, ...optionalWordDetailFields] as const;
 
@@ -458,7 +455,7 @@ export function parseWordDetailResponseContent(content: string, context?: WordDe
     ? context?.furigana || detail.furigana?.trim() || ''
     : detail.furigana?.trim() || context?.furigana || '';
   return {
-    originalWord, chineseTranslation: detail.chineseTranslation, pos, furigana,
+    originalWord, translation: detail.translation, pos, furigana,
     romaji: getLocalRomaji(originalWord, furigana, pos),
     dictionaryForm: detail.dictionaryForm,
     explanation: normalizeEscapedLineBreaks(detail.explanation),
@@ -480,6 +477,7 @@ function getMessageFromUnknownStreamError(value: unknown): string | undefined {
   if ('error' in value) {
     const error = value.error;
     if (typeof error === 'string') return error;
+    if (isRecord(error) && typeof error.code === 'string') return apiErrorFromResponse({ error }, 502).message;
     if (isRecord(error) && typeof error.message === 'string') return error.message;
   }
 
@@ -820,7 +818,7 @@ async function analyzeSingleSentence(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('API Error (Analysis):', errorData);
-      throw new ApiRequestError(errorData.error?.message || response.statusText || '未知错误', response.status);
+      throw apiErrorFromResponse(errorData, response.status);
     }
     
     const result = await response.json();
@@ -940,7 +938,7 @@ async function streamAnalyzeSingleSentence(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('API Error (Stream Analysis):', errorData);
-      onError(new ApiRequestError(errorData.error?.message || response.statusText || '未知错误', response.status));
+      onError(apiErrorFromResponse(errorData, response.status));
       return;
     }
     
@@ -1162,9 +1160,9 @@ export async function streamTranslateText(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => null);
       console.error('API Error (Stream Translation):', errorData);
-      onError(new ApiRequestError(errorData.error?.message || response.statusText || '未知错误', response.status));
+      onError(apiErrorFromResponse(errorData, response.status));
       return;
     }
     
@@ -1218,7 +1216,7 @@ export async function getWordDetails(
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
       console.error('API Error (Word Detail):', errorData);
-      throw new ApiRequestError(`查询释义失败：${errorData?.error?.message || `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`}`, response.status);
+      throw apiErrorFromResponse(errorData, response.status);
     }
 
     const result = await response.json();
@@ -1279,7 +1277,7 @@ export async function streamWordDetails(
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
       console.error('API Error (Stream Word Detail):', errorData);
-      onError(new ApiRequestError(`流式查询释义失败：${errorData?.error?.message || `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`}`, response.status));
+      onError(apiErrorFromResponse(errorData, response.status));
       return;
     }
     
@@ -1322,9 +1320,9 @@ export async function translateText(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => null);
       console.error('API Error (Translation):', errorData);
-      throw new ApiRequestError(errorData.error?.message || response.statusText || '未知错误', response.status);
+      throw apiErrorFromResponse(errorData, response.status);
     }
 
     const result = await response.json();
@@ -1367,9 +1365,9 @@ export async function extractTextFromImage(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => null);
       console.error('API Error (Image to Text):', errorData);
-      throw new Error(`图片文字提取失败：${errorData.error?.message || response.statusText || '未知错误'}`);
+      throw apiErrorFromResponse(errorData, response.status);
     }
 
     const result = await response.json();
@@ -1415,9 +1413,9 @@ export async function streamExtractTextFromImage(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => null);
       console.error('API Error (Stream Image to Text):', errorData);
-      onError(new Error(`流式图片文字提取失败：${errorData.error?.message || response.statusText || '未知错误'}`));
+      onError(apiErrorFromResponse(errorData, response.status));
       return;
     }
     
@@ -1466,8 +1464,8 @@ export async function synthesizeSpeech(
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error?.message || 'TTS 请求失败');
+    const errorData = await response.json().catch(() => null);
+    throw apiErrorFromResponse(errorData, response.status);
   }
 
   return response.json();
@@ -1501,7 +1499,7 @@ export async function streamChat(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('API Error (Stream Chat):', errorData);
-      onError(new ApiRequestError(`聊天失败：${errorData.error?.message || response.statusText || '未知错误'}`, response.status));
+      onError(apiErrorFromResponse(errorData, response.status));
       return;
     }
     
@@ -1546,9 +1544,9 @@ export async function sendChat(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => null);
       console.error('API Error (Chat):', errorData);
-      throw new Error(`聊天失败：${errorData.error?.message || response.statusText || '未知错误'}`);
+      throw apiErrorFromResponse(errorData, response.status);
     }
 
     const result = await response.json();

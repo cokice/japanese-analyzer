@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
+import { ApiRequestError } from '../app/utils/requestErrors';
 import { POST } from '../app/api/tts/route';
 import { getJapaneseTtsAudioUrl } from '../app/utils/helpers';
 
@@ -43,7 +44,7 @@ async function run() {
           assert.equal(body.text, text);
           assert.equal(body.style, style);
           assert.equal(init?.signal, controller.signal);
-          return POST(new NextRequest('http://localhost/api/tts', init));
+          return POST(new NextRequest('http://localhost/api/tts', { ...init, signal: init?.signal ?? undefined }));
         }
         assert.equal(String(url), 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-lite-tts:generateContent');
         assert.equal(new Headers(init?.headers).get('x-goog-api-key'), 'test-key');
@@ -84,7 +85,7 @@ async function run() {
           const body = JSON.parse(String(init?.body));
           assert.equal(body.provider, 'edge');
           assert.equal(body.gender, 'male');
-          return POST(new NextRequest('http://localhost/api/tts', init));
+          return POST(new NextRequest('http://localhost/api/tts', { ...init, signal: init?.signal ?? undefined }));
         }
         assert.equal(String(url), endpoint || 'https://api.howen.ink/api/tts');
         assert.deepEqual(JSON.parse(String(init?.body)), { text, voice: 'ja-JP-KeitaNeural', rate: -20, pitch: 0 });
@@ -97,12 +98,12 @@ async function run() {
       } finally { URL.revokeObjectURL(edgeUrl); }
     }
     globalThis.fetch = async (url, init) => String(url) === '/api/tts'
-      ? POST(new NextRequest('http://localhost/api/tts', init))
+      ? POST(new NextRequest('http://localhost/api/tts', { ...init, signal: init?.signal ?? undefined }))
       : Response.json({ error: 'TTS unavailable' }, { status: 503 });
-    await assert.rejects(getJapaneseTtsAudioUrl(text, undefined, 'edge'), /TTS unavailable/);
+    await assert.rejects(getJapaneseTtsAudioUrl(text, undefined, 'edge'), (error: unknown) => error instanceof ApiRequestError && error.code === 'UPSTREAM_ERROR' && error.status === 503);
     globalThis.fetch = async (url, init) => String(url) === '/api/tts'
-      ? POST(new NextRequest('http://localhost/api/tts', init)) : new Response('');
-    await assert.rejects(getJapaneseTtsAudioUrl(text, undefined, 'edge'), /无有效音频/);
+      ? POST(new NextRequest('http://localhost/api/tts', { ...init, signal: init?.signal ?? undefined })) : new Response('');
+    await assert.rejects(getJapaneseTtsAudioUrl(text, undefined, 'edge'), (error: unknown) => error instanceof ApiRequestError && error.code === 'INVALID_RESPONSE');
 
     globalThis.fetch = async () => { throw new Error('Invalid input must not contact upstream'); };
     for (const body of [{ model: 'other-model' }, { voice: 'invalid' }, { style: {} }, { text: {} }, { text: '  ' }]) {

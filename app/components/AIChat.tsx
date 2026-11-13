@@ -18,7 +18,7 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   welcome?: boolean;
-  error?: boolean;
+  error?: Error;
 }
 
 interface AIChatProps {
@@ -179,7 +179,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
           console.error('Chat error:', error);
           setMessages((prev) => prev.map((msg) =>
             msg.id === assistantMessageId
-              ? { ...msg, error: true, content: `抱歉，聊天时出现错误：${error.message}` }
+              ? { ...msg, error, content: '' }
               : msg
           ));
           setIsLoading(false);
@@ -195,7 +195,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
       console.error('Chat error:', error);
       setMessages((prev) => prev.map((msg) =>
         msg.id === assistantMessageId
-          ? { ...msg, error: true, content: `抱歉，聊天时出现错误：${error instanceof Error ? error.message : "未知错误"}` }
+          ? { ...msg, error: error instanceof Error ? error : new Error(t('未知错误')), content: '' }
           : msg
       ));
       setIsLoading(false);
@@ -287,7 +287,7 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
                     <div className="whitespace-pre-wrap">{message.content}</div>
                   ) : (
                     <div className="ai-chat-markdown max-w-none">
-                      <TextMessagePartProvider text={message.welcome ? t(message.content) : message.error ? errorText(message.content) : message.content} isRunning={isRunningAssistant}>
+                      <TextMessagePartProvider text={message.welcome ? t(message.content) : message.error ? errorText(message.error) : message.content} isRunning={isRunningAssistant}>
                         <MarkdownText />
                       </TextMessagePartProvider>
                     </div>

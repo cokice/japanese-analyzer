@@ -1,3 +1,4 @@
+import { apiErrorResponse } from '../_utils/apiErrorResponse';
 import { readJsonBody, AUTH_BODY_LIMIT, requestBodyErrorResponse } from '../_utils/requestBody';
 import { reserveLoginAttempt } from '../_utils/loginRateLimit';
 import { NextRequest, NextResponse } from 'next/server';
@@ -7,12 +8,10 @@ export async function POST(request: NextRequest) {
   try {
     if (isAuthRequired()) {
       const retryAfter = reserveLoginAttempt();
-      if (retryAfter) return NextResponse.json({ success: false, message: '登录尝试过于频繁，请稍后重试' }, {
-        status: 429, headers: { 'Retry-After': String(retryAfter), 'Cache-Control': 'no-store' },
-      });
+      if (retryAfter) return apiErrorResponse('RATE_LIMITED', 429, [retryAfter], { 'Retry-After': String(retryAfter), 'Cache-Control': 'no-store' });
     }
     const { password } = await readJsonBody(request, AUTH_BODY_LIMIT);
-    if (typeof password !== 'string') return NextResponse.json({ success: false, message: '密码必须是字符串' }, { status: 400 });
+    if (typeof password !== 'string') return apiErrorResponse('INVALID_REQUEST', 400);
 
     // 如果环境变量没有设置，则无需密码验证
     if (!isAuthRequired()) {
@@ -32,18 +31,12 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    return NextResponse.json({
-      success: false,
-      message: '密码错误，请重试',
-    }, { status: 401 });
+    return apiErrorResponse('AUTH_FAILED', 401);
   } catch (error) {
     const bodyError = requestBodyErrorResponse(error);
     if (bodyError) return bodyError;
     console.error('身份验证错误:', error);
-    return NextResponse.json({
-      success: false,
-      message: '验证过程中发生错误',
-    }, { status: 500 });
+    return apiErrorResponse('SERVER_ERROR', 500);
   }
 }
 
@@ -58,9 +51,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('获取验证状态错误:', error);
-    return NextResponse.json({
-      requiresAuth: true,
-      authenticated: false,
-    }, { status: 503 });
+    return apiErrorResponse('SERVER_ERROR', 503);
   }
 }

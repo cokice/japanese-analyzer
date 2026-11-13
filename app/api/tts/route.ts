@@ -1,3 +1,4 @@
+import { apiErrorResponse, upstreamErrorResponse } from '../_utils/apiErrorResponse';
 import { serverKeyRateLimitResponse, reserveServerKeyRequest } from '../_utils/serverKeyRateLimit';
 import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { NextRequest, NextResponse } from 'next/server';
@@ -29,26 +30,17 @@ export async function POST(req: NextRequest) {
     const { text, provider = 'edge', gender = 'female', voice = 'Kore', model = MODEL_NAME, rate = 0, pitch = 0, style = '' } = await readJsonBody(req);
 
     if (typeof text !== 'string' || !text.trim()) {
-      return NextResponse.json(
-        { error: { message: '缺少必要的文本内容' } },
-        { status: 400 }
-      );
+      return apiErrorResponse('INVALID_REQUEST', 400);
     }
 
     if (provider !== 'edge' && provider !== 'gemini') {
-      return NextResponse.json(
-        { error: { message: '不支持的TTS提供商' } },
-        { status: 400 }
-      );
+      return apiErrorResponse('INVALID_REQUEST', 400);
     }
 
     if (provider === 'edge') {
       // 使用 Edge TTS
       if (!EDGE_VOICES[gender as keyof typeof EDGE_VOICES]) {
-        return NextResponse.json(
-          { error: { message: '不支持的声音类型，请使用 male 或 female' } },
-          { status: 400 }
-        );
+        return apiErrorResponse('INVALID_REQUEST', 400);
       }
 
       const payload = {
@@ -68,22 +60,13 @@ export async function POST(req: NextRequest) {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         console.error('Edge TTS API error:', data);
-        const message = typeof data.error === 'string'
-          ? data.error
-          : data.error?.message || `Edge TTS 请求失败（HTTP ${response.status}）`;
-        return NextResponse.json(
-          { error: { message } },
-          { status: response.status }
-        );
+        return upstreamErrorResponse(response.status);
       }
 
       const audioBuffer = await response.arrayBuffer();
 
       if (!audioBuffer || audioBuffer.byteLength === 0) {
-        return NextResponse.json(
-          { error: { message: '无有效音频数据' } },
-          { status: 500 }
-        );
+        return apiErrorResponse('INVALID_RESPONSE', 500);
       }
 
       const base64Audio = Buffer.from(audioBuffer).toString('base64');
@@ -100,31 +83,19 @@ export async function POST(req: NextRequest) {
       const modelName = typeof model === 'string' ? model.trim() : '';
 
       if (!effectiveApiKey) {
-        return NextResponse.json(
-          { error: { message: '未提供API密钥，请在设置中配置API密钥或联系管理员配置服务器密钥' } },
-          { status: 500 }
-        );
+        return apiErrorResponse('MISSING_API_KEY', 500);
       }
 
       if (modelName !== MODEL_NAME) {
-        return NextResponse.json(
-          { error: { message: '不支持的Gemini TTS模型' } },
-          { status: 400 }
-        );
+        return apiErrorResponse('INVALID_REQUEST', 400);
       }
 
       if (typeof voice !== 'string' || !GEMINI_VOICES.includes(voice)) {
-        return NextResponse.json(
-          { error: { message: '不支持的Gemini语音类型' } },
-          { status: 400 }
-        );
+        return apiErrorResponse('INVALID_REQUEST', 400);
       }
 
       if (typeof style !== 'string') {
-        return NextResponse.json(
-          { error: { message: '不支持的Gemini朗读风格' } },
-          { status: 400 }
-        );
+        return apiErrorResponse('INVALID_REQUEST', 400);
       }
 
       reserveServerKeyRequest(req);
@@ -153,10 +124,7 @@ export async function POST(req: NextRequest) {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         console.error('Gemini TTS API error:', data);
-        return NextResponse.json(
-          { error: data.error || { message: 'Gemini TTS 请求失败' } },
-          { status: response.status }
-        );
+        return upstreamErrorResponse(response.status);
       }
 
       const result = await response.json();
@@ -166,32 +134,24 @@ export async function POST(req: NextRequest) {
           typeof part.inlineData.mimeType === 'string' && part.inlineData.mimeType.startsWith('audio/')
       )?.inlineData;
       if (!inlineData) {
-        return NextResponse.json(
-          { error: { message: '无有效音频数据' } },
-          { status: 500 }
-        );
+        return apiErrorResponse('INVALID_RESPONSE', 500);
       }
 
       return NextResponse.json({ audio: inlineData.data, mimeType: inlineData.mimeType });
     }
 
+    return apiErrorResponse('INVALID_REQUEST', 400);
   } catch (error) {
-    const quotaError = serverKeyRateLimitResponse(error, req);
+    const quotaError = serverKeyRateLimitResponse(error);
     if (quotaError) return quotaError;
     const bodyError = requestBodyErrorResponse(error);
     if (bodyError) return bodyError;
     if (req.signal.aborted) return new Response(null, { status: 499 });
     if (isUpstreamTimeoutError(error)) {
-      return NextResponse.json(
-        { error: { message: '上游 TTS 请求超时，请稍后重试。' } },
-        { status: 504 }
-      );
+      return apiErrorResponse('UPSTREAM_TIMEOUT', 504);
     }
 
     console.error('Server error (TTS):', error);
-    return NextResponse.json(
-      { error: { message: error instanceof Error ? error.message : '服务器错误' } },
-      { status: 500 }
-    );
+    return apiErrorResponse('SERVER_ERROR', 500);
   }
 }

@@ -11,7 +11,7 @@ interface WordDetailPanelProps {
   wordDetail: WordDetail | null;
   isLoading: boolean;
   isStreamLoading: boolean;
-  streamError: string;
+  streamError: Error | null;
   streamContent: string;
   onClose: () => void;
   onRefresh?: () => void;
@@ -336,10 +336,10 @@ export default function WordDetailPanel({
       {/* 正文 */}
       <div className="px-5 pb-5 pt-1">
         <p
-          className={`dictionary-definition m-0 font-medium ${wordDetail.chineseTranslation === t("加载中...") ? 'animate-pulse' : ''}`}
+          className={`dictionary-definition m-0 font-medium ${wordDetail.translation === t("加载中...") ? 'animate-pulse' : ''}`}
           style={{ color: 'var(--ink)' }}
         >
-          {wordDetail.chineseTranslation}
+          {wordDetail.translation}
         </p>
 
         {wordDetail.explanation && (

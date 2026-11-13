@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { apiErrorResponse } from './apiErrorResponse';
 
 export const JSON_BODY_LIMIT = 1024 * 1024;
 export const IMAGE_BODY_LIMIT = 9 * 1024 * 1024;
@@ -46,8 +46,8 @@ export async function readJsonBody(request: Request, limit = JSON_BODY_LIMIT): P
   }
 }
 
-export function requestBodyErrorResponse(error: unknown): NextResponse | null {
+export function requestBodyErrorResponse(error: unknown) {
   return error instanceof RequestBodyError
-    ? NextResponse.json({ error: { message: error.message }, success: false, message: error.message }, { status: error.status })
+    ? apiErrorResponse(error.status === 413 ? 'PAYLOAD_TOO_LARGE' : 'INVALID_REQUEST', error.status)
     : null;
 }

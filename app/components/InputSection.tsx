@@ -22,6 +22,7 @@ import { TextShimmer } from '@/components/ui/text-shimmer';
 import { StateMorphButton, StateMorphButtonState } from '@/components/ui/state-morph-button';
 import { normalizePastedText } from '../utils/pastedText';
 import AnalysisHistory from './AnalysisHistory';
+import type { AnalysisHistoryEntry } from '../utils/analysisHistory';
 import DailySentence from './DailySentence';
 import TtsSettingsPopover from './TtsSettingsPopover';
 import type { useAnalysisHistory } from '../hooks/useAnalysisHistory';
@@ -30,6 +31,8 @@ interface InputSectionProps {
   history: ReturnType<typeof useAnalysisHistory>;
   onAnalyze: (text: string, usage?: AnalyzeUsageMetadata) => void;
   onCancelAnalyze: () => void;
+  onRestoreAnalysis: (entry: AnalysisHistoryEntry) => void;
+  onReanalyze: () => void;
   userApiKey?: string;
   aiProvider: AIProvider;
   aiModel?: AIModelName;
@@ -92,6 +95,8 @@ export default function InputSection({
   history,
   onAnalyze,
   onCancelAnalyze,
+  onRestoreAnalysis,
+  onReanalyze,
   userApiKey,
   aiProvider,
   aiModel,
@@ -765,6 +770,7 @@ export default function InputSection({
       >
         {Icon.plus}<span className="compact-label">{t("新句子")}</span>
       </button>
+      {!isAnalyzing && <button type="button" className="nd-ghost-btn" aria-label={t("重新解析")} onClick={onReanalyze}>{Icon.refresh}<span className="compact-label">{t("重新解析")}</span></button>}
       {renderTtsControls(true)}
       {isLoading && (
         <button type="button" className="nd-ghost-btn" onClick={handleCancelAnalyze} aria-label={t("终止解析")}>
@@ -930,7 +936,13 @@ export default function InputSection({
             storageUnavailable={history.storageUnavailable}
             disabled={isAnalyzing || isImageUploading || isSpeaking}
             onClear={history.clear}
-            onSelect={analyzeSuggestion}
+            onSelect={(entry) => {
+              if (!entry.tokens) { analyzeSuggestion(entry.text); return; }
+              handleInputTextChange(entry.text);
+              clearUsageMetadata();
+              setTtsAudioUrl(null);
+              onRestoreAnalysis(entry);
+            }}
           />
         </div>
       )}

@@ -171,7 +171,7 @@ export default function TranslationSection({
                 </div>
               ) : (
                 <p className="translation-text mb-0 whitespace-pre-wrap">
-                  {translation || <span style={{ color: 'var(--ink-3)' }}>{t("解析后将自动翻译。")}</span>}
+                  {translation || <span style={{ color: 'var(--ink-3)' }}>{t("点击翻译查看译文。")}</span>}
                 </p>
               )}
             </div>

@@ -9,7 +9,7 @@ interface AnalysisHistoryProps {
   entries: AnalysisHistoryEntry[];
   storageUnavailable: boolean;
   disabled: boolean;
-  onSelect: (text: string) => void;
+  onSelect: (entry: AnalysisHistoryEntry) => void;
   onClear: () => void;
 }
 
@@ -53,7 +53,7 @@ export default function AnalysisHistory({
             <button
               type="button"
               disabled={disabled}
-              onClick={() => onSelect(entry.text)}
+              onClick={() => onSelect(entry)}
               className="recent-item"
               title={entry.text}
             >

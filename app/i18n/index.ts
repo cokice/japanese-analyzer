@@ -1,3 +1,4 @@
+import { API_ERROR_MESSAGES, isApiErrorCode, type ApiErrorPayload } from '../lib/apiErrors';
 import { messages } from './messages';
 
 export const LOCALES = ['zh-CN', 'zh-TW', 'en', 'ko'] as const;
@@ -30,19 +31,11 @@ export function createTranslator(locale: Locale): Translator {
   };
 }
 
-// Match application-owned error templates, retaining unknown upstream diagnostics verbatim.
-const errorTemplates = Object.keys(messages).filter(key => /\{\d+\}/.test(key)).map(key => {
-  const pattern = key.split(/\{\d+\}/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('(.+?)');
-  return { key, pattern: new RegExp(`^${pattern}$`, 's') };
-});
-
-export function localizeError(message: string, locale: Locale, depth = 0): string {
+/** Errors cross the API boundary as stable codes, never language-dependent templates. */
+export function localizeError(error: string | Error | ApiErrorPayload, locale: Locale): string {
   const t = createTranslator(locale);
-  if (locale === 'zh-CN' || depth > 4) return message;
-  if (message in messages) return t(message);
-  for (const { key, pattern } of errorTemplates) {
-    const match = pattern.exec(message);
-    if (match) return t(key, ...match.slice(1).map(value => localizeError(value, locale, depth + 1)));
+  if (typeof error === 'object' && 'code' in error && isApiErrorCode(error.code)) {
+    return t(API_ERROR_MESSAGES[error.code], ...('params' in error && Array.isArray(error.params) ? error.params : []));
   }
-  return message;
+  return t(typeof error === 'string' ? error : error instanceof Error ? error.message : API_ERROR_MESSAGES.SERVER_ERROR);
 }

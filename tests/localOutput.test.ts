@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { ApiRequestError } from '../app/utils/requestErrors';
 import { kanaToRomaji, getLocalRomaji } from '../app/utils/romaji';
 import { AnalyzeStreamParser } from '../app/utils/analyzeStreamParser';
 import { parseAnalyzeResponseContent, parseWordDetailResponseContent, readOpenAIContentStream, getWordDetails, streamWordDetails, streamTranslateText, streamExtractTextFromImage } from '../app/services/api';
@@ -36,7 +37,7 @@ const merged = new AnalyzeStreamParser();
 merged.push(JSON.stringify({tokens: tokens.slice(0,1)}));
 assert.deepStrictEqual(merged.push(source), snapshot, '分块拼接快照不能漏词或重复');
 
-const compact = {chineseTranslation:'读了',dictionaryForm:'読む',explanation:'过去发生的读书动作。',conjugation:'読む → 読んだ',example:'本を読んだ。',exampleTranslation:'读了书。',pos:'',furigana:''};
+const compact = {translation:'读了',dictionaryForm:'読む',explanation:'过去发生的读书动作。',conjugation:'読む → 読んだ',example:'本を読んだ。',exampleTranslation:'读了书。',pos:'',furigana:''};
 const context = {word:'読んだ',pos:'動詞',furigana:'よんだ'};
 const detail = parseWordDetailResponseContent(JSON.stringify(compact),context);
 assert.strictEqual(detail.originalWord,'読んだ');
@@ -101,16 +102,18 @@ export async function runLocalOutputTests() {
       console.error = () => {};
       for (const body of ['Internal Server Error', '<html>Bad Gateway</html>', '', 'null', '{"error":{"message":"upstream unavailable"}}']) {
         globalThis.fetch = async () => new Response(body, { status: 500 });
-        const message = body.includes('upstream unavailable') ? 'upstream unavailable' : 'HTTP 500';
         await assert.rejects(getWordDetails('本', '名詞', '本を読む。'), error => {
           assert.ok(error instanceof Error);
-          assert.strictEqual(error.message, `查询释义失败：${message}`);
+          assert.ok(error instanceof ApiRequestError);
+          assert.equal(error.code, 'SERVER_ERROR');
+          assert.equal(error.status, 500);
           return true;
         });
         const failures: Error[] = [];
         await streamWordDetails('本', '名詞', '本を読む。', () => assert.fail('Failed requests must not emit content'), error => failures.push(error));
         assert.strictEqual(failures.length, 1);
-        assert.strictEqual(failures[0].message, `流式查询释义失败：${message}`);
+        assert.ok(failures[0] instanceof ApiRequestError);
+        assert.equal((failures[0] as ApiRequestError).code, 'SERVER_ERROR');
       }
     } finally {
       console.error = originalConsoleError;

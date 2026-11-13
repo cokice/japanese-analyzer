@@ -110,7 +110,7 @@ const analysisTokensSchema = {
 const wordDetailSchema = {
   type: 'object',
   properties: {
-    chineseTranslation: { type: 'string' },
+    translation: { type: 'string' },
     pos: { type: 'string' },
     furigana: { type: 'string' },
     dictionaryForm: { type: 'string' },
@@ -120,7 +120,7 @@ const wordDetailSchema = {
     exampleTranslation: { type: 'string' },
   },
   required: [
-    'chineseTranslation',
+    'translation',
     'pos',
     'furigana',
     'dictionaryForm',
@@ -133,7 +133,7 @@ const wordDetailSchema = {
 } as const;
 
 const phraseDetailFields = [
-  'chineseTranslation',
+  'translation',
   'category',
   'dictionaryForm',
   'explanation',
