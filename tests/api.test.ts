@@ -5,6 +5,7 @@ import './analysisHistory.test';
 import './dailySentence.test';
 import './phraseRange.test';
 import './readingLayout.test';
+import './posColors.test';
 import './wordDetailContext.test';
 import './wordDetailDictionary.test';
 import { runLocalOutputTests } from './localOutput.test';
