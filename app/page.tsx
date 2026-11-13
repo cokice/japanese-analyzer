@@ -1,10 +1,12 @@
 'use client';
 
 import { DEEPSEEK_THINKING_AVAILABLE } from './lib/aiModels';
+import { useAnalysis } from './hooks/useAnalysis';
+import { initialReadingView, readingViewReducer, getViewSelection } from './lib/readingView';
 import { browserStorage } from './utils/storage';
 
 import { useLanguage } from './contexts/LanguageContext';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useReducer } from 'react';
 import InputSection from './components/InputSection';
 import AnalysisResult, { DisplayOptions } from './components/AnalysisResult';
 import TranslationSection from './components/TranslationSection';
@@ -19,15 +21,12 @@ import ReasoningStream from './components/ReasoningStream';
 import WordDetailPanel from './components/WordDetailPanel';
 import { useWordDetail } from './hooks/useWordDetail';
 import { useAnalysisHistory } from './hooks/useAnalysisHistory';
-import { AnalyzeStreamParser } from './utils/analyzeStreamParser';
 import { selectWordDetailContext } from './utils/wordDetailContext';
 import { getPhraseReading, getPhraseText, mergePhraseTokens, normalizePhraseRange, type PhraseRange } from './utils/phraseRange';
-import { createRequestMetrics, trackAnalyzeUsage, trackWordDetailUsage, type AnalyzeUsageMetadata } from './utils/analytics';
+import { trackWordDetailUsage } from './utils/analytics';
 import { localizeError } from './i18n';
-import type { AnalysisHistoryEntry } from './utils/analysisHistory';
-import { apiErrorFromResponse, InvalidResponseError } from './utils/requestErrors';
+import { apiErrorFromResponse } from './utils/requestErrors';
 import {
-  analyzeSentence,
   AIModelName,
   TokenData,
   DEFAULT_AI_PROVIDER,
@@ -35,31 +34,16 @@ import {
   TTSProvider,
   getModelName,
   loadAISettingsFromStorage,
-  parseAnalyzeResponseContent,
-  summarizeDeepSeekReasoningProgress,
-  streamAnalyzeSentence
 } from './services/api';
-import { ReasoningSummaryController } from './utils/reasoningSummary';
-import { ReasoningTextStore } from './utils/reasoningTextStore';
 
 export default function Home() {
   const { t, locale } = useLanguage();
   const history = useAnalysisHistory();
-  const [currentSentence, setCurrentSentence] = useState('');
-  const [analyzedTokens, setAnalyzedTokens] = useState<TokenData[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisError, setAnalysisError] = useState<Error | null>(null);
+  const [view, dispatch] = useReducer(readingViewReducer, initialReadingView);
+  const { selectedIndex, selectedRange, pickAnchor } = getViewSelection(view);
+  const setPickAnchor = useCallback((anchor: number | null) => dispatch({ type: 'pick', anchor }), []);
   const [useStream, setUseStream] = useState<boolean>(true);
-
-  const [analysisSignal, setAnalysisSignal] = useState<AbortSignal>();
-  const [translationTrigger, setTranslationTrigger] = useState(0);
   const [showFurigana, setShowFurigana] = useState(true);
-  // 解析开始后输入区收起，句子成为页面唯一主角；点「编辑原文」再展开
-  const [isEditingInput, setIsEditingInput] = useState(true);
-  // 圈选的多词短语（与单个选中的词互斥）
-  const [selectedRange, setSelectedRange] = useState<PhraseRange | null>(null);
-  // 圈选起点：长按或详情里点「选中多个词」后设置，再点一个词即选中这一段
-  const [pickAnchor, setPickAnchor] = useState<number | null>(null);
   const [showRomaji, setShowRomaji] = useState(false);
 
   // API设置相关状态
@@ -69,18 +53,6 @@ export default function Home() {
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [deepseekApiKey, setDeepseekApiKey] = useState('');
   const [deepseekThinkingEnabled, setDeepseekThinkingEnabled] = useState(false);
-  const [hasDeepseekReasoning, setHasDeepseekReasoning] = useState(false);
-  const hasDeepseekReasoningRef = useRef(false);
-  const reasoningTextStoreRef = useRef<ReasoningTextStore | null>(null);
-  if (reasoningTextStoreRef.current === null) {
-    reasoningTextStoreRef.current = new ReasoningTextStore();
-  }
-  const reasoningTextStore = reasoningTextStoreRef.current;
-  const [deepseekReasoningDone, setDeepseekReasoningDone] = useState(true);
-  const [deepseekReasoningSummaryHistory, setDeepseekReasoningSummaryHistory] = useState<string[]>([]);
-  const [deepseekReasoningCompletionLabel, setDeepseekReasoningCompletionLabel] = useState(t("已深度思考"));
-  const reasoningSummaryControllerRef = useRef<ReasoningSummaryController | null>(null);
-  const analysisAbortControllerRef = useRef<AbortController | null>(null);
   const [ttsProvider, setTtsProvider] = useState<TTSProvider>('edge');
 
   // 密码验证相关状态
@@ -89,9 +61,6 @@ export default function Home() {
   const [authError, setAuthError] = useState('');
 
   const userApiKey = aiProvider === 'gemini' ? geminiApiKey : deepseekApiKey;
-
-  // 选中词汇（右侧详情面板 / 移动端模态）
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [isDesktop, setIsDesktop] = useState(true);
   const [railTab, setRailTab] = useState<'detail' | 'assistant'>('detail');
   const [assistantHost, setAssistantHost] = useState<HTMLDivElement | null>(null);
@@ -105,22 +74,21 @@ export default function Home() {
     clearWordDetail,
   } = useWordDetail({ userApiKey, aiProvider, aiModel, useStream });
 
-  useEffect(() => {
-    analysisAbortControllerRef.current?.abort('language-change');
-    analysisAbortControllerRef.current = null;
-    reasoningSummaryControllerRef.current?.cancel();
-    setIsAnalyzing(false);
-    setAnalysisError(null);
-    setAuthError('');
-    setSelectedIndex(null);
-    setSelectedRange(null);
-    setPickAnchor(null);
-    reasoningTextStore.reset();
-    hasDeepseekReasoningRef.current = false;
-    setHasDeepseekReasoning(false);
-    setDeepseekReasoningDone(true);
-    setDeepseekReasoningSummaryHistory([]);
-  }, [locale, reasoningTextStore]);
+  const handleCloseWordDetail = useCallback(() => {
+    dispatch({ type: 'clearSelection' });
+    clearWordDetail();
+  }, [clearWordDetail]);
+  const onAnalysisStart = useCallback(() => dispatch({ type: 'analyze' }), []);
+  const onAnalysisSettled = useCallback((hasTokens: boolean, error?: boolean) => dispatch({ type: 'settled', hasTokens, error }), []);
+  const onHome = useCallback(() => dispatch({ type: 'home' }), []);
+  const onRead = useCallback(() => dispatch({ type: 'read' }), []);
+  const { currentSentence, analyzedTokens, setAnalyzedTokens, isAnalyzing, analysisError, analysisSignal, translationTrigger,
+    hasDeepseekReasoning, reasoningTextStore, deepseekReasoningDone, deepseekReasoningSummaryHistory, deepseekReasoningCompletionLabel,
+    handleAnalyze, handleCancelAnalysis, handleStartOver, handleRestoreAnalysis, pendingText, resetReasoning } = useAnalysis({
+      aiProvider, aiModel, userApiKey, useStream, deepseekThinkingEnabled, history, onStart: onAnalysisStart, onSettled: onAnalysisSettled,
+      onHome, onRead, onCloseWordDetail: handleCloseWordDetail,
+    });
+  useEffect(() => { setAuthError(''); }, [locale]);
 
   // 侧栏在 lg(1024px) 以上显示，以下使用模态
   useEffect(() => {
@@ -129,11 +97,6 @@ export default function Home() {
     update();
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
-  }, []);
-
-  useEffect(() => () => {
-    analysisAbortControllerRef.current?.abort('unmount');
-    reasoningSummaryControllerRef.current?.cancel();
   }, []);
 
   // 检查是否需要密码验证
@@ -182,8 +145,6 @@ export default function Home() {
       setUseStream(storedUseStream === 'true');
     }
   }, []);
-
-  // 保存用户API设置
   const handleSaveSettings = (settings: {
     aiProvider: AIProvider;
     aiModel: AIModelName;
@@ -211,14 +172,7 @@ export default function Home() {
     setDeepseekApiKey(settings.deepseekApiKey);
     setDeepseekThinkingEnabled(settings.deepseekThinkingEnabled);
     setUseStream(settings.useStream);
-    reasoningTextStore.reset();
-    hasDeepseekReasoningRef.current = false;
-    setHasDeepseekReasoning(false);
-    setDeepseekReasoningDone(true);
-    setDeepseekReasoningSummaryHistory([]);
-    setDeepseekReasoningCompletionLabel(t("已深度思考"));
-    reasoningSummaryControllerRef.current?.cancel();
-    reasoningSummaryControllerRef.current = null;
+    resetReasoning();
   };
 
   const handleTtsProviderChange = (provider: TTSProvider) => {
@@ -255,13 +209,6 @@ export default function Home() {
   // 添加函数，检查是否显示分析器
   const shouldShowAnalyzer = (): boolean => analyzedTokens.length > 0;
 
-  const handleCloseWordDetail = useCallback(() => {
-    setSelectedIndex(null);
-    setSelectedRange(null);
-    setPickAnchor(null);
-    clearWordDetail();
-  }, [clearWordDetail]);
-
   // 点击词汇 → 查询详情
   const handleWordClick = useCallback((token: TokenData, index: number) => {
     setRailTab('detail');
@@ -269,8 +216,7 @@ export default function Home() {
       handleCloseWordDetail();
       return;
     }
-    setSelectedRange(null);
-    setSelectedIndex(index);
+    dispatch({ type: 'word', index });
     trackWordDetailUsage(aiProvider, aiModel);
     const context = selectWordDetailContext(currentSentence, analyzedTokens, index);
     fetchWordDetails(token.word, token.pos, context, token.furigana);
@@ -293,11 +239,10 @@ export default function Home() {
     setPickAnchor(null);
     const range = normalizePhraseRange(analyzedTokens, a, b);
     if (!range) return;
-    setSelectedIndex(null);
-    setSelectedRange(range);
+    dispatch({ type: 'range', range });
     trackWordDetailUsage(aiProvider, aiModel);
     fetchPhraseDetails(range);
-  }, [aiModel, aiProvider, analyzedTokens, fetchPhraseDetails]);
+  }, [aiModel, aiProvider, analyzedTokens, fetchPhraseDetails, setPickAnchor]);
 
   const handleRefreshWordDetail = useCallback(() => {
     if (selectedRange) {
@@ -324,7 +269,7 @@ export default function Home() {
     const anchor = selectedIndex;
     if (!isDesktop) handleCloseWordDetail();
     setPickAnchor(anchor);
-  }, [handleCloseWordDetail, isDesktop, selectedIndex]);
+  }, [handleCloseWordDetail, isDesktop, selectedIndex, setPickAnchor]);
 
   // AI 判断圈选的其实是一个被拆开的词时，合并回单个词项（只影响当前结果）
   const canMergePhrase = selectedRange !== null && wordDetail?.kind === 'phrase' && wordDetail.category === '単語';
@@ -334,222 +279,10 @@ export default function Home() {
       pos: wordDetail.pos,
       furigana: wordDetail.mergeReading || wordDetail.furigana,
     }));
-    setSelectedIndex(selectedRange.start);
-    setSelectedRange(null);
-  }, [selectedRange, wordDetail]);
-
-  const handleAnalyze = async (text: string, usage?: AnalyzeUsageMetadata) => {
-    if (!text.trim()) return;
-
-    analysisAbortControllerRef.current?.abort('superseded');
-    const analysisAbortController = new AbortController();
-    analysisAbortControllerRef.current = analysisAbortController;
-    setAnalysisSignal(analysisAbortController.signal);
-    const streamParser = new AnalyzeStreamParser();
-    const isCurrentAnalysis = () => (
-      analysisAbortControllerRef.current === analysisAbortController
-      && !analysisAbortController.signal.aborted
-    );
-
-    trackAnalyzeUsage(aiProvider, usage, aiModel);
-    const metrics = createRequestMetrics('analyze', aiProvider, aiModel, useStream, analysisAbortController.signal);
-    setIsAnalyzing(true);
-    setIsEditingInput(false);
-    setAnalysisError(null);
-    setCurrentSentence(text);
-    setTranslationTrigger(0);
-    setAnalyzedTokens([]);
-    const deepseekThinkingActive = aiProvider === 'deepseek' && deepseekThinkingEnabled;
-    reasoningTextStore.reset();
-    hasDeepseekReasoningRef.current = false;
-    setHasDeepseekReasoning(false);
-    setDeepseekReasoningDone(!deepseekThinkingActive);
-    setDeepseekReasoningSummaryHistory([]);
-    setDeepseekReasoningCompletionLabel(t("已深度思考"));
-    reasoningSummaryControllerRef.current?.cancel();
-    const reasoningSummaryController = deepseekThinkingActive
-      ? new ReasoningSummaryController({
-          requestSummary: ({ reasoningSnippet, signal }) => (
-            summarizeDeepSeekReasoningProgress({
-              reasoningSnippet,
-              userApiKey,
-              signal,
-            })
-          ),
-          onSummary: (summary) => {
-            if (!isCurrentAnalysis()) return;
-            setDeepseekReasoningSummaryHistory((current) => [...current, summary]);
-          },
-          onError: (error) => {
-            console.warn('DeepSeek reasoning summary skipped:', error);
-          },
-        })
-      : null;
-    reasoningSummaryControllerRef.current = reasoningSummaryController;
-    if (reasoningSummaryController) {
-      reasoningSummaryController.start();
-    }
-    let reasoningStatusEnded = !deepseekThinkingActive;
-    const finishReasoningStatus = (summary: string) => {
-      if (!isCurrentAnalysis() || reasoningStatusEnded || !deepseekThinkingActive) return;
-      reasoningStatusEnded = true;
-      reasoningSummaryController?.finish();
-      if (reasoningSummaryControllerRef.current !== reasoningSummaryController) return;
-      setDeepseekReasoningCompletionLabel(summary);
-      setDeepseekReasoningDone(true);
-    };
-    handleCloseWordDetail();
-
-    const reasoningOptions = {
-      deepseekThinkingEnabled: deepseekThinkingActive,
-      signal: analysisAbortController.signal,
-      onReasoning: (reasoningText: string) => {
-        if (!isCurrentAnalysis()) return;
-        if (!reasoningStatusEnded) {
-          reasoningSummaryController?.ingest(reasoningText);
-        }
-        reasoningTextStore.setText(reasoningText);
-        if (reasoningText && !hasDeepseekReasoningRef.current) {
-          hasDeepseekReasoningRef.current = true;
-          setHasDeepseekReasoning(true);
-        }
-      },
-      onContentStart: () => {
-        if (isCurrentAnalysis()) finishReasoningStatus(t("已深度思考"));
-      },
-    };
-
-    try {
-      if (useStream) {
-        // 使用流式API进行分析
-        await streamAnalyzeSentence(
-          text,
-          (chunk, isDone) => {
-            if (!isCurrentAnalysis()) return;
-            if (!isDone) {
-              const tokens = streamParser.push(chunk);
-              if (tokens.length) {
-                metrics.firstResult();
-                setAnalyzedTokens(tokens);
-              }
-            }
-            if (isDone) {
-              finishReasoningStatus(t("已深度思考"));
-              setIsAnalyzing(false);
-              analysisAbortControllerRef.current = null;
-              try {
-                const tokens = parseAnalyzeResponseContent(chunk);
-                metrics.firstResult();
-                setAnalyzedTokens(tokens);
-                metrics.succeed();
-                history.record(text, tokens);
-                setTranslationTrigger(Date.now());
-              } catch (error) {
-                metrics.fail(new InvalidResponseError('Invalid analysis result'));
-                console.error('Final stream analysis parse error:', error);
-                setAnalysisError(new Error(t("解析结果JSON格式错误")));
-              }
-            }
-          },
-          (error) => {
-            if (!isCurrentAnalysis()) return;
-            metrics.fail(error);
-            finishReasoningStatus(t("深度思考已中止"));
-            console.error('Stream analysis error:', error);
-            setAnalysisError(error);
-            setAnalyzedTokens([]);
-            setIsAnalyzing(false);
-            analysisAbortControllerRef.current = null;
-          },
-          userApiKey,
-          aiProvider,
-          aiModel,
-          reasoningOptions
-        );
-      } else {
-        // 使用传统API进行分析
-        const tokens = await analyzeSentence(
-          text,
-          userApiKey,
-          aiProvider,
-          aiModel,
-          reasoningOptions
-        );
-        if (!isCurrentAnalysis()) return;
-        metrics.firstResult();
-        setAnalyzedTokens(tokens);
-        metrics.succeed();
-        history.record(text, tokens);
-        setTranslationTrigger(Date.now());
-        finishReasoningStatus(t("已深度思考"));
-        setIsAnalyzing(false);
-        analysisAbortControllerRef.current = null;
-      }
-    } catch (error) {
-      if (!isCurrentAnalysis()) return;
-      metrics.fail(error);
-      finishReasoningStatus(t("深度思考已中止"));
-      console.error('Analysis error:', error);
-      setAnalysisError(error instanceof Error ? error : new Error(t("未知错误")));
-      setAnalyzedTokens([]);
-      setIsAnalyzing(false);
-      analysisAbortControllerRef.current = null;
-    }
-  };
-
-  const handleCancelAnalysis = () => {
-    const controller = analysisAbortControllerRef.current;
-    if (!controller || controller.signal.aborted) return;
-
-    analysisAbortControllerRef.current = null;
-    controller.abort('user');
-    handleCloseWordDetail();
-    reasoningSummaryControllerRef.current?.cancel();
-    reasoningSummaryControllerRef.current = null;
-    setIsAnalyzing(false);
-    setAnalysisError(null);
-    setDeepseekReasoningCompletionLabel(t("已终止思考"));
-    setDeepseekReasoningDone(true);
-  };
-
-  const isReading = !isEditingInput && (isAnalyzing || analyzedTokens.length > 0);
-  // 解析中：原句里还没解析到的部分，以灰字流光占住结果位置
-  const pendingText = (() => {
-    if (!isAnalyzing) return '';
-    const analyzed = analyzedTokens.map((token) => token.word).join('');
-    return currentSentence.startsWith(analyzed) ? currentSentence.slice(analyzed.length) : '';
-  })();
-  // 首页：还没有解析任何句子，显示今日一句和最近记录
-  const isHome = !isAnalyzing && !currentSentence;
-
-  // 「新句子」：清空当前解析，回到首页
-  const handleStartOver = () => {
-    analysisAbortControllerRef.current?.abort();
-    analysisAbortControllerRef.current = null;
-    setIsAnalyzing(false);
-    handleCloseWordDetail();
-    reasoningSummaryControllerRef.current?.cancel();
-    reasoningSummaryControllerRef.current = null;
-    reasoningTextStore.reset();
-    hasDeepseekReasoningRef.current = false;
-    setHasDeepseekReasoning(false);
-    setDeepseekReasoningDone(true);
-    setDeepseekReasoningSummaryHistory([]);
-    setAnalyzedTokens([]);
-    setCurrentSentence('');
-    setAnalysisError(null);
-    setIsEditingInput(true);
-  };
-
-  const handleRestoreAnalysis = (entry: AnalysisHistoryEntry) => {
-    if (!entry.tokens) { void handleAnalyze(entry.text); return; }
-    handleStartOver();
-    setCurrentSentence(entry.text);
-    setAnalyzedTokens(entry.tokens);
-    setIsEditingInput(false);
-    setAnalysisSignal(undefined);
-    setTranslationTrigger(0);
-  };
+    dispatch({ type: 'word', index: selectedRange.start });
+  }, [selectedRange, wordDetail, setAnalyzedTokens]);
+  const isReading = view.mode === 'analyzing' || view.mode === 'reading';
+  const isHome = view.mode === 'home';
 
   const hasWordDetail = (selectedIndex !== null || selectedRange !== null)
     && (isWordDetailLoading || isWordDetailStreaming || wordDetail !== null || !!wordDetailStreamError);
@@ -618,6 +351,7 @@ export default function Home() {
           className="app-main mx-auto flex w-full max-w-[1240px] flex-1 items-start justify-center px-4 pb-6 pt-2 sm:px-9"
           data-detail-open={isDesktop && hasWordDetail}
           data-reading={isReading}
+          data-view={view.mode}
         >
           {/* 主列 */}
           <div className="app-column relative flex w-full min-w-0 max-w-[780px] flex-col gap-[22px]" data-home={isHome}>
@@ -625,8 +359,8 @@ export default function Home() {
               compact={isReading}
               showSuggestions={isHome}
               onNewSentence={handleStartOver}
-              onExpand={() => setIsEditingInput(true)}
-              onCollapse={analyzedTokens.length > 0 ? () => setIsEditingInput(false) : undefined}
+              onExpand={() => dispatch({ type: 'edit' })}
+              onCollapse={analyzedTokens.length > 0 ? () => dispatch({ type: 'read' }) : undefined}
               history={history}
               onAnalyze={handleAnalyze}
               onCancelAnalyze={handleCancelAnalysis}
