@@ -14,6 +14,8 @@
   --line: #ebebed;
   --line-2: #dedee2;
   --primary: #6d4cdb;
+  --on-primary: #ffffff;
+  --switch-active: color-mix(in srgb, var(--ink) 7%, transparent);
   --primary-2: #5a39c8;
   --primary-soft: #f0ecfa;
   --danger: #a52a35;
@@ -155,7 +157,7 @@ body {
 }
 
 .dark .nd-card {
-  background: linear-gradient(180deg, #342e47 0%, var(--bg-2) 100%);
+  background: var(--bg-2);
   box-shadow: 0 18px 42px -34px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
@@ -197,7 +199,7 @@ body {
   background: var(--primary-soft);
   color: var(--primary);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   pointer-events: none;
   animation: firstVisitExampleReveal 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -308,7 +310,7 @@ body {
 
 .nd-primary-btn {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   padding: 10px 22px;
   border-radius: 999px;
   border: none;
@@ -319,12 +321,12 @@ body {
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  box-shadow: 0 4px 14px -4px rgba(109, 76, 219, 0.55);
+  box-shadow: none;
   transition: background var(--dur-base), opacity var(--dur-base);
   -webkit-tap-highlight-color: transparent;
 }
 
-.nd-primary-btn:hover:not(:disabled) { background: var(--primary-2); }
+.nd-primary-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 8%, var(--bg-2)); }
 .nd-primary-btn:disabled { opacity: 0.7; cursor: wait; }
 
 .state-morph-btn {
@@ -1467,7 +1469,7 @@ dialog.app-dialog::backdrop {
 
 .flow-markdown strong {
   color: var(--primary);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .full-translation-markdown p {
@@ -1859,12 +1861,12 @@ body {
 }
 
 .nd-primary-btn {
-  background: linear-gradient(180deg, #7b5bdb, #6d4cdb);
-  box-shadow: inset 0 1px 1px #ffffff50, inset 0 0 0 1px #ffffff1a, 0 3px 8px -4px #6d4cdb50;
+  background: var(--primary);
+  box-shadow: none;
 }
 
 .nd-primary-btn:hover:not(:disabled) {
-  background: linear-gradient(180deg, #7554d5, #6544cf);
+  background: color-mix(in srgb, var(--ink) 8%, var(--bg-2));
 }
 
 .nd-fab {
@@ -1948,8 +1950,6 @@ body {
 .chat-expanded-panel[open] { display: flex; flex-direction: column; overflow: hidden; }
 .assistant-modal-content-positioner { height: min(520px, calc(100dvh - 112px)); }
 .dark .chat-message-user { background: color-mix(in srgb, var(--primary) 18%, var(--bg-2)); }
-.dark .word-unit-wrapper.active-unit { background: #bba3ff1a; box-shadow: inset 0 0 0 1px #bba3ff30; }
-.dark .settings-group [role="switch"][data-state="checked"] { background: #7962c8; }
 @media (max-width: 640px) {
   .settings-modal-content { padding: 24px 20px; width: calc(100% - 32px); }
   .chat-expanded-panel .chat-messages { padding: 16px; }
@@ -2001,7 +2001,6 @@ body {
 .reading-surface .word-unit-wrapper.active-unit {
   box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 9%, transparent);
 }
-.dark .reading-surface .word-unit-wrapper.active-unit { box-shadow: 0 0 0 4px #bba3ff1a; }
 @media (hover: hover) {
   .reading-surface .word-unit-wrapper:not(.is-punct):not(.active-unit):not(.is-pending):hover {
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink) 4%, transparent);
@@ -2523,3 +2522,7 @@ body {
 
 .pos-underline.pos-group-p { background: none; border-bottom: var(--pos-stroke) dashed var(--pos-p); }
 .pos-underline.pos-group-aux { background: none; border-bottom: var(--pos-stroke-thin) dotted var(--pos-aux); }
+
+.mobile-repository-link { display: flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--space-8); margin-top: var(--space-2); color: var(--ink-2); }
+@media (min-width: 640px) { .mobile-repository-link { display: none; } }
+.word-unit-wrapper.in-range .word-token:focus-visible { outline: none; }

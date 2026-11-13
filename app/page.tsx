@@ -9,6 +9,7 @@ import AnalysisResult, { DisplayOptions } from './components/AnalysisResult';
 import TranslationSection from './components/TranslationSection';
 import SettingsModal from './components/SettingsModal';
 import Header from './components/Header';
+import { Icon } from './components/Icons';
 import ErrorNotice from './components/ErrorNotice';
 import LoginModal from './components/LoginModal';
 import ModalDialog from './components/ModalDialog';
@@ -440,7 +441,7 @@ export default function Home() {
                 setAnalyzedTokens(tokens);
                 metrics.succeed();
                 history.record(text);
-                setTranslationTrigger(Date.now());
+        setTranslationTrigger(Date.now());
               } catch (error) {
                 metrics.fail(new InvalidResponseError('Invalid analysis result'));
                 console.error('Final stream analysis parse error:', error);
@@ -477,7 +478,7 @@ export default function Home() {
         setAnalyzedTokens(tokens);
         metrics.succeed();
         history.record(text);
-                setTranslationTrigger(Date.now());
+        setTranslationTrigger(Date.now());
         finishReasoningStatus(t("已深度思考"));
         setIsAnalyzing(false);
         analysisAbortControllerRef.current = null;
@@ -627,7 +628,6 @@ export default function Home() {
               isAnalyzing={isAnalyzing}
               compactExtras={shouldShowAnalyzer() && (
                 <DisplayOptions
-                  variant="chips"
                   showFurigana={showFurigana}
                   onShowFuriganaChange={setShowFurigana}
                   showRomaji={showRomaji}
@@ -707,6 +707,7 @@ export default function Home() {
 
         <footer className="px-4 pb-6 pt-1 text-center text-xs sm:px-9" style={{ color: 'var(--ink-3)' }}>
           {t("AI也可能会犯错，请核查重要信息。")}
+          <a className="mobile-repository-link" href="https://github.com/cokice/japanese-analyzer" target="_blank" rel="noopener noreferrer">{Icon.github}<span>{t("GitHub 仓库")}</span></a>
         </footer>
 
         {/* 设置模态框 */}

@@ -96,7 +96,7 @@ export default function LoginModal({ isOpen, onLogin, error }: LoginModalProps) 
               }}
             >
               <span
-                className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[12px] font-bold leading-none"
+                className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[12px] font-semibold leading-none"
                 style={{ background: 'var(--pos-p)', color: '#fff' }}
                 aria-hidden="true"
               >

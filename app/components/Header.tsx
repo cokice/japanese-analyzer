@@ -44,20 +44,22 @@ export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
       </a>
       <div className="flex-1" />
       <div className="glass-toolbar flex items-center gap-1 sm:gap-2">
-        <span
+        <button
+          type="button"
+          onClick={onSettingsClick}
           className="provider-indicator"
           title={t("当前模型服务商：{0}", providerLabel)}
           aria-label={t("当前模型服务商：{0}", providerLabel)}
         >
           <ProviderLogo provider={aiProvider} className="h-4 w-4 sm:h-5 sm:w-5" />
           <span>{providerLabel}</span>
-        </span>
+        </button>
         <a
           href="https://github.com/cokice/japanese-analyzer"
           target="_blank"
           rel="noopener noreferrer"
           title={t("GitHub 仓库")}
-          className="grid h-10 w-10 place-items-center rounded-[10px] transition-colors hover:text-[var(--primary)]"
+          className="hidden h-10 w-10 place-items-center rounded-[10px] sm:grid transition-colors hover:text-[var(--primary)]"
           style={{ color: 'var(--ink-2)' }}
         >
           {Icon.github}
