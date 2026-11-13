@@ -50,6 +50,8 @@
   --detail-width: 360px;
   --detail-gap: 28px;
   --word-sheet-height: 50dvh;
+  --space-3: 12px;
+  --space-4: 16px;
 
   /* 动效 3 档 */
   --dur-fast: 120ms;  /* 悬停、按下 */
@@ -2453,4 +2455,21 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .recent-item, .daily-go { transition: none; }
   .daily-sentence, .daily-skeleton { animation: none; }
+}
+
+@media (max-width: 639px) {
+  .mobile-chat-panel {
+    inset: 0;
+    margin: 0;
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    background: var(--bg-2);
+    box-shadow: none;
+  }
+  .mobile-chat-panel .chat-toolbar { padding-top: max(var(--space-3), env(safe-area-inset-top)); }
+  .mobile-chat-panel .chat-composer { padding-bottom: max(var(--space-3), env(safe-area-inset-bottom)); }
+  .mobile-chat-panel .chat-expand-button { display: none; }
 }

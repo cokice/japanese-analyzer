@@ -58,7 +58,7 @@ export default function ModalDialog({
       if (modal) dialog.showModal();
       else dialog.show();
       // React 的 autoFocus 不写 DOM 属性，showModal 看不到；用 data-autofocus 指定初始焦点
-      dialog.querySelector<HTMLElement>('[data-autofocus], button')?.focus({ preventScroll: true });
+      (dialog.querySelector<HTMLElement>('[data-autofocus]') || dialog.querySelector<HTMLElement>('button'))?.focus({ preventScroll: true });
     } else if (!open && dialog.open) {
       dialog.close();
     }
