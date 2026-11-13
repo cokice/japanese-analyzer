@@ -37,8 +37,9 @@
 **更顺手**
 - 首页每天一句，按日本时间更新，点一下就开始解析
 - 长文分段解析，粘贴网页或 Markdown 时自动去掉格式和链接
+- 粘贴单个 HTTP/HTTPS 链接后点击「读取这个网页」，通过 DeepSeek 提取正文、清理格式，再确认解析；读取失败或取消不会覆盖原文。此功能使用 DeepSeek Key 和官方 Fetch 接口，不受文本模型或代理地址选择影响。
 - 图片识别：上传或直接粘贴截图提取日语文字
-- 朗读原文（Edge TTS / Gemini TTS），以及结合当前句子的 AI 日语助手
+- 朗读原文（Edge TTS / Gemini TTS / DeepSeek TTS），以及结合当前句子的 AI 日语助手
 
 **界面**
 - 简体中文、繁体中文、English、한국어、日本語，界面、翻译和释义一起切换；日语模式提供易懂的日语改写
@@ -58,7 +59,7 @@
 | --- | --- | --- |
 | 解析、翻译、释义 | DeepSeek `deepseek-flash` | Gemini `gemini-flash-latest` / `gemini-flash-lite-latest` |
 | 图片识别 | 与所选文本模型一致 | — |
-| 朗读 | Edge TTS | Gemini TTS（需要 Gemini Key） |
+| 朗读 | Edge TTS | Gemini TTS（需要 Gemini Key）/ DeepSeek TTS（需要 DeepSeek Key） |
 
 服务器配置的 Key 供所有访客使用；用户也可以在设置里填自己的 Key，保存在自己的浏览器里，请求时经本应用服务端转发给模型服务商。
 
@@ -84,6 +85,12 @@ npm run dev
 ```
 
 打开 <http://localhost:3000>。想用手机访问同一局域网里的开发服务器，改用 `npm run dev -- --hostname 0.0.0.0`，再打开 `http://电脑IP:3000`。
+
+## 语音试用
+
+- 原文朗读旁的「语音设置」可选 DeepSeek，再选海星（女声）或暗潮（男声）。助手回答下方也可用 DeepSeek 朗读。
+- 使用设置中的 DeepSeek Key，未填写时使用服务器的 `DEEPSEEK_API_KEY`，与当前文本模型选择无关。朗读请求使用 DeepSeek 官方 `/v1/tools/tts`，不使用文本代理地址 `DEEPSEEK_API_URL`。
+- DeepSeek 自动判断语种，目前不支持调节语速。每次合成最多 10,000 个计费字符（汉字按 2 个计算）；失败会显示错误，可重新操作。
 
 ## 环境变量
 

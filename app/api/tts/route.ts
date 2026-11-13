@@ -4,7 +4,7 @@ import { readJsonBody, requestBodyErrorResponse } from '../_utils/requestBody';
 import { NextRequest, NextResponse } from 'next/server';
 import { createUpstreamSignal, isUpstreamTimeoutError } from '../_utils/requestTimeout';
 import { requireApiSession } from '../_utils/sessionAuth';
-import { GEMINI_TTS_MODEL_NAME } from '../../lib/tts';
+import { DEEPSEEK_VOICES, GEMINI_TTS_MODEL_NAME } from '../../lib/tts';
 
 // API配置
 const GEMINI_TTS_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL_NAME}:generateContent`;
@@ -27,14 +27,38 @@ export async function POST(req: NextRequest) {
     const authError = requireApiSession(req);
     if (authError) return authError;
 
-    const { text, provider = 'edge', gender = 'female', voice = 'Kore', model = MODEL_NAME, rate = 0, pitch = 0, style = '' } = await readJsonBody(req);
+    const { text, provider = 'edge', gender = 'female', voice = provider === 'deepseek' ? 'stella' : 'Kore', model = MODEL_NAME, rate = 0, pitch = 0, style = '' } = await readJsonBody(req);
 
     if (typeof text !== 'string' || !text.trim()) {
       return apiErrorResponse('INVALID_REQUEST', 400);
     }
 
-    if (provider !== 'edge' && provider !== 'gemini') {
+    if (provider !== 'edge' && provider !== 'gemini' && provider !== 'deepseek') {
       return apiErrorResponse('INVALID_REQUEST', 400);
+    }
+
+    if (provider === 'deepseek') {
+      if (!DEEPSEEK_VOICES.includes(voice as 'stella' | 'tide') ||
+          Buffer.byteLength(JSON.stringify({ text, voice_id: voice, format: 'wav', filter_markdown: true })) > 64 * 1024 ||
+          Array.from(text).reduce((count, char) => count + (/\p{Script=Han}/u.test(char) ? 2 : 1), 0) > 10000) {
+        return apiErrorResponse('INVALID_REQUEST', 400);
+      }
+      const apiKey = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '').trim() || process.env.DEEPSEEK_API_KEY;
+      if (!apiKey) return apiErrorResponse('MISSING_API_KEY', 500);
+      reserveServerKeyRequest(req);
+      const response = await fetch('https://api.deepseek.com/v1/tools/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ text, voice_id: voice, format: 'wav', filter_markdown: true }),
+        signal: AbortSignal.any([req.signal, createUpstreamSignal()!]),
+      });
+      if (!response.ok) return upstreamErrorResponse(response.status);
+      const audio = Buffer.from(await response.arrayBuffer());
+      if (audio.length < 44 || audio.toString('ascii', 0, 4) !== 'RIFF' || audio.toString('ascii', 8, 12) !== 'WAVE' ||
+          (audio.readUInt32LE(4) !== 0xffffffff && audio.readUInt32LE(4) + 8 > audio.length)) {
+        return apiErrorResponse('INVALID_RESPONSE', 502);
+      }
+      return NextResponse.json({ audio: audio.toString('base64'), mimeType: 'audio/wav' });
     }
 
     if (provider === 'edge') {

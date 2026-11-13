@@ -12,6 +12,7 @@ import { Icon } from './Icons';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { MarkdownText } from '@/components/ui/markdown-text';
 import { createRequestMetrics } from '../utils/analytics';
+import ReadAloud from './ReadAloud';
 import ModalDialog from './ModalDialog';
 
 interface ChatMessage {
@@ -28,12 +29,13 @@ interface AIChatProps {
   embeddedActive?: boolean;
   onEmbeddedClose?: () => void;
   userApiKey?: string;
+  deepseekApiKey?: string;
   aiProvider: AIProvider;
   aiModel: AIModelName;
   currentSentence?: string;
 }
 
-export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentence, hidden = false, embeddedTarget, embeddedActive, onEmbeddedClose }: AIChatProps) {
+export default function AIChat({ deepseekApiKey, userApiKey, aiProvider, aiModel, currentSentence, hidden = false, embeddedTarget, embeddedActive, onEmbeddedClose }: AIChatProps) {
   const { t, locale, errorText } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -294,6 +296,9 @@ export default function AIChat({ userApiKey, aiProvider, aiModel, currentSentenc
                     </div>
                   )}
                 </AutoAnimateHeight>
+                {!isUser && !message.welcome && !message.error && !isRunningAssistant && message.content && (
+                  <ReadAloud text={message.content} apiKey={deepseekApiKey} />
+                )}
               </div>
             </div>
           );

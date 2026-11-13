@@ -125,7 +125,8 @@ export default function Home() {
   useEffect(() => {
     const storedAISettings = loadAISettingsFromStorage(browserStorage);
     const storedUseStream = browserStorage.getItem('useStream');
-    const storedTtsProvider = (browserStorage.getItem('ttsProvider') || 'edge') as TTSProvider;
+    const storedTts = browserStorage.getItem('ttsProvider');
+    const storedTtsProvider: TTSProvider = storedTts === 'gemini' || storedTts === 'deepseek' ? storedTts : 'edge';
 
     setAiProvider(storedAISettings.aiProvider);
     setAiModel(storedAISettings.aiModel);
@@ -364,6 +365,7 @@ export default function Home() {
               aiProvider={aiProvider}
               aiModel={aiModel}
               geminiApiKey={geminiApiKey}
+              deepseekApiKey={deepseekApiKey}
               useStream={useStream}
               ttsProvider={ttsProvider}
               onTtsProviderChange={handleTtsProviderChange}
@@ -499,6 +501,7 @@ export default function Home() {
 
       {/* AI聊天助手 */}
       <AIChat
+        deepseekApiKey={deepseekApiKey}
         hidden={isSettingsModalOpen}
         embeddedTarget={isDesktop && isReading ? assistantHost : null}
         embeddedActive={railTab === 'assistant'}

@@ -12,6 +12,7 @@ export const API_ERROR_MESSAGES = {
   UPSTREAM_ERROR: '模型服务暂时不可用，请稍后重试。',
   INVALID_RESPONSE: '返回的结果不完整，请重试。',
   SERVER_ERROR: '服务器暂时不可用，请稍后重试。',
+  WEB_PAGE_UNAVAILABLE: '无法读取网页正文，请复制正文后粘贴。',
   NOT_FOUND: '此功能暂不可用。',
 } as const;
 export type ApiErrorCode = keyof typeof API_ERROR_MESSAGES;

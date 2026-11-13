@@ -9,7 +9,7 @@ export async function synthesizeSpeech(
   options: { gender?: 'male' | 'female'; voice?: string; rate?: number; pitch?: number; style?: string; signal?: AbortSignal } = {},
   userApiKey?: string
 ): Promise<{ audio: string; mimeType: string }> {
-  const { gender = 'female', voice = 'Kore', rate = 0, pitch = 0, style = '' } = options;
+  const { gender = 'female', voice = provider === 'deepseek' ? 'stella' : 'Kore', rate = 0, pitch = 0, style = '' } = options;
 
   const apiUrl = getApiEndpoint('/tts');
   const headers = getHeaders(userApiKey);
