@@ -58,9 +58,13 @@
   --detail-width: 360px;
   --detail-gap: 28px;
   --word-sheet-height: 50dvh;
+  --space-0: 0px;
+  --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
   --space-8: 32px;
   --chat-rail-height: 680px;
 

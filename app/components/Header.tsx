@@ -59,7 +59,7 @@ export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
           target="_blank"
           rel="noopener noreferrer"
           title={t("GitHub 仓库")}
-          className="hidden h-10 w-10 place-items-center rounded-[10px] sm:grid transition-colors hover:text-[var(--primary)]"
+          className="hidden h-10 w-10 place-items-center rounded-ui-md sm:grid transition-colors hover:text-[var(--primary)]"
           style={{ color: 'var(--ink-2)' }}
         >
           {Icon.github}
@@ -69,7 +69,7 @@ export default function Header({ aiProvider, onSettingsClick }: HeaderProps) {
         <button
           onClick={onSettingsClick}
           title={t("设置")}
-          className="grid h-10 w-10 cursor-pointer place-items-center rounded-[10px] border-none bg-transparent transition-colors hover:text-[var(--primary)]"
+          className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui-md border-none bg-transparent transition-colors hover:text-[var(--primary)]"
           style={{ color: 'var(--ink-2)' }}
         >
           {Icon.gear}

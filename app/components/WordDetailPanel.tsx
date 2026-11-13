@@ -188,7 +188,7 @@ export default function WordDetailPanel({
           <p className="m-0 text-sm" style={{ color: 'var(--ink-2)' }}>{errorText(streamError)}</p>
           {streamContent && (
             <div
-              className="mono mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-[10px] p-3 text-xs"
+              className="mono mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-ui-md p-3 text-xs"
               style={{ background: 'var(--bg)', color: 'var(--ink-2)' }}
             >
               {streamContent}
@@ -281,7 +281,7 @@ export default function WordDetailPanel({
         </div>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           {wordDetail.furigana && wordDetail.furigana !== display && (
-            <span lang="ja" className="jp text-[13px]" style={{ color: 'var(--ink-2)' }}>
+            <span lang="ja" className="jp text-ui-sm" style={{ color: 'var(--ink-2)' }}>
               {wordDetail.furigana}
             </span>
           )}
