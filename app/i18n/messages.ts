@@ -1,5 +1,10 @@
 // Simplified Chinese source text is the stable message key.
 export const messages = {
+  "侧栏": {"zh-TW": "側欄", "en": "Sidebar", "ko": "사이드바"},
+  "释义": {"zh-TW": "釋義", "en": "Definition", "ko": "뜻"},
+  "助手": {"zh-TW": "助手", "en": "Assistant", "ko": "도우미"},
+  "选一个词查看释义": {"zh-TW": "選一個詞查看釋義", "en": "Select a word to see its meaning", "ko": "단어를 선택하면 뜻이 표시됩니다"},
+
   "请求过于频繁，请稍后重试。": {"zh-TW": "請求過於頻繁，請稍後重試。", "en": "Too many requests. Please try again later.", "ko": "요청이 너무 많습니다. 잠시 후 다시 시도하세요."},
   "请提供有效的日语原文（最多 20000 字），不接受 prompt 参数": {"zh-TW": "請提供有效的日語原文（最多 20000 字），不接受 prompt 參數", "en": "Provide Japanese text of up to 20000 characters. The prompt field is not accepted.", "ko": "20000자 이내의 일본어 원문을 입력하세요. prompt 필드는 허용되지 않습니다."},
   "消息格式无效，请缩短对话后重试": {"zh-TW": "訊息格式無效，請縮短對話後重試", "en": "Invalid message format. Shorten the conversation and try again.", "ko": "메시지 형식이 올바르지 않습니다. 대화를 줄인 뒤 다시 시도하세요."},
