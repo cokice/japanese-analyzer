@@ -3,7 +3,8 @@ import { DEEPSEEK_THINKING_AVAILABLE } from '../app/lib/aiModels';
 import { NextRequest } from 'next/server';
 import { createTranslator, LANGUAGE_LABELS, LOCALES, localizeError, normalizeLocale } from '../app/i18n';
 import { messages } from '../app/i18n/messages';
-import { getResponseLanguageInstruction } from '../app/lib/languagePrompts';
+import { getResponseLanguageInstruction, getReasoningSummaryPrompt } from '../app/lib/languagePrompts';
+import { getPhraseDetailSystemPrompt } from '../app/lib/phraseDetailPrompt';
 import { POST as analyze } from '../app/api/analyze/route';
 import { POST as translate } from '../app/api/translate/route';
 import { POST as wordDetail } from '../app/api/word-detail/route';
@@ -15,7 +16,15 @@ import { streamChat } from '../app/services/chat';
 async function main() {
   assert.equal(normalizeLocale(undefined), 'zh-CN');
   assert.equal(normalizeLocale('invalid'), 'zh-CN');
-  assert.deepEqual(Object.values(LANGUAGE_LABELS), ['简体中文', '繁體中文', 'English', '한국어']);
+  assert.deepEqual(Object.values(LANGUAGE_LABELS), ['简体中文', '繁體中文', 'English', '한국어', '日本語']);
+  assert.equal(normalizeLocale('ja'), 'ja');
+  assert.equal(createTranslator('ja')('保存设置'), '設定を保存');
+  assert.equal(createTranslator('ja')('中文译文'), 'やさしい日本語');
+  assert.equal(localizeError({ code: 'RATE_LIMITED' }, 'ja'), 'リクエストが多すぎます。しばらくしてからお試しください。');
+  assert.equal(createTranslator('ja')('当前模型服务商：{0}', 'Gemini'), '現在のAIプロバイダー：Gemini');
+  assert.match(getReasoningSummaryPrompt('ja'), /Japanese characters/);
+  assert.ok(getPhraseDetailSystemPrompt('ja').includes(getResponseLanguageInstruction('ja')));
+  assert.match(getPhraseDetailSystemPrompt('ja'), /宿題をする必要があります/);
   assert.equal(normalizeLocale('ko'), 'ko');
   assert.equal(localizeError({ code: 'INVALID_API_KEY' }, 'en'), 'Invalid API key. Check it in Settings.');
   assert.equal(localizeError({ code: 'UPSTREAM_TIMEOUT' }, 'ko'), '요청 시간이 초과되었습니다. 잠시 후 다시 시도하세요.');
@@ -58,7 +67,7 @@ async function main() {
               if (name === 'imageToText') {
                 const prompt = payload.messages[0].content[0].text;
                 assert.match(prompt, /OCR/);
-                assert.match(prompt, locale === 'ko' ? /번역하거나 이미지 내용을 분석하지 마세요/ : locale === 'en' ? /Do not translate/ : locale === 'zh-TW' ? /不要翻譯/ : /不要翻译/);
+                assert.match(prompt, locale === 'ja' ? /翻訳や画像内容の分析はしない/ : locale === 'ko' ? /번역하거나 이미지 내용을 분석하지 마세요/ : locale === 'en' ? /Do not translate/ : locale === 'zh-TW' ? /不要翻譯/ : /不要翻译/);
               } else {
                 assert.equal(payload.messages[0].role, 'system');
                 assert.ok(payload.messages[0].content.includes(getResponseLanguageInstruction(locale)), `${name} did not select ${locale}`);
@@ -66,6 +75,7 @@ async function main() {
               if (name === 'translate') {
                 assert.equal(payload.messages[1].content, bodies.translate.text, 'Keep original Japanese paragraphs');
                 assert.match(payload.messages[0].content, /Preserve exactly the original paragraph/);
+                if (locale === 'ja') assert.match(payload.messages[0].content, /simpler, natural Japanese/);
               }
               if (name === 'wordDetail') {
                 assert.match(payload.messages[0].content, /translation/);
@@ -76,8 +86,12 @@ async function main() {
                   assert.doesNotMatch(payload.messages[0].content, /讀了|中文释义|对应中文/);
                 }
                 if (locale === 'en') assert.doesNotMatch(payload.messages[0].content, /中文释义|对应中文/);
+                if (locale === 'ja') {
+                  assert.match(payload.messages[0].content, /過去を表すた形/);
+                  assert.doesNotMatch(payload.messages[0].content, /中文释义|对应中文/);
+                }
               }
-              const content = locale === 'ko' ? '문장에 쓰인 동사의 활용과 앞뒤 단어 사이의 조사 연결 관계를 확인하는 중' : locale === 'en' ? 'Checking the verb conjugation and particle attachment' : '正在確認動詞活用與助詞接續';
+              const content = locale === 'ja' ? '動詞の活用と助詞の接続を確認中' : locale === 'ko' ? '문장에 쓰인 동사의 활용과 앞뒤 단어 사이의 조사 연결 관계를 확인하는 중' : locale === 'en' ? 'Checking the verb conjugation and particle attachment' : '正在確認動詞活用與助詞接續';
               return payload.stream
                 ? new Response(`data: ${JSON.stringify({ choices: [{ delta: { content }, finish_reason: 'stop' }] })}\n\ndata: [DONE]\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
                 : Response.json({ choices: [{ message: { content } }] });
@@ -91,6 +105,7 @@ async function main() {
             const text = await response.text();
             if (name === 'summary' && locale === 'ko') assert.equal(JSON.parse(text).summary, '문장에 쓰인 동사의 활용과 앞뒤 단어 사이의 조사 연결 관계를 확인하는 중');
             if (name === 'summary' && locale === 'en') assert.equal(JSON.parse(text).summary, 'Checking the verb conjugation and particle attachment');
+            if (name === 'summary' && locale === 'ja') assert.equal(JSON.parse(text).summary, '動詞の活用と助詞の接続を確認中');
           }
         }
       }
