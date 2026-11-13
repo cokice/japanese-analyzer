@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { groupPendingChars, groupReadingTokens } from '../app/utils/readingLayout';
+import { getReadingDensity, groupPendingChars, groupReadingTokens } from '../app/utils/readingLayout';
 
 const words = ['「', '図書館', 'で', '本', 'を', '読ん', 'だ', '。', '」', '\n', '（', '例', '）', '。'];
 const tokens = words.map(word => ({ word, pos: word === '\n' ? '改行' : '名詞', furigana: '', romaji: '' }));
@@ -17,3 +17,5 @@ const NEWLINE = String.fromCharCode(10);
 const pending = groupPendingChars(Array.from('「本を読む。」' + NEWLINE + 'っ'));
 assert.deepStrictEqual(pending.map(group => group.map(item => item.char).join('')), ['「本', 'を', '読', 'む。」', NEWLINE, 'っ']);
 assert.deepStrictEqual(pending.flat().map(item => item.index), [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+
+assert.deepEqual([0, 40, 41, 90, 150, 151].map(getReadingDensity), ['short', 'short', 'medium', 'medium', 'medium', 'long']);

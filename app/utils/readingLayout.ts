@@ -37,3 +37,7 @@ export function groupPendingChars(chars: string[]) {
   });
   return groups;
 }
+
+export function getReadingDensity(length: number): 'short' | 'medium' | 'long' {
+  return length <= 40 ? 'short' : length <= 150 ? 'medium' : 'long';
+}

@@ -40,6 +40,8 @@
   --text-md: 16px;    /* 释义正文、例句 */
   --text-lg: 20px;    /* 译文、释义标题 */
   --text-xl: 30px;    /* 词条标题 */
+  --text-reading-small: 18px;
+  --text-reading-compact: 24px;
   --text-2xl: 36px;   /* 解析句子 */
 
   /* 圆角 4 级 */
@@ -50,6 +52,7 @@
   --detail-width: 360px;
   --detail-gap: 28px;
   --word-sheet-height: 50dvh;
+  --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-8: 32px;
@@ -2481,3 +2484,24 @@ body {
 .rail-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
 .rail-placeholder { padding: var(--space-4); color: var(--ink-3); font-size: var(--text-base); }
 .embedded-chat-panel { display: flex; flex-direction: column; height: min(var(--chat-rail-height), calc(100dvh - var(--space-8))); overflow: hidden; border: 1px solid var(--glass-border); border-radius: var(--r-lg); background: var(--bg-2); }
+
+/* 正文密度按原文长度分档；空注音行不占高度。 */
+.reading-surface #analyzedSentenceOutput { --reading-size: var(--text-2xl); row-gap: var(--space-2); }
+.reading-surface #analyzedSentenceOutput[data-density="medium"] { --reading-size: var(--text-xl); }
+.reading-surface #analyzedSentenceOutput[data-density="long"] { --reading-size: var(--text-reading-compact); }
+.reading-surface #analyzedSentenceOutput .word-unit-wrapper {
+  font-size: var(--reading-size);
+  grid-template-rows: var(--ruby-row, 0px) auto var(--space-2);
+}
+.reading-surface #analyzedSentenceOutput[data-romaji="true"] .word-unit-wrapper {
+  grid-template-rows: var(--ruby-row, 0px) auto var(--space-2) var(--text-xs);
+}
+.reading-surface #analyzedSentenceOutput[data-furigana="true"] .word-unit-wrapper[data-has-furigana="true"] { --ruby-row: var(--text-sm); }
+.reading-surface #analyzedSentenceOutput .furigana-text { height: var(--ruby-row, 0px); min-height: 0; line-height: 1; }
+.reading-surface .reading-word-group { align-items: flex-end; }
+.reading-surface .reading-paragraph-break { height: var(--space-4); }
+@media (max-width: 639px) {
+  .reading-surface #analyzedSentenceOutput { --reading-size: var(--text-reading-compact); }
+  .reading-surface #analyzedSentenceOutput[data-density="medium"] { --reading-size: var(--text-lg); }
+  .reading-surface #analyzedSentenceOutput[data-density="long"] { --reading-size: var(--text-reading-small); }
+}
