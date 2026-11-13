@@ -6,7 +6,7 @@ import { getPosClass, getPosGroup, POS_GROUP_COLORS, POS_GROUP_LABELS, POS_LEGEN
 import { TokenData } from '../services/api';
 import { AutoAnimateHeight } from '@/components/ui/auto-animate-height';
 import { Switch } from '@/components/ui/switch';
-import { getReadingDensity, groupPendingChars, groupReadingTokens } from '../utils/readingLayout';
+import { getReadingDensity, groupPendingChars, groupReadingTokens, groupReadingAttachments } from '../utils/readingLayout';
 import { isPunctuationToken, type PhraseRange } from '../utils/phraseRange';
 import { usePhraseSelection } from '../hooks/usePhraseSelection';
 
@@ -265,7 +265,9 @@ export default function AnalysisResult({
             }
             return (
               <span className="reading-word-group" key={group[0].index}>
-                {group.map(({ token, index }) => {
+                {groupReadingAttachments(group).map((attachment) => (
+                  <span className="reading-attachment" key={attachment[0].index}>
+                  {attachment.map(({ token, index }) => {
                   const isPunct = isPunctuationToken(token);
                   const isActive = selectedIndex === index;
                   const inRange = !!highlightRange && index >= highlightRange.start && index <= highlightRange.end;
@@ -317,6 +319,8 @@ export default function AnalysisResult({
                     </span>
                   );
                 })}
+                  </span>
+                ))}
               </span>
             );
           })}
