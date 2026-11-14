@@ -7,7 +7,7 @@ import { hasValidAuthSession, isAuthRequired, setAuthCookie } from '../_utils/se
 export async function POST(request: NextRequest) {
   try {
     if (isAuthRequired()) {
-      const retryAfter = reserveLoginAttempt();
+      const retryAfter = reserveLoginAttempt(request.headers);
       if (retryAfter) return apiErrorResponse('RATE_LIMITED', 429, [retryAfter], { 'Retry-After': String(retryAfter), 'Cache-Control': 'no-store' });
     }
     const { password } = await readJsonBody(request, AUTH_BODY_LIMIT);

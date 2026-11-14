@@ -10,7 +10,7 @@ import { POST as wordDetail } from '../app/api/word-detail/route';
 import { POST as summary } from '../app/api/reasoning-summary/route';
 import { POST as tts } from '../app/api/tts/route';
 import { readJsonBody, AUTH_BODY_LIMIT, RequestBodyError } from '../app/api/_utils/requestBody';
-import { createLoginRateLimiter } from '../app/api/_utils/loginRateLimit';
+import { createLoginAttemptLimiter, createLoginRateLimiter, getTrustedClientIp } from '../app/api/_utils/loginRateLimit';
 import { LatestRequest } from '../app/utils/latestRequest';
 import { browserStorage } from '../app/utils/storage';
 import { getPhraseReading } from '../app/utils/phraseRange';
@@ -58,6 +58,21 @@ async function run() {
     assert.equal(limiter(1000), 0);
     assert.equal(limiter(1001), 1);
     assert.equal(limiter(2000), 0);
+    // A trusted client IP header gives each source its own quota under a global cap.
+    const ipLimiter = createLoginAttemptLimiter({ limit: 2, globalLimit: 3, windowMs: 1000 });
+    assert.equal(ipLimiter('192.0.2.1', 1000), 0);
+    assert.equal(ipLimiter('192.0.2.1', 1000), 0);
+    assert.equal(ipLimiter('192.0.2.1', 1000), 1);
+    assert.equal(ipLimiter('192.0.2.1', 1000), 1, 'rejected attempts do not consume the global quota');
+    assert.equal(ipLimiter('192.0.2.2', 1000), 0);
+    assert.equal(ipLimiter('192.0.2.3', 1000), 1);
+    assert.equal(ipLimiter(null, 1000), 0, 'without a trusted header the shared bucket is separate');
+    const forwarded = new Headers({ 'x-forwarded-for': '203.0.113.9, 198.51.100.7', 'x-real-ip': 'not-an-ip' });
+    assert.equal(getTrustedClientIp(forwarded, undefined), null);
+    assert.equal(getTrustedClientIp(forwarded, ''), null);
+    assert.equal(getTrustedClientIp(forwarded, 'X-Forwarded-For'), '198.51.100.7');
+    assert.equal(getTrustedClientIp(forwarded, 'x-real-ip'), 'unknown');
+    assert.equal(getTrustedClientIp(new Headers(), 'cf-connecting-ip'), 'unknown');
 
     process.env.CODE = 'test-password';
     for (const [scheme, secure] of [['http', false], ['https', true]] as const) {
@@ -87,6 +102,15 @@ async function run() {
       globalThis.fetch = async () => Response.json(completion());
       assert.equal((await handler(request(JSON.stringify({ text: '日本語', imageData: 'data:image/png;base64,AA==', provider: 'gemini' }), undefined, { Authorization: 'Bearer test-key' }))).status, 200);
     }
+    // OCR only forwards inline base64 image data URLs, never remote URLs or other values.
+    let imageFetches = 0;
+    globalThis.fetch = async () => { imageFetches++; return Response.json(completion()); };
+    for (const imageData of ['https://example.com/a.png', 'data:text/html;base64,AA==', 'data:image/png;base64,A A', 'data:image/svg+xml,<svg/>', 42, ['data:image/png;base64,AA==']]) {
+      const result = await imageToText(request(JSON.stringify({ imageData, provider: 'gemini' }), undefined, { Authorization: 'Bearer test-key' }));
+      assert.equal(result.status, 400, String(imageData));
+    }
+    assert.equal(imageFetches, 0);
+    assert.equal((await imageToText(request(JSON.stringify({ imageData: 'data:image/jpeg;base64,/9j/4AAQ', provider: 'gemini' }), undefined, { Authorization: 'Bearer test-key' }))).status, 200);
     for (const call of [() => translateText('日本語'), () => extractTextFromImage('data:image/png;base64,AA==')]) {
       globalThis.fetch = async () => Response.json(completion('length'));
       await assert.rejects(call(), /截断/);
@@ -109,7 +133,7 @@ async function run() {
     };
     const upstreamRequest = new NextRequest('http://localhost/api/image-to-text', {
       method: 'POST', signal: controller.signal,
-      headers: { Authorization: 'Bearer test-key' }, body: JSON.stringify({ imageData: 'image', provider: 'gemini' }),
+      headers: { Authorization: 'Bearer test-key' }, body: JSON.stringify({ imageData: 'data:image/png;base64,AA==', provider: 'gemini' }),
     });
     assert.equal((await imageToText(upstreamRequest)).status, 499);
 

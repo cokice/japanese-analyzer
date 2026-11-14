@@ -12,6 +12,8 @@ import { isUpstreamTimeoutError } from '../_utils/requestTimeout';
 import { requireApiSession } from '../_utils/sessionAuth';
 import { getImageRecognitionModelName } from '../../lib/aiModels';
 
+const IMAGE_DATA_URL_PATTERN = /^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/]+={0,2}$/i;
+
 export async function POST(req: NextRequest) {
   try {
     const locale = normalizeLocale(req.headers.get('X-App-Locale'));
@@ -28,12 +30,13 @@ export async function POST(req: NextRequest) {
       return apiErrorResponse('PAYLOAD_TOO_LARGE', 413);
     }
 
-    if (!providerConfig.apiKey) {
-      return apiErrorResponse('MISSING_API_KEY', 500);
+    // 只接受 base64 图片 data URL，不能让上游替客户端抓取任意远程 URL
+    if (typeof imageData !== 'string' || !IMAGE_DATA_URL_PATTERN.test(imageData)) {
+      return apiErrorResponse('INVALID_REQUEST', 400);
     }
 
-    if (!imageData) {
-      return apiErrorResponse('INVALID_REQUEST', 400);
+    if (!providerConfig.apiKey) {
+      return apiErrorResponse('MISSING_API_KEY', 500);
     }
 
     // 优化提示词，避免换行符
